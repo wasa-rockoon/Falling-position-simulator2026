@@ -34,15 +34,116 @@ function initLaunchCard(){
     $('#min').val(todayJst.minutes());
 }
 
+function resolveTawhiriApiUrl(){
+    var apiSourceEl = $('#api_source');
+    var customUrlEl = $('#api_custom_url');
+    if(!apiSourceEl.length){
+        return "https://api.v2.sondehub.org/tawhiri";
+    }
+
+    var source = apiSourceEl.val() || 'sondehub';
+    if(source === 'local'){
+        return '/api/v1/';
+    }
+
+    if(source === 'custom'){
+        var customUrl = (customUrlEl.val() || '').trim();
+        if(!customUrl){
+            throwError('カスタムAPI URLを入力してください。');
+            return null;
+        }
+        return customUrl;
+    }
+
+    return "https://api.v2.sondehub.org/tawhiri";
+}
+
+function toggleCustomApiInput(){
+    var source = $('#api_source').val();
+    var input = $('#api_custom_url');
+    if(!input.length){
+        return;
+    }
+    if(source === 'custom'){
+        input.show();
+    } else {
+        input.hide();
+    }
+}
+
+function requestPredictionWithApiValidation(run_settings, extra_settings, requestedSource){
+    // local選択時のみ、2026用プロキシ配信かを確認してから実行する。
+    // 条件を満たさない場合はSondeHubへ自動フォールバックする。
+    if(requestedSource !== 'local'){
+        tawhiriRequest(run_settings, extra_settings);
+        return;
+    }
+
+    $.getJSON('/__server-info')
+        .done(function(info){
+            if(info && info.app === 'Falling-position-simulator2026'){
+                tawhiriRequest(run_settings, extra_settings);
+                return;
+            }
+
+            $('#api_source').val('sondehub');
+            toggleCustomApiInput();
+            tawhiri_api = 'https://api.v2.sondehub.org/tawhiri';
+            try {
+                var u1 = new URL(window.location.href);
+                u1.searchParams.set('api_source', 'sondehub');
+                u1.searchParams.delete('api_custom_url');
+                history.replaceState({}, 'CUSF / SondeHub Predictor', u1.href);
+            } catch(_e1) {}
+            appendDebug('Localhost接続を検証できなかったためSondeHubへ切替');
+            throwError('Localhost接続には2026のcors-proxy経由が必要です。SondeHubへ自動切替しました。');
+            tawhiriRequest(run_settings, extra_settings);
+        })
+        .fail(function(){
+            $('#api_source').val('sondehub');
+            toggleCustomApiInput();
+            tawhiri_api = 'https://api.v2.sondehub.org/tawhiri';
+            try {
+                var u2 = new URL(window.location.href);
+                u2.searchParams.set('api_source', 'sondehub');
+                u2.searchParams.delete('api_custom_url');
+                history.replaceState({}, 'CUSF / SondeHub Predictor', u2.href);
+            } catch(_e2) {}
+            appendDebug('Localhost接続検証に失敗したためSondeHubへ切替');
+            throwError('Localhost接続には2026のcors-proxy経由が必要です。SondeHubへ自動切替しました。');
+            tawhiriRequest(run_settings, extra_settings);
+        });
+}
+
+function shouldValidateSondeHubTimeWindow(apiSource){
+    // SondeHub公開APIの運用レンジに合わせて時刻制限を適用する。
+    // local/customは過去データ再現用途があるため、ここでは制限しない。
+    return apiSource === 'sondehub';
+}
+
 
 function runPrediction(){
     // Read the user-supplied parameters and request a prediction.
+    $('#error_window').hide();
+
+    if (typeof validateAllFields === 'function' && !validateAllFields()) {
+        throwError('入力値に不正があります。赤字の項目を修正してください。');
+        if (typeof showToast === 'function') {
+            showToast('入力値を確認してください', 'warning', 2200);
+        }
+        return;
+    }
+    if (typeof saveLastSettings === 'function') {
+        saveLastSettings();
+    }
+
     // Always clear previous prediction artifacts first.
     clearMapItems();
     var run_settings = {};
     var extra_settings = {};
     run_settings.profile = $('#flight_profile').val();
     run_settings.pred_type = $('#prediction_type').val();
+    var requestedApiSource = $('#api_source').val() || 'sondehub';
     var ehime_mode = (run_settings.pred_type === 'ehime');
     var fall_mode = (run_settings.pred_type === 'fall');
     
@@ -60,14 +161,16 @@ function runPrediction(){
     run_settings.launch_datetime = launch_time.format();
     extra_settings.launch_moment = launch_time;
 
-    // Sanity check the launch date to see if it's not too far into the past or future.
-    if(launch_time < (moment.utc().subtract(12, 'hours'))){
-        throwError("Launch time too old (outside of model time range).");
-        return;
-    }
-    if(launch_time > (moment.utc().add(7, 'days'))){
-        throwError("Launch time too far into the future (outside of model time range).");
-        return;
+    // SondeHub利用時のみ、公開API向けの時刻制限を適用する。
+    if(shouldValidateSondeHubTimeWindow(requestedApiSource)){
+        if(launch_time < (moment.utc().subtract(12, 'hours'))){
+            throwError("Launch time too old (outside of model time range).");
+            return;
+        }
+        if(launch_time > (moment.utc().add(7, 'days'))){
+            throwError("Launch time too far into the future (outside of model time range).");
+            return;
+        }
     }
 
     // Grab other launch settings.
@@ -153,6 +256,17 @@ function runPrediction(){
         url.searchParams.set('float_altitude', run_settings.float_altitude);
     }
 
+    var apiSource = $('#api_source').val() || 'sondehub';
+    url.searchParams.set('api_source', apiSource);
+    if(apiSource === 'custom'){
+        var customUrl = ($('#api_custom_url').val() || '').trim();
+        if(customUrl){
+            url.searchParams.set('api_custom_url', customUrl);
+        }
+    } else {
+        url.searchParams.delete('api_custom_url');
+    }
+
     // Update browser URL.
     history.replaceState(
         {},
@@ -160,9 +274,16 @@ function runPrediction(){
         url.href
     );
 
+    var selectedApiUrl = resolveTawhiriApiUrl();
+    if(!selectedApiUrl){
+        return;
+    }
+    tawhiri_api = selectedApiUrl;
+    appendDebug('Using API: ' + tawhiri_api);
+
 
     // Run the request
-    tawhiriRequest(run_settings, extra_settings);
+    requestPredictionWithApiValidation(run_settings, extra_settings, requestedApiSource);
 
 }
 
@@ -283,6 +404,12 @@ function updateFallModeUI(){
 
 // 初期呼び出し (DOM ready タイミングで pred.js などから呼ばれない場合対策)
 $(function(){ updateFallModeUI(); });
+$(function(){
+    toggleCustomApiInput();
+    $(document).on('change', '#api_source', function(){
+        toggleCustomApiInput();
+    });
+});
 
 function buildEhimeVariantRow(idx, variant_id, entry, variant_index){
     var base = ehime_current && ehime_current.base ? ehime_current.base : null;

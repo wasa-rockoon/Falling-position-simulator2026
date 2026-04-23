@@ -26,6 +26,7 @@
     <script src="js/pred/pred-map.js" type="text/javascript"></script>
     <script src="js/pred/pred-event.js" type="text/javascript"></script>
     <script src="js/pred/landsea.js" type="text/javascript"></script>
+    <script src="js/pred/pred-common.js" type="text/javascript"></script>
     <script src="js/pred/pred-new.js" type="text/javascript"></script>
     <script src="js/pred/pred.js" type="text/javascript"></script>
     <script src="js/calc/calc.js" type="text/javascript"></script>
@@ -459,6 +460,34 @@
                 <option value="daily">日次</option>
                 <option value="ehime">愛媛気球実験用</option>
             </select></td>
+        </tr>
+        <tr>
+            <td>API接続先:</td>
+            <td>
+                <select id="api_source">
+                    <option value="sondehub" selected="selected">SondeHub (Public)</option>
+                    <option value="local">Localhost (Docker)</option>
+                    <option value="custom">カスタム</option>
+                </select>
+                <input id="api_custom_url" type="text" placeholder="https://example.com/api/v1/" style="display:none; margin-top:4px; width:220px;" />
+            </td>
+        </tr>
+        <tr>
+            <td>プリセット:</td>
+            <td>
+                <select id="preset_select" style="width:220px;">
+                    <option value="">-- プリセット選択 --</option>
+                </select>
+                <div style="margin-top:4px;">
+                    <input type="text" id="preset_name" placeholder="保存名を入力" style="width:214px;" />
+                </div>
+                <div style="margin-top:4px; display:flex; gap:4px; flex-wrap:wrap;">
+                    <button type="button" id="preset_load_btn">読込</button>
+                    <button type="button" id="preset_save_btn">保存</button>
+                    <button type="button" id="preset_delete_btn">削除</button>
+                    <button type="button" id="preset_restore_btn">前回</button>
+                </div>
+            </td>
         </tr>
         <tr id="ehime_info_row" style="display:none">
             <td colspan="2" style="font-size:11px; line-height:1.4em; background:#f4f8ff; border:1px solid #ccd; padding:4px;">

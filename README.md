@@ -78,6 +78,27 @@ docker run --rm -p 8000:80 -v ${PWD}:/usr/share/nginx/html:ro nginx:alpine
 
 > API 呼び出しが失敗する場合はブラウザ DevTools の Network / Console を確認してください。
 
+### API接続先切替とローカル運用
+API接続先切替（SondeHub / Localhost / カスタム）とローカルCORSプロキシの運用手順は以下を参照してください。
+
+- `assignment-info.md`
+
+ローカルTawhiriを使う場合は、リポジトリ直下で次を実行します。
+
+```bash
+node cors-proxy.js
+```
+
+補足:
+- `Localhost (Docker)` 選択時は、過去日時のシミュレーションをGUIから実行できます。
+- `SondeHub (Public)` 選択時は公開APIの時刻レンジ制限を適用します。
+
+### 入力支援機能
+- トースト通知: `showToast` による軽量通知を追加
+- 共通設定取得: `getSettings` を追加
+- 入力バリデーション: 実行前に主要入力を検証
+- プリセット: 保存/読込/削除/前回復元を追加
+
 ## 5. 設定 / カスタマイズ (Configuration)
 現状 .env / 設定ファイルは不要。主な調整点は JS 内定数です。
 

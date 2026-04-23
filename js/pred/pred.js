@@ -86,6 +86,13 @@ function readURLParams() {
     if(url.searchParams.has('float_altitude')){
         $("#burst").val(url.searchParams.get('float_altitude'));
     }
+    if(url.searchParams.has('api_source')){
+        var source = url.searchParams.get('api_source');
+        $("#api_source").val(source);
+    }
+    if(url.searchParams.has('api_custom_url')){
+        $("#api_custom_url").val(url.searchParams.get('api_custom_url'));
+    }
 
     if(url.searchParams.has('launch_datetime')){
         var launch_datetime = url.searchParams.get('launch_datetime');
