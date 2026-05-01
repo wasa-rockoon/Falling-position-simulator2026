@@ -2,16 +2,24 @@
 <html>
 <head>
     <title>WASA / 気球実験用 予測ツール</title>
-    <!-- Favicon links -->
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&display=swap" rel="stylesheet">
+
+    <!-- Favicon -->
     <link rel="icon" type="image/x-icon" href="favicon.ico">
     <link rel="shortcut icon" href="favicon.ico">
-    <!-- (Optional) Add PNG icons later for higher resolutions -->
+    <link rel="manifest" href="manifest.json">
 
-    <!--<link href="css/bootstrap.min.css" rel="stylesheet">-->
+    <!-- Stylesheets -->
     <link href="css/leaflet.css" rel="stylesheet">
     <link href="css/jquery-ui.css" rel="stylesheet">
     <link href="css/predictor.css" rel="stylesheet">
+    <link href="css/predictor-mobile.css" rel="stylesheet" media="(max-width: 768px)">
 
+    <!-- Core Libraries -->
     <script src="js/jquery-3.3.1.min.js"></script>
     <script src="js/jquery-ui.min.js"></script>
     <script src="js/jquery.tipsy.js"></script>
@@ -19,7 +27,12 @@
     <script src="js/jquery.jookie.js" type="text/javascript"></script>
     <script src="js/leaflet.js"></script>
     <script src="js/moment.js"></script>
+    <script src="js/chart.min.js"></script>
+    <script src="js/html2canvas.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@turf/turf@7/turf.min.js"></script>
+    <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
 
+    <!-- Application Scripts -->
     <script src="js/pred/pred-config.js" type="text/javascript"></script>
     <script src="js/pred/pred-ui.js" type="text/javascript"></script>
     <script src="js/pred/pred-cookie.js" type="text/javascript"></script>
@@ -29,530 +42,871 @@
     <script src="js/pred/pred-common.js" type="text/javascript"></script>
     <script src="js/pred/pred-new.js" type="text/javascript"></script>
     <script src="js/pred/pred.js" type="text/javascript"></script>
+    <script src="js/pred/log-overlay.js" type="text/javascript"></script>
+    <script src="js/pred/pred-collaborate.js" type="text/javascript"></script>
+    <script src="js/pred/pred-chart.js" type="text/javascript"></script>
+    <script src="js/pred/ehime-enhancements.js" type="text/javascript"></script>
+    <script src="js/pred/launch-window.js" type="text/javascript"></script>
     <script src="js/calc/calc.js" type="text/javascript"></script>
     <script src="js/colour-map.js" type="text/javascript"></script>
-    <!-- Mobile-specific stylesheet (only loads on narrow screens) -->
-    <link href="css/predictor-mobile.css" rel="stylesheet" media="(max-width: 768px)">
 
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
 </head>
-<body>
-<div id="map_canvas"></div>
 
-<!-- Debug window -->
-<div id="scenario_template" class="box ui-corner-all">
-    <div id="scenario_template_scroller">
-    <h1>デバッグウィンドウ</h1>
-    <span id="debuginfo">メッセージはありません</span>
-    </div>
-    </div>
-    
-    <!-- Prediction progress window -->
-    <div id="status_message" class="box ui-corner-all">
-    <span id="prediction_status"></span><br>
-    <a><span id="showHideDebug_status">デバッグ切替</span></a>
-    </div>
-    
-    <!-- Error window -->
-    <div id="error_window" class="box ui-corner-all">
-    <span id="error_message">ここには何もありません！</span>
-        <br /><br />
-    <a id="closeErrorWindow">閉じる</a>
+<body class="sidebar-open">
+    <div id="map_canvas"></div>
+
+    <!-- サイドバートグルボタン -->
+    <button id="sidebar-toggle" title="サイドバーの表示/非表示">≪</button>
+
+    <!-- サイドバー -->
+    <aside id="app-sidebar">
+        <div class="sidebar-resize-handle" id="sidebar-resize-handle"></div>
+        <div class="sidebar-tabs">
+            <button class="sidebar-tab active" data-panel="panel-settings">SETTINGS</button>
+            <button class="sidebar-tab" data-panel="panel-results">RESULTS</button>
+            <button id="dark-mode-toggle" data-theme-toggle="true" title="ダークモード切替">
+                <svg class="theme-icon-sun" viewBox="0 0 24 24">
+                    <path d="M12 7a5 5 0 100 10 5 5 0 000-10zM2 13h2a1 1 0 100-2H2a1 1 0 100 2zm18 0h2a1 1 0 100-2h-2a1 1 0 100 2zM11 2v2a1 1 0 102 0V2a1 1 0 10-2 0zm0 18v2a1 1 0 102 0v-2a1 1 0 10-2 0zM5.99 4.58a1 1 0 111.41 1.41L6.05 7.34a1 1 0 11-1.41-1.41l1.35-1.35zm11.41 11.41a1 1 0 111.41 1.41l-1.35 1.35a1 1 0 11-1.41-1.41l1.35-1.35zM5.99 19.41a1 1 0 11-1.41-1.41l1.35-1.35a1 1 0 111.41 1.41l-1.35 1.35zm11.41-13.42a1 1 0 111.41-1.41l1.35 1.35a1 1 0 11-1.41 1.41l-1.35-1.35z"></path>
+                </svg>
+                <svg class="theme-icon-moon" viewBox="0 0 24 24">
+                    <path d="M12.3 2.2c-.5-.1-1.1.2-1.3.7-.6 1.6-.6 3.4.1 5 .7 1.6 1.9 2.8 3.5 3.5 1.6.6 3.4.6 5-.1.5-.2.8-.8.7-1.3-.1-.5-.6-.8-1.1-.7-1.2.1-2.4-.2-3.4-.9-1-.7-1.8-1.6-2.2-2.7-.4-1.1-.5-2.2-.2-3.3.1-.5-.2-1-.7-1.2z"></path>
+                </svg>
+            </button>
+        </div>
+        <div class="sidebar-content">
+            <!-- ========== SETTINGS タブ ========== -->
+            <div id="panel-settings" class="sidebar-panel active">
+
+                <!-- Debug window -->
+                <div id="scenario_template" class="box ui-corner-all">
+                    <div id="scenario_template_scroller">
+                        <h1>デバッグウィンドウ</h1>
+                        <span id="debuginfo">メッセージはありません</span>
+                    </div>
+                </div>
+
+                <!-- Prediction progress window -->
+                <div id="status_message" class="box ui-corner-all">
+                    <span id="prediction_status"></span><br>
+                    <a><span id="showHideDebug_status">デバッグ切替</span></a>
+                </div>
+
+                <!-- Error window -->
+                <div id="error_window" class="box ui-corner-all">
+                    <span id="error_message">ここには何もありません！</span>
+                    <br /><br />
+                    <a id="closeErrorWindow">閉じる</a>
+                </div>
+
+                <!-- 打ち上げ設定カード -->
+                <div id="input_form" class="box ui-corner-all">
+                    <img class="handle" src="images/drag_handle.png" />
+                    <form action="" id="modelForm" name="modelForm">
+                        <div id="launch-card">
+                            <!-- 打ち上げ場所 -->
+                            <div class="form-group">
+                                <label for="site">打ち上げ場所:
+                                    <a id="cookieLocations" class="tipsyLink" title="保存された打ち上げ場所を表示">カスタム</a>
+                                </label>
+                                <select id="site" name="launchsite" class="form-control"></select>
+                            </div>
+
+                            <!-- 緯度 / 経度 -->
+                            <div class="form-group">
+                                <label>緯度/経度:</label>
+                                <div class="form-inline-pair">
+                                    <input id="lat" type="text" name="lat" value="33.13492" onKeyDown="SetSiteOther()">
+                                    <span class="separator">/</span>
+                                    <input id="lon" type="text" name="lon" value="132.50477" onKeyDown="SetSiteOther()">
+                                </div>
+                            </div>
+
+                            <!-- マップ設定 / 位置保存リンク -->
+                            <div class="form-links">
+                                <a id="setWithClick" class="tipsyLink" title="地図を使って打ち上げ地点を設定">マップで設定</a>
+                                <a id="req_open" class="tipsyLink" title="この位置をブラウザに保存">位置を保存</a>
+                            </div>
+
+                            <!-- 打ち上げ高度 -->
+                            <div class="form-group">
+                                <label for="initial_alt">打ち上げ高度 (m):</label>
+                                <input id="initial_alt" type="text" name="initial_alt" value="1.4" class="form-control">
+                            </div>
+
+                            <!-- 打ち上げ時刻 -->
+                            <div class="form-group">
+                                <label>打ち上げ時刻 (JST):</label>
+                                <div class="form-inline-pair">
+                                    <input id="hour" type="text" name="hour" value="" maxlength="2">
+                                    <span class="separator">:</span>
+                                    <input id="min" type="text" name="min" value="" maxlength="2">
+                                    <input id="sec" type="hidden" name="second" value="0">
+                                </div>
+                            </div>
+
+                            <!-- 打ち上げ日 -->
+                            <div class="form-group">
+                                <label>打ち上げ日:</label>
+                                <div class="form-date-group">
+                                    <input id="year" type="text" name="year" value="" maxlength="4">
+                                    <span class="separator">年</span>
+                                    <select id="month" name="month">
+                                        <option value="1">1月</option>
+                                        <option value="2">2月</option>
+                                        <option value="3">3月</option>
+                                        <option value="4">4月</option>
+                                        <option value="5">5月</option>
+                                        <option value="6">6月</option>
+                                        <option value="7">7月</option>
+                                        <option value="8">8月</option>
+                                        <option value="9">9月</option>
+                                        <option value="10">10月</option>
+                                        <option value="11">11月</option>
+                                        <option value="12">12月</option>
+                                    </select>
+                                    <input id="day" type="text" name="day" value="" maxlength="2">
+                                    <span class="separator">日</span>
+                                </div>
+                            </div>
+
+                            <!-- 上昇速度 -->
+                            <div class="form-group">
+                                <label for="ascent">上昇速度 (m/s):</label>
+                                <input id="ascent" type="text" name="ascent" value="5" class="form-control">
+                            </div>
+
+                            <!-- 破裂/フロート高度 -->
+                            <div class="form-group">
+                                <label for="burst">バースト/浮遊高度 (m):</label>
+                                <input id="burst" type="text" name="burst" value="30000" class="form-control">
+                            </div>
+
+                            <!-- 飛行プロファイル -->
+                            <div class="form-group">
+                                <label for="flight_profile">フライトプロファイル:</label>
+                                <select id="flight_profile" class="form-control">
+                                    <option value="standard_profile" selected="selected">標準</option>
+                                    <option value="float_profile">浮遊</option>
+                                    <option value="reverse_profile">逆転 (上昇のみ)</option>
+                                </select>
+                            </div>
+
+                            <!-- バースト計算機リンク -->
+                            <div class="form-links">
+                                <a id="burst-calc-show" class="tipsyLink" title="計算機を使用してハイライトされた値を計算">バースト計算機を使用</a>
+                            </div>
+
+                            <!-- 下降速度 -->
+                            <div class="form-group">
+                                <label for="drag">下降速度 (<a class="tipsyLink" title="海面レベル">m/s</a>):</label>
+                                <input id="drag" type="text" name="drag" value="5" class="form-control">
+                            </div>
+
+                            <!-- 予測タイプ -->
+                            <div class="form-group">
+                                <label for="prediction_type">予測タイプ (<a class="tipsyLink" title="時間毎/日次予測機能の情報" href="https://github.com/projecthorus/leaflet_predictor/wiki#using-the-hourlydaily-prediction-functionality" target="_blank">説明</a>):</label>
+                                <select id="prediction_type" class="form-control">
+                                    <option value="single" selected="selected">単一</option>
+                                    <option value="fall">落下のみ</option>
+                                    <option value="1_hour">毎時</option>
+                                    <option value="3_hour">3時間毎</option>
+                                    <option value="6_hour">6時間毎</option>
+                                    <option value="12_hour">12時間毎</option>
+                                    <option value="daily">日次</option>
+                                    <option value="ehime">愛媛気球実験用</option>
+                                </select>
+                            </div>
+
+                            <!-- API接続先 -->
+                            <div class="form-group">
+                                <label for="api_source">API接続先:</label>
+                                <div class="form-control">
+                                    <select id="api_source" onchange="toggleCustomApiInput()">
+                                        <option value="sondehub" selected="selected">SondeHub (Public)</option>
+                                        <option value="local">Localhost (Docker)</option>
+                                        <option value="custom">カスタム</option>
+                                    </select>
+                                    <input type="text" id="api_custom_url" placeholder="https://example.com/api/v1/">
+                                </div>
+                            </div>
+
+                            <!-- プリセット機能 -->
+                            <div class="preset-controls">
+                                <label>プリセット:</label>
+                                <select id="preset_select" class="form-control">
+                                    <option value="">-- プリセット選択 --</option>
+                                </select>
+                                <div class="preset-buttons">
+                                    <button type="button" id="preset_load_btn" class="btn-preset" title="選択したプリセットを読み込み">読込</button>
+                                    <button type="button" id="preset_save_btn" class="btn-preset" title="現在の設定を保存">保存</button>
+                                    <button type="button" id="preset_delete_btn" class="btn-preset btn-preset-danger" title="選択したプリセットを削除">削除</button>
+                                    <button type="button" id="preset_restore_btn" class="btn-preset" title="前回の設定を復元">前回</button>
+                                </div>
+                            </div>
+
+                            <!-- 愛媛モード情報 -->
+                            <div id="ehime_info_row" style="display:none; font-size:11px; line-height:1.4em; background:var(--bg-panel-header); border:1px solid var(--border-color); padding:6px; border-radius:var(--border-radius-sm); margin-top:6px;">
+                                <b>愛媛気球実験モード</b><br>
+                                上昇速度許容範囲: <span id="ehime_ascent_range">-</span><br>
+                                下降速度許容範囲: <span id="ehime_descent_range">-</span><br>
+                                破裂高度マージン: <span id="ehime_burst_margin">-</span><br>
+                                シミュレーション完了: <span id="ehime_completed">0</span>/<span id="ehime_total">0</span><br>
+                                着地点平均: <span id="ehime_mean">-</span><br>
+                                最大偏差距離: <span id="ehime_max_dev">-</span> km
+                            </div>
+
+                            <!-- 実行ボタン -->
+                            <div class="form-actions">
+                                <input name="submit" id="run_pred_btn" onclick="runPrediction();" value="予測を実行">
+                                <input type="button" id="run_batch_btn" value="全地点一括計算" onclick="runBatchSimulation();">
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <!-- /input_form -->
+            </div>
+            <!-- /panel-settings -->
+
+            <!-- ========== RESULTS タブ ========== -->
+            <div id="panel-results" class="sidebar-panel">
+                <div id="scenario_info" class="box ui-corner-all">
+                    <img src="images/drag_handle.png" class="handle" />
+                    <h1 style="display:flex; justify-content:space-between; align-items:center;">
+                        <span>シナリオ情報</span>
+                        <button type="button" id="popout_metrics_btn" class="btn-preset" style="padding:0px 2px; font-size:9px; height:18px; width:18px; display:inline-flex; align-items:center; justify-content:center; box-shadow:none; border-radius:2px; background:transparent; border:1px solid var(--border-color); color:var(--text-primary);" title="INFOを抽出">
+                            <svg viewBox="0 0 24 24" style="width:10px; height:10px; fill:currentColor;">
+                                <path d="M19 19H5V5h7V3H5a2 2 0 00-2 2v14a2 2 0 002 2h14c1.1 0 2-.9 2-2v-7h-2v7zM14 3v2h3.59l-9.83 9.83 1.41 1.41L19 6.41V10h2V3h-7z" />
+                            </svg>
+                        </button>
+                    </h1>
+
+                    <!-- INFO Box Toggle Wrapper -->
+                    <div id="scenario_info_floating_container">
+                        <div class="always-on-header" style="display:none; align-items:center; justify-content:space-between; font-weight:bold; color:var(--color-primary); margin-bottom:6px; border-bottom: 1px solid var(--border-color); padding-bottom: 4px;">
+                            <span>INFO</span>
+                            <button type="button" id="toggle_metrics_pos" style="background:transparent; border:1px solid var(--border-color); color:var(--text-primary); padding:3px 8px; font-size:11px; border-radius:4px; cursor:pointer;" title="元の位置にドッキングする">戻す</button>
+                        </div>
+                        <span id="cursor_info">現在のマウス位置:
+                            緯度: <span id="cursor_lat">?</span>
+                            経度: <span id="cursor_lon">?</span>
+                        </span><br />
+                        <span id="cursor_pred" class="initially-hidden">
+                            到達距離: <span id="cursor_pred_range"></span> km,
+                            飛行時間: <span id="cursor_pred_time"></span><br />
+                            発射点からカーソル距離: <span id="cursor_pred_launchrange">?</span> km,
+                            <br />
+                        </span>
+                        <hr style="border:0.5px solid var(--border-color); margin:8px 0;">
+                        <div id="launch_site_info">
+                            <b style="color:var(--color-primary);">放球場所の状態 (予報)</b><br>
+                            地表風速 (0-500m): <b id="launch_surface_wind">-</b> m/s<br>
+                            最大風速 (全高度): <b id="launch_max_wind">-</b> m/s
+                        </div>
+                        <hr style="border:0.5px solid var(--border-color); margin:8px 0;">
+                        <div id="cursor_pred_metrics">
+                            着地点: <span id="cursor_pred_landrange">?</span> km
+                            <br />
+                        </div>
+                        <span id="cursor_pred_lastrun" class="initially-hidden">
+                            最終実行(JST): <span id="run_time">?</span> / 使用モデル: <span id="dataset">?</span>
+                            <br />
+                        </span>
+                        <details id="scenario_actions_panel" open>
+                            <summary>操作メニュー</summary>
+                            <span id="cursor_pred_links" class="initially-hidden">
+                                <span class="ui-corner-all control_buttons">
+                                    <a class="control_button" id="panto">中心へ移動</a> |
+                                    <a class="control_button" id="dlcsv">CSV</a> |
+                                    <a class="control_button" id="dlkml">KML</a> |
+                                    <a class="control_button" id="ehime_dlcsv" style="display:none" href="#" title="愛媛モード: 13バリエーション着地点一覧CSVを保存">愛媛CSV</a> |
+                                    <a class="control_button" id="share_url" title="URLをクリップボードにコピー">Share</a> |
+                                    <a class="control_button" id="export_img" title="予測結果を画像として保存">Export</a>
+                                </span>
+                            </span>
+                            <span class="ui-corner-all control_buttons compact-control-buttons">
+                                <a class="control_button" id="showHideDebug">デバッグを表示</a> |
+                                <a class="control_button" id="showHideChart" onclick="toggleChart()">高度グラフを表示</a> |
+                                <a class="control_button" id="showHideWindChart" onclick="toggleWindChart()">風速グラフを表示</a> |
+                                <a class="control_button" id="showHideForm">打ち上げ設定を非表示</a> |
+                                <a class="control_button" id="coord_format_toggle" title="緯度経度表示形式を切替">60進法表示</a> |
+                                <a class="control_button" id="about_window_show">このツールについて</a>
+                            </span>
+                        </details>
+                        <div class="always-on-footer" style="display:block; margin-top:8px; border-top:1px solid var(--border-color); padding-top:6px; font-size:11px; line-height:1.4;">
+                            本ツールは主に Tawhiri を利用しています。開発・運用に貢献された先人の方々へ敬意を表し、気球実験を成功させましょう！
+                        </div>
+                    </div>
+                    <div id="metrics_restore_anchor"></div>
+                    <br />
+                    <div id="pos_list_section">
+                        <div class="pos-list-toolbar">
+                            <a id="toggle_pos_list">落下位置一覧を非表示</a>
+                            <div class="export-controls pos-list-controls">
+                                <button type="button" id="csv_export_btn" class="btn-export" title="CSVダウンロード">CSV</button>
+                                <button type="button" id="clipboard_copy_btn" class="btn-export" title="クリップボードにコピー">コピー</button>
+                                <button type="button" id="clear_all_btn" class="btn-export btn-export-danger" title="すべての予測結果をクリア">全クリア</button>
+                            </div>
+                        </div>
+                        <div id="pos_list_container">
+                            <table id="pos_list_table">
+                                <thead>
+                                    <tr>
+                                        <th>打ち上げ場所</th>
+                                        <th>打ち上げ時刻 (JST)</th>
+                                        <th>落下場所</th>
+                                        <th>海陸判定</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="pos_list_body"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <details style="margin-top:10px; border-top:1px solid var(--border-color); padding-top:8px;">
+                        <summary style="cursor:pointer; font-size:12px; font-weight:600; color:var(--text-secondary); margin-bottom:5px;">
+                            愛媛気球実験 実行履歴 (最大10件)
+                        </summary>
+                        <div id="ehime_history_panel_result" style="max-height:180px; overflow-y:auto;">
+                            <p style="font-size:11px; color:var(--text-secondary); padding:4px;">実行履歴なし</p>
+                        </div>
+                    </details>
+                    <div id="fishing_port_support_panel" style="margin-top:10px; border-top:1px solid var(--border-color); padding-top:8px;">
+                        <b style="font-size:12px; color:var(--color-primary);">漁港サポート</b>
+                        <div style="display:flex; gap:6px; margin-top:6px; flex-wrap:wrap;">
+                            <button type="button" id="toggle_all_fishing_ports_btn" class="btn-preset" style="height:24px; font-size:10px; padding:0 8px;" onclick="toggleAllFishingPorts()">漁港をすべて表示</button>
+                            <button type="button" id="clear_nearby_fishing_ports_btn" class="btn-preset" style="height:24px; font-size:10px; padding:0 8px;" onclick="clearNearbyFishingPorts()">近傍ピンを消去</button>
+                        </div>
+                        <div id="nearest_fishing_ports_info" style="margin-top:6px; font-size:11px; color:var(--text-secondary); line-height:1.45;">
+                            シミュレーション後に近い漁港と距離を表示します。
+                        </div>
+                    </div>
+                    <br />
+                    <div class="log-overlay-section">
+                        <b>実測ログ重ね合わせ (CSV)</b><br>
+                        <input type="file" id="log_file_input" accept=".csv" onchange="handleLogUpload(this.files)">
+                        <a id="clear_log_overlay" onclick="clearLogOverlay()">クリア</a>
+                        <br>
+                        <span class="log-overlay-hint">Format: lat,lon,alt (header optional)</span>
+                    </div>
+                    <br />
+                    <span><b>非営利目的でのみご利用ください。</b></span>
+                </div>
+                <!-- /scenario_info -->
+            </div>
+            <!-- /panel-results -->
+
+        </div>
+        <!-- /sidebar-content -->
+    </aside>
+    <!-- /app-sidebar -->
+
+    <!-- Chart Container -->
+    <div id="chart_container" class="box ui-corner-all">
+        <canvas id="altitude_chart"></canvas>
     </div>
 
-<!-- Scenario information -->
-<div id="scenario_info" class="box ui-corner-all">
-    <img src="images/drag_handle.png" class="handle" />
-    <h1>INFO</h1>
-    <span id="cursor_info">現在のマウス位置: 
-        緯度: <span id="cursor_lat">?</span> 
-        経度: <span id="cursor_lon">?</span>
-    </span><br />
-    <span id="cursor_pred" style="display:none">
-        到達距離: <span id="cursor_pred_range"></span> km, 
-        飛行時間: <span id="cursor_pred_time"></span><br />
-        発射点からカーソル距離: <span id="cursor_pred_launchrange">?</span> km, 
-        着地点: <span id="cursor_pred_landrange">?</span> km
+    <!-- Wind Chart Container -->
+    <div id="wind_chart_container" class="box ui-corner-all">
+        <canvas id="wind_chart"></canvas>
+    </div>
+
+    <!-- Save location to cookie -->
+    <div id="location_save" class="box ui-corner-all">
+        <img src="images/drag_handle.png" class="handle" />
+        <h1>打ち上げ位置を保存</h1><br />
+        <form name="location_save_form" id="location_save_form">
+            <table name="req_table" id="req_table">
+                <tr><td>緯度: </td><td><input type="text" name="req_lat" id="req_lat" size="15"></td></tr>
+                <tr><td>経度: </td><td><input type="text" name="req_lon" id="req_lon" size="15"></td></tr>
+                <tr><td>高度: </td><td><input type="text" name="req_alt" id="req_alt" size="15"></td></tr>
+                <tr><td>サイト名: </td><td><input type="text" name="req_name" id="req_name" size="15"></td></tr>
+                <tr><td></td><td><input type="button" value="保存" name="submit" id="req_sub_btn"></td></tr>
+            </table>
+        </form><br />
+        <a id="req_close">このウィンドウを閉じる</a>
+    </div>
+
+    <!-- View saved locations -->
+    <div id="location_save_local" class="box ui-corner-all">
+        <img src="images/drag_handle.png" class="handle" />
+        <b>保存済み位置</b><br />
+        <span id="locations_table">?</span>
         <br />
-    </span>
-    <span id="cursor_pred_lastrun" style="display:none">
-    最終実行(JST): <span id="run_time">?</span> / 使用モデル: <span id="dataset">?</span>
-        <br />
-    </span>
-    <span id="cursor_pred_links" style="display:none">
-        <span class="ui-corner-all control_buttons">
-            <a class="control_button" id="panto">中心へ移動</a> | 
-            <a class="control_button" id="dlcsv">CSV</a> | 
-            <a class="control_button" id="dlkml">KML</a> |
-            <a class="control_button" id="ehime_dlcsv" style="display:none" href="#" title="愛媛モード: 13バリエーション着地点一覧CSVを保存 (ファイル名は離陸日時JST/位置を含む)">愛媛モード着地点CSV</a>
-        </span>
-    </span>
-    <br />
-    <span class="ui-corner-all control_buttons">
-        <a class="control_button" id="showHideDebug">デバッグ表示</a> | 
-        <a class="control_button" id="showHideForm">起動カードを隠す</a> |
-        <a class="control_button" id="coord_format_toggle" title="緯度経度表示形式を 10 進法 / 60 進法 で切替">60進法表示</a> |
-    <a class="control_button" id="about_window_show">このツールについて</a>
-    </span>
-    <br />
-    <span><b>本ツールは主に Tawhiri を利用しています。開発・運用に貢献された先人の方々へ敬意を表し、気球実験を成功させましょう！</b></span>
-</div>
+        <a id="locations_close">このウィンドウを閉じる</a>
+    </div>
 
-<!-- Save location to cookie -->
-<div id="location_save" class="box ui-corner-all">
-    <img src="images/drag_handle.png" class="handle" />
-    <h1>打ち上げ位置を保存</h1><br />
-    <form name="location_save_form" id="location_save_form">
-    <table name="req_table" id="req_table">
-    <tr>
-    <td>緯度: </td><td><input type="text" name="req_lat" id="req_lat" size="15"></td>
-    </tr><tr>
-    <td>経度: </td><td><input type="text" name="req_lon" id="req_lon" size="15"></td>
-    </tr><tr>
-    <td>高度: </td><td><input type="text" name="req_alt" id="req_alt" size="15"></td>
-    </tr><tr>
-    <td>サイト名: </td><td><input type="text" name="req_name" id="req_name" size="15"></td>
-    </tr><tr>
-    <td></td><td><input type="button" value="保存" name="submit" id="req_sub_btn"></td>
-    </tr>
-    </table>
-    </form><br />
-    <a id="req_close">このウィンドウを閉じる</a>
-</div>
-
-<!-- View saved locations -->
-<div id="location_save_local" class="box ui-corner-all">
-    <img src="images/drag_handle.png" class="handle" />
-    <b>保存済み位置</b><br />
-    <span id="locations_table">?</span>
-    <br />
-    <a id="locations_close">このウィンドウを閉じる</a>
-</div>
-
-<!-- About window -->
-<div id="about_window">
-    <h3>WASA 気球実験用 着地点予測ツール (CUSF/Tawhiri ベース Fork) (<a href="https://github.com/projecthorus/leaflet_predictor/wiki" target="_blank">元プロジェクト情報</a>)</h3>
-    <p>ラテックス観測気球の飛行経路と着地点を予測するツールです。</p>
-    <p>本ツールは <a href="http://www.cuspaceflight.co.uk" target="_blank">CUSF</a> 向けに <a href="http://github.com/jonsowman" target="_blank">Jon Sowman</a> / <a href="http://github.com/adamgreig" target="_blank">Adam Greig</a> / <a href="http://github.com/danielrichman">Daniel Richman</a> らが構築し、<a href="http://github.com/rjw57" target="_blank">Rich Wareham</a> 他の貢献を含むオリジナルコードを基に WASA 気球実験向けに日本語化・機能拡張 (JST 対応 / 愛媛モード 等) した派生版です。旧版由来部分には Rob Anderson / Fergus Noble / Ed Moore らのコードが含まれます。</p>
-    <p>Leaflet への移行と <a href="https://github.com/projecthorus/tawhiri/" target="_blank">Tawhiri API</a> 利用は <a href="http://github.com/darksidelemm" target="_blank">Mark Jessop</a> により <a href="https://github.com/projecthorus/sondehub-infra/wiki" target="_blank">SondeHub</a> プロジェクトとして実施。Tawhiri API の <a href="https://github.com/projecthorus/tawhiri/#sondehub-tawhiri-instance" target="_blank">Sondehub インスタンス</a> は非商用用途で利用可能です。</p>
-    </p>
-    <p>本予測ツールは NOAA GFS モデルのデータを使用しています。</p>
-    <p>本ソフトウェアが生成するデータの正確性・精度・信頼性は保証されません。利用は自己責任でお願いします。詳しくは libera.chat の #highaltitude を参照してください。</p>
-    <p>この予測ツールは <b>非商用利用のみ</b> を目的としています。商用利用の場合は <a href="https://github.com/projecthorus/sondehub-amateur-tracker/wiki/Guide-for-HabHub-Users#for-commercial-users" target="_blank">このページ</a> をご覧ください。</p>
-    <p>
-    Original Copyright 2013 Cambridge University Space Flight / Adaptation for WASA Balloon Experiments 日本語化・拡張 2025
-    </p>
-    <h3>バースト計算機</h3>
+    <!-- About window -->
+    <div id="about_window">
+        <h3>WASA 気球実験用 着地点予測ツール (CUSF/Tawhiri ベース Fork) (<a href="https://github.com/projecthorus/leaflet_predictor/wiki" target="_blank">元プロジェクト情報</a>)</h3>
+        <p>ラテックス観測気球の飛行経路と着地点を予測するツールです。</p>
+        <p>本ツールは <a href="http://www.cuspaceflight.co.uk" target="_blank">CUSF</a> 向けに <a href="http://github.com/jonsowman" target="_blank">Jon Sowman</a> / <a href="http://github.com/adamgreig" target="_blank">Adam Greig</a> / <a href="http://github.com/danielrichman">Daniel Richman</a> らが構築し、<a href="http://github.com/rjw57" target="_blank">Rich Wareham</a> 他の貢献を含むオリジナルコードを基に WASA 気球実験向けに日本語化・機能拡張 (JST 対応 / 愛媛モード 等) した派生版です。旧版由来部分には Rob Anderson / Fergus Noble / Ed Moore らのコードが含まれます。</p>
+        <p>Leaflet への移行と <a href="https://github.com/projecthorus/tawhiri/" target="_blank">Tawhiri API</a> 利用は <a href="http://github.com/darksidelemm" target="_blank">Mark Jessop</a> により <a href="https://github.com/projecthorus/sondehub-infra/wiki" target="_blank">SondeHub</a> プロジェクトとして実施。Tawhiri API の <a href="https://github.com/projecthorus/tawhiri/#sondehub-tawhiri-instance" target="_blank">Sondehub インスタンス</a> は非商用用途で利用可能です。</p>
+        <p>本予測ツールは NOAA GFS モデルのデータを使用しています。</p>
+        <p>本ソフトウェアが生成するデータの正確性・精度・信頼性は保証されません。利用は自己責任でお願いします。</p>
+        <p>この予測ツールは<b>非商用利用のみ</b>を目的としています。</p>
+        <p>Original Copyright 2013 Cambridge University Space Flight / WASA Adaptation 2025-2026</p>
+        <h3>バースト計算機</h3>
         <p><a href="https://sondehub.org/calc">バースト計算機 Web ページ</a></p>
-    <h4>使い方</h4>
-        <p>
-            この計算機は目標バースト高度または上昇速度を得るために投入すべきガス量を求めるためのものです。ペイロード質量（パラシュート含む）と気球質量を把握している必要があります。
-        </p>
-        <p>
-            使い方: 最初の欄にペイロード質量、次に気球質量を選択し、目標バースト高度 (m) か上昇速度 (m/s) のどちらかを入力します。Enter またはフォーカス移動で計算が実行され、結果が下部に表示されます。
-        </p>
-        <p>
-            『定数』セクションでガス種別（またはカスタム密度）、モデルパラメータ、バースト直径、抗力係数を調整できます。チェックを入れるとカスタム値、無ければ気球タイプに応じた標準値が使われます。
-        </p>
-    <h4>概要</h4>
-        <p>
-            2010年3月 Adam Greig (CUSF) 作成。数式は Steve Randall の `burst1a` シートに基づき、気球情報は Kaymont Totex データより。WASA 版では表示と一部入出力 (JST/日本語 UI) のみ変更。
-        </p>
-        <p>
-            本プログラムのデータ正確性は保証されません。自己責任でご利用ください。
-        </p>
-        <p>
-            Original Copyright 2010 Cambridge University Space Flight / WASA Adaptation 2025
-        </p>
-
-</div>
-
-<!-- Burst calculator window -->
-<div id="burst-calc-wrapper" class="box ui-corner-all">
-    <img src="images/drag_handle.png" class="handle" />
-    <div id="burst-calc">
-    <b>バースト計算機</b>
-        <br>
-        <table id="input_table">
-            <tr class="input_row">
-                <td class="input_label" colspan="2">ペイロード質量 (g)</td>
-                <td class="input_instruction" rowspan="3">かつ</td>
-
-                <td class="input_label" colspan="2">気球質量 (g)</td>
-            </tr>
-            <tr class="input_row">
-                <td colspan="2">
-                    <input type="text" id="mp" class="input_field" value="1500" 
-                        tabindex="1"/>
-                </td>
-                <td colspan="2">
-                    <select class="input_field" id="mb" tabindex="2"> 
-                        <option value="k100">Kaymont - 100</option>
-                        <option value="k150">Kaymont - 150</option>
-                        <option value="k200">Kaymont - 200</option>
-                        <option value="k300">Kaymont - 300</option>
-                        <option value="k350">Kaymont - 350</option>
-                        <option value="k600">Kaymont - 600</option>
-                        <option value="k800">Kaymont - 800</option>
-                        <option value="k1000" selected="selected">Kaymont - 1000</option>
-                        <option value="k1200">Kaymont - 1200</option>
-                        <option value="k1500">Kaymont - 1500</option>
-                        <option value="k1600">Kaymont - 1600</option>
-                        <option value="k1800">Kaymont - 1800</option>
-                        <option value="k2000">Kaymont - 2000</option>
-                        <option value="k3000">Kaymont - 3000</option>
-                        <option value="k4000">Kaymont - 4000</option>
-                        <option value="h100">Hwoyee - 100</option>
-                        <option value="h200">Hwoyee - 200</option>
-                        <option value="h300">Hwoyee - 300</option>
-                        <option value="h350">Hwoyee - 350</option>
-                        <option value="h500">Hwoyee - 500</option>
-                        <option value="h600">Hwoyee - 600</option>
-                        <option value="h750">Hwoyee - 750</option>
-                        <option value="h800">Hwoyee - 800</option>
-                        <option value="h1000">Hwoyee - 1000</option>
-                        <option value="h1200">Hwoyee - 1200</option>
-                        <option value="h1600">Hwoyee - 1600</option>
-                        <option value="h2000">Hwoyee - 2000</option>
-                        <option value="h3000">Hwoyee - 3000</option>
-                        <option value="p1200">PAWAN - 1200</option>
-                    </select>
-                </td>
-            </tr>
-            <tr class="warning_row">
-                <td colspan="2" id="mp_w">&nbsp;</td>
-                <td colspan="2" id="mb_w">&nbsp;</td>
-            </tr>
-            <tr>
-                <td class="input_instruction" colspan="5">次に</td>
-            </tr>
-            <tr class="input_row">
-                <td class="input_label" colspan="2">目標バースト高度 (m)</td>
-
-                <td class="input_instruction" rowspan="3">または</td>
-                <td class="input_label" colspan="2">目標上昇速度 (m/s)</td>
-            </tr>
-            <tr class="input_row">
-                <td colspan="2">
-                    <input type="text" id="tba" class="input_field" value="33000" tabindex="3"/>
-                </td>
-                <td colspan="2">
-
-                    <input type="text" id="tar" class="input_field" tabindex="4"/>
-                </td>
-            </tr>
-            <tr class="warning_row">
-                <td id="tba_w" colspan="2">&nbsp;</td>
-                <td id="tar_w" colspan="2">&nbsp;</td>
-            </tr>
-            <tr class="output_row">
-                <td class="output_label">バースト高度:</td>
-                <td class="output_data"><span id="ba">33000</span> m</td>
-                <td></td>
-                <td class="output_label">上昇速度:</td>
-                <td class="output_data"><span id="ar">2.33</span> m/s</td>
-
-            </tr>
-            <tr class="output_row">
-                <td class="output_label">バーストまでの時間:</td>
-                <td class="output_data"><span id="ttb">238</span> min</td>
-                <td></td>
-                <td class="output_label">ネックリフト:</td>
-                <td class="output_data"><span id="nl">1733</span> g</td>
-
-            </tr>
-            <tr class="output_row">
-                <td class="output_label">投入体積:</td>
-                <td class="output_data"><span id="lv_m3">2.66</span> 
-                    m<sup>3</sup></td>
-                <td></td>
-                <td class="output_data"><span id="lv_l">2660</span> L</td>
-                <td class="output_data"><span id="lv_cf">93.9</span>
-                     ft<sup>3</sup></td>
-
-            </tr>
-        </table>
-        <br>
-        <input type="button" id="burst-calc-advanced-show"
-            name="burst-calc-advanced-show" value="詳細">
-        <input type="button" id="burst-calc-use" name="burst-calc-submit" 
-            value="値を使用"/ >
-        <input type="button" id="burst-calc-close" name="burst-calc-submit" 
-            value="閉じる"/ >
     </div>
 
-    <!-- these are the burst calc constants -->
-    <div id="burst-calc-constants">
-        <div class="constants_header">定数</div><br />
-        <div class="constants_warning">
-            上級者向けです。通常は変更不要です。
-        </div><br />
-        <label class="constant_label" for="gas">ガス</label><br />
-        <select id="gas" class="constant_field">
-            <option value="he">Helium</option>
-            <option value="h">Hydrogen</option>
-
-            <option value="ch4">Methane</option>
-            <option value="custom">Custom</option>
-        </select><br />
-    <label class="constant_label" for="rho_g">ガス密度 (kg/m<sup>3</sup>)</label><br />
-        <input type="text" id="rho_g" value="0.1786" class="constant_field" size="9" disabled="disabled"/><br />
-    <label class="constant_label" for="rho_a">空気密度 (kg/m<sup>3</sup>)</label><br />
-
-        <input type="text" id="rho_a" value="1.2050" class="constant_field" size="9"/><br />
-    <label class="constant_label" for="adm">空気密度モデル</label><br />
-        <input type="text" id="adm" value="7238.3" class="constant_field" size="9"/><br />
-    <label class="constant_label" for="ga">重力加速度 (m/s<sup>2</sup>)</label><br />
-        <input type="text" id="ga" value="9.80665" class="constant_field" size="9" /><br />
-    <label class="constant_label" for="bd">バースト直径 (m)</label><br />
-
-        <input type="checkbox" id="bd_c" />
-        <input type="text" id="bd" class="constant_field" size="9" disabled="disabled" value="7.86"/><br />
-    <label class="constant_label" for="cd">気球 Cd</label><br />
-        <input type="checkbox" id="cd_c" />
-        <input type="text" id="cd" class="constant_field" size="9" disabled="disabled" value="0.3"/><br />
-        <br />
-        <input type="button" id="burst-calc-advanced-hide" 
-            name="burst-calc-advanced-hide" value="戻る">
-    </div>
-</div>
-
-<!-- Advanced NOTAM & Airspace Settings -->
-<div id="notam-settings-wrapper" class="box ui-corner-all">
-    <img src="images/drag_handle.png" class="handle" />
-    <div id="notam-settings">
-    <b>高度な NOTAM & 空域設定</b>
-    <p>
-	<b>※ まだ機能していません</b>
-        <table id="input_table">
-            <tr>
-	    <td> 
-<form name="userselection" action = "" method = "GET"  ><fieldset id="notamsFieldset" name="notams" ><legend>NOTAM 詳細</legend><div id="notamsDiv" style="display: block"><input type="checkbox" name="warnings" id="warnings" onclick="setNOTAMs();" value="yes" checked="checked" />NOTAM を表示<br /></fieldset><fieldset id="airspaceFieldset"><legend>空域詳細</legend><div id="airspaceDiv" style="display: block"><input type="checkbox" id = "defaultAirspace" name="default" value="yes" onclick="showStdAirspace();"/>標準空域を表示<br><input type="checkbox" id="clA" name="clA" value="yes" onclick="setAirspace();"/>クラス A 空域<br><input type="checkbox" id="clD" name="clD" value="yes" onclick="setAirspace();"/>クラス D 空域<br><input type="checkbox" id="clE" name="clE" value="yes" onclick="setAirspace();"/>クラス E 空域<br><input type="checkbox" id="clG" name="clG" value="yes" onclick="setAirspace();"/>クラス G 空域<br><input type="checkbox" id="clP" name="clP" value="yes" onclick="setAirspace();"/>進入禁止空域<br><input type="checkbox" id="clR" name="clR" value="yes" onclick="setAirspace();"/>制限空域<br><input type="checkbox" id="clM" name="clM" value="yes" onclick="setAirspace();"/>MATZ<br><input type="checkbox" id="clQ" name="clQ" value="yes" onclick="setAirspace();"/>危険区域<br><input type="checkbox" id="clX" name="clX" value="yes" onclick="setAirspace();"/>洋上/NOTAM 危険域<br><input type="checkbox" id="clH" name="clH" value="yes" onclick="setAirspace();"/>ハザード (HIRTA/AIAA 等)</fieldset></tr></table></form>
-            </td>
-            </tr>
-        </table>
-        <input type="button" id="notam-settings-close" name="notam-settings-submit" 
-            value="閉じる"/ >
-    </div>
-</div>
-
-<!-- Launch card -->
-<div id="input_form" class="box ui-corner-all"> 
-    <img class="handle" src="images/drag_handle.png" />
-    <form action="" id="modelForm" name="modelForm">
-    <table id="launch-card">
-        <tr>
-            <td>打ち上げサイト:
-                <span>
-                    <a id="cookieLocations" class="tipsyLink" 
-                        title="保存された打ち上げサイトを表示">カスタム</a>
-                </span>
-            </td>
-            <td>
-                <select id="site" name="launchsite">
-                </select>
-            </td>
-        </tr>
-        <tr>
-            <td>緯度 / 経度:</td>
-            <td>
-                <input id="lat" type="text" size="8" name="lat" value="33.13492" 
-                    onKeyDown="SetSiteOther()">&nbsp;/&nbsp;
-                <input id="lon" type="text" size="8" name="lon" value="132.50477" 
-                    onKeyDown="SetSiteOther()">
-            </td>
-        </tr>
-        <tr>
-            <td>
-                <span><a id="setWithClick" class="tipsyLink" 
-                    title="マップを使って打ち上げ地点を設定">
-                    マップで設定</a></span>
-            </td>
-            <td>
-                <span>
-                    <a id="req_open" class="tipsyLink" 
-                        title="この位置をブラウザに保存">
-                        位置を保存</a>
-                </span>
-            </td>
-        </tr>
-        <tr>
-            <td>打ち上げ高度 (m):</td>
-            <td>
-                <input id="initial_alt" type="text" name="initial_alt" 
-                    value="1.4">
-            </td>
-        </tr>
-        <tr>
-            <td>打ち上げ時刻 (JST):</td>
-            <td>
-                    <input id="hour" type="text" name="hour" value="" maxlength="2" size="2"> :
-                    <input id="min" type="text" name="min" value="" maxlength="2" size="2">
-                    <input id="sec" type="hidden" name="second" value="0"></td></tr>
-                    <tr><td>打ち上げ日付:</td><td>
-                    <input id="day" type="text" name="day" value="" maxlength="2" size="2">
-                    <select id="month" name="month">
-                        <!-- Hard-coding these options in. These were generated by PHP in the old code. -->
-                        <option value="1">1月</option>
-                        <option value="2">2月</option>
-                        <option value="3">3月</option>
-                        <option value="4">4月</option>
-                        <option value="5">5月</option>
-                        <option value="6">6月</option>
-                        <option value="7">7月</option>
-                        <option value="8">8月</option>
-                        <option value="9">9月</option>
-                        <option value="10">10月</option>
-                        <option value="11">11月</option>
-                        <option value="12">12月</option>
-                    </select>
-                    <input id="year" type="text" name="year" value="" maxlength="4" size="4">
-            </td>
-        <tr>
-            <td>
-                上昇速度 (m/s): 
-            </td>
-            <td><input id="ascent" type="text" name="ascent" value="5"></td>
-        </tr>
-        <tr>
-            <td>バースト/浮遊高度 (m):</td>
-            <td><input id="burst" type="text" name="burst" value="30000"></td>
-        </tr>
-        <tr>
-            <td>フライトプロファイル:</td>
-            <td><select id="flight_profile">
-                <option value="standard_profile" selected="selected">標準</option>
-                <option value="float_profile">浮遊</option>
-                <option value="reverse_profile">逆転 (上昇のみ)</option>
-            </select></td>
-        </tr>
-        <tr>
-            <td colspan="2">
-                <a id="burst-calc-show" class="tipsyLink"
-                    title="計算機を使用してハイライトされた値を計算">
-                    バースト計算機を使用</a>
-            </td>
-        </tr>
-        <tr>
-            <td>
-                下降速度 (<a class="tipsyLink" title="海面レベル">m/s</a>):
-            </td>
-            <td><input id="drag" type="text" name="drag" value="5"></td>
-        </tr>
-    <!--    <tr><td>Display UK NOTAMS &amp; Airspace: </td>
-            <td>
-        <input id="notam-display" type="checkbox" name="notams" value="notams" />
-                <a id="notam-settings-show" class="tipsyLink"
-                    title="Advanced NOTAM &amp; Airspace Settings">
-                    Advanced</a>
-            </td>
-        </tr> -->
-        <tr>
-            <td>予測タイプ (<a class="tipsyLink" title="時間毎/日次予測機能の情報" href="https://github.com/projecthorus/leaflet_predictor/wiki#using-the-hourlydaily-prediction-functionality" target="_blank">説明</a>):</td>
-            <td><select id="prediction_type">
-                <option value="single" selected="selected">単一</option>
-                <option value="fall">落下のみ</option>
-                <option value="1_hour">毎時</option>
-                <option value="3_hour">3時間毎</option>
-                <option value="6_hour">6時間毎</option>
-                <option value="12_hour">12時間毎</option>
-                <option value="daily">日次</option>
-                <option value="ehime">愛媛気球実験用</option>
-            </select></td>
-        </tr>
-        <tr>
-            <td>API接続先:</td>
-            <td>
-                <select id="api_source">
-                    <option value="sondehub" selected="selected">SondeHub (Public)</option>
-                    <option value="local">Localhost (Docker)</option>
-                    <option value="custom">カスタム</option>
-                </select>
-                <input id="api_custom_url" type="text" placeholder="https://example.com/api/v1/" style="display:none; margin-top:4px; width:220px;" />
-            </td>
-        </tr>
-        <tr>
-            <td>プリセット:</td>
-            <td>
-                <select id="preset_select" style="width:220px;">
-                    <option value="">-- プリセット選択 --</option>
-                </select>
-                <div style="margin-top:4px;">
-                    <input type="text" id="preset_name" placeholder="保存名を入力" style="width:214px;" />
-                </div>
-                <div style="margin-top:4px; display:flex; gap:4px; flex-wrap:wrap;">
-                    <button type="button" id="preset_load_btn">読込</button>
-                    <button type="button" id="preset_save_btn">保存</button>
-                    <button type="button" id="preset_delete_btn">削除</button>
-                    <button type="button" id="preset_restore_btn">前回</button>
-                </div>
-            </td>
-        </tr>
-        <tr id="ehime_info_row" style="display:none">
-            <td colspan="2" style="font-size:11px; line-height:1.4em; background:#f4f8ff; border:1px solid #ccd; padding:4px;">
-                <b>愛媛気球実験モード</b><br>
-                上昇速度許容範囲: <span id="ehime_ascent_range">-</span><br>
-                下降速度許容範囲: <span id="ehime_descent_range">-</span><br>
-                破裂高度マージン: <span id="ehime_burst_margin">-</span><br>
-                シミュレーション完了: <span id="ehime_completed">0</span>/<span id="ehime_total">0</span><br>
-                着地点平均: <span id="ehime_mean">-</span><br>
-                最大偏差距離: <span id="ehime_max_dev">-</span> km
-            </td>
-        </tr>
-        <tr>
-            <td></td>
-            <td><input name="submit" id="run_pred_btn" onclick="runPrediction();" value="予測を実行">
-            </td>
-        </tr>
-    </table>
-    </form>
-    
-    </div>
-<!-- Ehime variants side panel -->
-<div id="ehime_panel" class="box ui-corner-all" style="display:none;">
-    <img src="images/drag_handle.png" class="handle" />
-    <div id="ehime_panel_toggle" title="折り畳む/展開" style="display:none;">«</div>
-    <h1 style="font-size:14px;" class="ehime-collapsible">愛媛バリエーション</h1>
-    <div id="ehime_panel_summary" class="ehime-collapsible" style="font-size:11px;line-height:1.3em;margin-bottom:4px;">
-        完了: <span id="ehime_panel_completed">0</span>/<span id="ehime_panel_total">0</span><br>
-        平均着地点: <span id="ehime_panel_mean">-</span><br>
-        最大偏差: <span id="ehime_panel_maxdev">-</span> km
-    </div>
-    <div id="ehime_variants_wrapper" class="ehime-collapsible">
-        <table id="ehime_variants_table">
-            <thead>
-                <tr>
-                    <th>#</th>
-                    <th>色</th>
-                    <th>ラベル</th>
-                    <th>変更</th>
-                    <th>緯度</th>
-                    <th>経度</th>
-                    <th>上昇</th>
-                    <th>下降</th>
-                    <th>破裂</th>
-                    <th>飛行(min)</th>
-                    <th>陸海</th>
+    <!-- Burst calculator window -->
+    <div id="burst-calc-wrapper" class="box ui-corner-all">
+        <img src="images/drag_handle.png" class="handle" />
+        <div id="burst-calc">
+            <b>バースト計算機</b><br>
+            <table id="input_table">
+                <tr class="input_row">
+                    <td class="input_label" colspan="2">ペイロード質量 (g)</td>
+                    <td class="input_instruction" rowspan="3">かつ</td>
+                    <td class="input_label" colspan="2">気球質量 (g)</td>
                 </tr>
-            </thead>
-            <tbody></tbody>
-        </table>
-    <!-- Mobile friendly variant list (cards) -->
-    <div id="ehime_variants_mobile" style="display:none;"></div>
+                <tr class="input_row">
+                    <td colspan="2"><input type="text" id="mp" class="input_field" value="1500" tabindex="1"/></td>
+                    <td colspan="2">
+                        <select class="input_field" id="mb" tabindex="2">
+                            <option value="k100">Kaymont - 100</option>
+                            <option value="k150">Kaymont - 150</option>
+                            <option value="k200">Kaymont - 200</option>
+                            <option value="k300">Kaymont - 300</option>
+                            <option value="k350">Kaymont - 350</option>
+                            <option value="k600">Kaymont - 600</option>
+                            <option value="k800">Kaymont - 800</option>
+                            <option value="k1000" selected="selected">Kaymont - 1000</option>
+                            <option value="k1200">Kaymont - 1200</option>
+                            <option value="k1500">Kaymont - 1500</option>
+                            <option value="k1600">Kaymont - 1600</option>
+                            <option value="k1800">Kaymont - 1800</option>
+                            <option value="k2000">Kaymont - 2000</option>
+                            <option value="k3000">Kaymont - 3000</option>
+                            <option value="k4000">Kaymont - 4000</option>
+                            <option value="h100">Hwoyee - 100</option>
+                            <option value="h200">Hwoyee - 200</option>
+                            <option value="h300">Hwoyee - 300</option>
+                            <option value="h350">Hwoyee - 350</option>
+                            <option value="h500">Hwoyee - 500</option>
+                            <option value="h600">Hwoyee - 600</option>
+                            <option value="h750">Hwoyee - 750</option>
+                            <option value="h800">Hwoyee - 800</option>
+                            <option value="h1000">Hwoyee - 1000</option>
+                            <option value="h1200">Hwoyee - 1200</option>
+                            <option value="h1600">Hwoyee - 1600</option>
+                            <option value="h2000">Hwoyee - 2000</option>
+                            <option value="h3000">Hwoyee - 3000</option>
+                            <option value="p1200">PAWAN - 1200</option>
+                        </select>
+                    </td>
+                </tr>
+                <tr class="warning_row">
+                    <td colspan="2" id="mp_w">&nbsp;</td>
+                    <td colspan="2" id="mb_w">&nbsp;</td>
+                </tr>
+                <tr><td class="input_instruction" colspan="5">次に</td></tr>
+                <tr class="input_row">
+                    <td class="input_label" colspan="2">目標バースト高度 (m)</td>
+                    <td class="input_instruction" rowspan="3">または</td>
+                    <td class="input_label" colspan="2">目標上昇速度 (m/s)</td>
+                </tr>
+                <tr class="input_row">
+                    <td colspan="2"><input type="text" id="tba" class="input_field" value="33000" tabindex="3"/></td>
+                    <td colspan="2"><input type="text" id="tar" class="input_field" tabindex="4"/></td>
+                </tr>
+                <tr class="warning_row">
+                    <td id="tba_w" colspan="2">&nbsp;</td>
+                    <td id="tar_w" colspan="2">&nbsp;</td>
+                </tr>
+                <tr class="output_row">
+                    <td class="output_label">バースト高度:</td>
+                    <td class="output_data"><span id="ba">33000</span> m</td>
+                    <td></td>
+                    <td class="output_label">上昇速度:</td>
+                    <td class="output_data"><span id="ar">2.33</span> m/s</td>
+                </tr>
+                <tr class="output_row">
+                    <td class="output_label">バーストまでの時間:</td>
+                    <td class="output_data"><span id="ttb">238</span> min</td>
+                    <td></td>
+                    <td class="output_label">ネックリフト:</td>
+                    <td class="output_data"><span id="nl">1733</span> g</td>
+                </tr>
+                <tr class="output_row">
+                    <td class="output_label">投入体積:</td>
+                    <td class="output_data"><span id="lv_m3">2.66</span> m<sup>3</sup></td>
+                    <td></td>
+                    <td class="output_data"><span id="lv_l">2660</span> L</td>
+                    <td class="output_data"><span id="lv_cf">93.9</span> ft<sup>3</sup></td>
+                </tr>
+            </table>
+            <br>
+            <input type="button" id="burst-calc-advanced-show" name="burst-calc-advanced-show" value="詳細">
+            <input type="button" id="burst-calc-use" name="burst-calc-submit" value="値を使用"/>
+            <input type="button" id="burst-calc-close" name="burst-calc-submit" value="閉じる"/>
+        </div>
+        <div id="burst-calc-constants">
+            <div class="constants_header">定数</div><br />
+            <div class="constants_warning">上級者向けです。通常は変更不要です。</div><br />
+            <label class="constant_label" for="gas">ガス</label><br />
+            <select id="gas" class="constant_field">
+                <option value="he">Helium</option>
+                <option value="h">Hydrogen</option>
+                <option value="ch4">Methane</option>
+                <option value="custom">Custom</option>
+            </select><br />
+            <label class="constant_label" for="rho_g">ガス密度 (kg/m<sup>3</sup>)</label><br />
+            <input type="text" id="rho_g" value="0.1786" class="constant_field" size="9" disabled="disabled"/><br />
+            <label class="constant_label" for="rho_a">空気密度 (kg/m<sup>3</sup>)</label><br />
+            <input type="text" id="rho_a" value="1.2050" class="constant_field" size="9"/><br />
+            <label class="constant_label" for="adm">空気密度モデル</label><br />
+            <input type="text" id="adm" value="7238.3" class="constant_field" size="9"/><br />
+            <label class="constant_label" for="ga">重力加速度 (m/s<sup>2</sup>)</label><br />
+            <input type="text" id="ga" value="9.80665" class="constant_field" size="9" /><br />
+            <label class="constant_label" for="bd">バースト直径 (m)</label><br />
+            <input type="checkbox" id="bd_c" />
+            <input type="text" id="bd" class="constant_field" size="9" disabled="disabled" value="7.86"/><br />
+            <label class="constant_label" for="cd">気球 Cd</label><br />
+            <input type="checkbox" id="cd_c" />
+            <input type="text" id="cd" class="constant_field" size="9" disabled="disabled" value="0.3"/><br />
+            <br />
+            <input type="button" id="burst-calc-advanced-hide" name="burst-calc-advanced-hide" value="戻る">
+        </div>
     </div>
-    <div class="ehime-panel-footer ehime-collapsible" style="text-align:right;margin-top:4px;">
-        <a id="ehime_panel_close" style="font-size:11px;">折り畳む</a>
-    </div>
-</div>
-<!-- Mobile navigation bar (only visible on small screens via CSS) -->
-<div id="mobile_nav" class="mobile-only" aria-label="モバイル操作バー">
-    <button type="button" data-target="input_form">打上</button>
-    <button type="button" data-target="scenario_info">情報</button>
-    <button type="button" data-target="ehime_panel" id="mobile_nav_ehime" style="display:none;">愛媛</button>
-    <button type="button" data-target="burst-calc-wrapper">計算</button>
-</div>
 
-<script src="js/pred/mobile-ui.js"></script>
+    <!-- Advanced NOTAM & Airspace Settings -->
+    <div id="notam-settings-wrapper" class="box ui-corner-all">
+        <img src="images/drag_handle.png" class="handle" />
+        <div id="notam-settings">
+            <b>高度な NOTAM & 空域設定</b>
+            <p><b>※ まだ機能していません</b></p>
+            <input type="button" id="notam-settings-close" name="notam-settings-submit" value="閉じる"/>
+        </div>
+    </div>
+
+    <script>
+        function toggleCustomApiInput() {
+            var val = document.getElementById('api_source').value;
+            var input = document.getElementById('api_custom_url');
+            input.style.display = (val === 'custom') ? 'block' : 'none';
+        }
+
+        // Service Worker Registration
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', function () {
+                navigator.serviceWorker.register('./sw.js').then(function (registration) {
+                    console.log('ServiceWorker registration successful with scope: ', registration.scope);
+                }, function (err) {
+                    console.log('ServiceWorker registration failed: ', err);
+                });
+            });
+        }
+
+        // サイドバートグル
+        document.getElementById('sidebar-toggle').addEventListener('click', function () {
+            document.body.classList.toggle('sidebar-open');
+            this.textContent = document.body.classList.contains('sidebar-open') ? '≪' : '≫';
+            setTimeout(function () { if (window.map) map.invalidateSize(); }, 300);
+        });
+
+        // サイドバータブ切替
+        window.switchTab = function(tabName) {
+            document.querySelectorAll('.sidebar-tab').forEach(function (t) { t.classList.remove('active'); });
+            document.querySelectorAll('.sidebar-panel').forEach(function (p) { p.classList.remove('active'); });
+            var tab = document.querySelector('.sidebar-tab[data-panel="panel-' + tabName + '"]');
+            var panel = document.getElementById('panel-' + tabName);
+            if (tab) tab.classList.add('active');
+            if (panel) panel.classList.add('active');
+        };
+        document.querySelectorAll('.sidebar-tab').forEach(function (tab) {
+            tab.addEventListener('click', function () {
+                if (this.getAttribute('data-theme-toggle')) return; // ダークモードボタンは除外
+                document.querySelectorAll('.sidebar-tab').forEach(function (t) { t.classList.remove('active'); });
+                tab.classList.add('active');
+                document.querySelectorAll('.sidebar-panel').forEach(function (p) { p.classList.remove('active'); });
+                var panelId = tab.getAttribute('data-panel');
+                var panel = document.getElementById(panelId);
+                if (panel) panel.classList.add('active');
+            });
+        });
+    </script>
+
+    <!-- フローティングアンサンブル統計パネル（body直下） -->
+    <div id="ensemble_stats_panel">
+        <div class="ensemble-stats-header">
+            <div style="display:flex; align-items:center; gap:6px;">
+                <button type="button" id="ehime_history_prev_btn" title="古い履歴へ" class="btn-preset" style="height:22px; min-width:24px; padding:0 6px;">←</button>
+                <b>愛媛バリエーション</b>
+                <span id="ehime_history_position" style="font-size:10px; color:var(--text-secondary);">-</span>
+                <button type="button" id="ehime_history_next_btn" title="新しい履歴へ" class="btn-preset" style="height:22px; min-width:24px; padding:0 6px;">→</button>
+            </div>
+            <button id="ensemble_stats_toggle" title="最小化/展開" style="background:none; border:none; color:inherit; font-size:18px; cursor:pointer;">&minus;</button>
+        </div>
+        <div class="ensemble-stats-body">
+            <span>完了: <b id="ensemble_completed">0</b> / <b id="ensemble_total">0</b></span><br>
+            <span>平均着地点: <b id="ensemble_mean_pos">-</b></span><br>
+            <span>最大偏差: <b id="ensemble_max_dev">-</b> km</span><br>
+            <span>陸地着率: <b id="ensemble_land_pct" style="color:green;">-</b> / 海上率: <b id="ensemble_sea_pct" style="color:blue;">-</b></span>
+            <div id="ehime_results_scroll">
+                <table id="ehime_results_table">
+                    <thead>
+                        <tr>
+                            <th style="width:25px">#</th>
+                            <th>色</th>
+                            <th>ラベル</th>
+                            <th>変更</th>
+                            <th>緯度</th>
+                            <th>経度</th>
+                            <th>上昇</th>
+                            <th>下降</th>
+                            <th>破裂</th>
+                            <th>飛行(min)</th>
+                            <th>陸海</th>
+                        </tr>
+                    </thead>
+                    <tbody id="ehime_results_body"></tbody>
+                </table>
+            </div>
+            <div id="ehime_results_mobile"></div>
+            <div class="ensemble-actions">
+                <button type="button" id="ensemble_export_csv" class="btn-export" title="13バリアント結果をCSVダウンロード">CSV出力</button>
+                <button type="button" id="ensemble_export_json" class="btn-export" title="13バリアント結果をJSONダウンロード">JSON出力</button>
+                <button type="button" id="ensemble_heatmap_toggle" class="btn-export" title="着地範囲の表示/非表示" style="background:var(--color-danger); color:var(--text-on-primary); border-color:var(--color-danger);">着地範囲 ON</button>
+                <button type="button" id="launch_window_run_btn" class="btn-export" title="放球ウィンドウ分析" style="background:var(--color-accent); color:#fff; border-color:var(--color-accent);">放球NG判定</button>
+            </div>
+            <details style="margin-top:10px; border-top:1px solid var(--border-color); padding-top:8px;">
+                <summary style="cursor:pointer; font-size:12px; font-weight:600; color:var(--text-secondary); margin-bottom:5px;">
+                    実行履歴 (最大10件)
+                </summary>
+                <div id="ehime_history_panel" style="max-height:180px; overflow-y:auto;">
+                    <p style="font-size:11px; color:var(--text-secondary); padding:4px;">実行履歴なし</p>
+                </div>
+            </details>
+        </div>
+    </div>
+
+    <!-- 放球ウィンドウ分析パネル -->
+    <div id="launch_window_panel" style="display:none;">
+        <div class="ensemble-stats-header">
+            <b>放球ウィンドウ分析</b>
+            <button id="launch_window_clear_btn" style="background:none; border:none; color:inherit; font-size:14px; cursor:pointer;" title="クリア">&times;</button>
+        </div>
+        <div class="launch-window-body">
+            <div id="launch_window_progress" style="display:none; margin-bottom:8px;">
+                <div style="display:flex; justify-content:space-between; font-size:11px; margin-bottom:4px;">
+                    <span>進捗: <span id="launch_window_progress_text">0 / 25</span></span>
+                </div>
+                <div style="height:6px; background:var(--bg-input); border-radius:3px; overflow:hidden;">
+                    <div id="launch_window_progress_bar" style="height:100%; width:0%; background:var(--color-primary); transition:width 0.3s ease;"></div>
+                </div>
+            </div>
+            <div id="launch_window_result_area" style="display:none;">
+                <div style="margin-bottom:8px;">
+                    <label style="font-size:11px;">時間スライダー:</label>
+                    <input type="range" id="launch_window_slider" min="0" max="24" value="0" style="width:100%;">
+                    <div style="display:flex; justify-content:space-between; font-size:11px;">
+                        <span id="launch_window_current_time">+0分</span>
+                    </div>
+                    <div id="launch_window_current_result" style="font-size:11px; margin-top:4px;"></div>
+                </div>
+                <div style="margin-bottom:8px;">
+                    <label style="font-size:11px;">NG閾値 (陸落ち確率): <span id="ng_threshold_value">50%</span></label>
+                    <input type="range" id="ng_threshold_slider" min="10" max="100" step="10" value="50" style="width:100%;">
+                </div>
+                <div id="launch_window_ng_summary" style="font-size:12px; margin-bottom:8px;"></div>
+                <div id="launch_window_ng_info" style="max-height:180px; overflow-y:auto;"></div>
+                <div id="lw_ensemble_status" style="display:none; font-size:11px; color:var(--color-primary); margin-top:6px; padding:4px 6px; background:var(--bg-input); border-radius:4px;"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- インラインスクリプト: パネルドラッグ、リサイズ、メトリクスフローティング -->
+    <script>
+        // 放球ウィンドウパネルのドラッグ
+        (function () {
+            var panel = document.getElementById('launch_window_panel');
+            var header = panel.querySelector('.ensemble-stats-header');
+            var isDragging = false; var startX, startY;
+            header.style.cursor = 'grab';
+            header.addEventListener('mousedown', function (e) {
+                if (e.target.tagName === 'BUTTON') return;
+                isDragging = true; header.style.cursor = 'grabbing';
+                startX = e.clientX - panel.offsetLeft;
+                startY = e.clientY - panel.offsetTop;
+                document.addEventListener('mousemove', onMouseMove);
+                document.addEventListener('mouseup', onMouseUp);
+            });
+            function onMouseMove(e) {
+                if (!isDragging) return;
+                panel.style.left = (e.clientX - startX) + 'px';
+                panel.style.top = (e.clientY - startY) + 'px';
+                panel.style.right = 'auto'; panel.style.bottom = 'auto';
+            }
+            function onMouseUp() {
+                isDragging = false; header.style.cursor = 'grab';
+                document.removeEventListener('mousemove', onMouseMove);
+                document.removeEventListener('mouseup', onMouseUp);
+            }
+        })();
+
+        // サイドバーリサイズ
+        (function () {
+            var handle = document.getElementById('sidebar-resize-handle');
+            var sidebar = document.getElementById('app-sidebar');
+            if (!handle || !sidebar) return;
+            var isResizing = false, startX = 0, startWidth = 0, minWidth = 280, maxWidth = 700;
+            handle.addEventListener('mousedown', function (e) {
+                isResizing = true; startX = e.clientX; startWidth = sidebar.offsetWidth;
+                document.body.style.cursor = 'col-resize'; document.body.style.userSelect = 'none'; e.preventDefault();
+            });
+            document.addEventListener('mousemove', function (e) {
+                if (!isResizing) return;
+                var delta = startX - e.clientX;
+                var newWidth = Math.max(minWidth, Math.min(maxWidth, startWidth + delta));
+                document.documentElement.style.setProperty('--sidebar-width', newWidth + 'px');
+                if (typeof map !== 'undefined' && map.invalidateSize) map.invalidateSize();
+            });
+            document.addEventListener('mouseup', function () {
+                if (isResizing) { isResizing = false; document.body.style.cursor = ''; document.body.style.userSelect = '';
+                    if (typeof map !== 'undefined' && map.invalidateSize) map.invalidateSize(); }
+            });
+            handle.addEventListener('touchstart', function (e) { isResizing = true; startX = e.touches[0].clientX; startWidth = sidebar.offsetWidth; e.preventDefault(); });
+            document.addEventListener('touchmove', function (e) { if (!isResizing) return; var delta = startX - e.touches[0].clientX; var newWidth = Math.max(minWidth, Math.min(maxWidth, startWidth + delta)); document.documentElement.style.setProperty('--sidebar-width', newWidth + 'px'); });
+            document.addEventListener('touchend', function () { if (isResizing) { isResizing = false; if (typeof map !== 'undefined' && map.invalidateSize) map.invalidateSize(); } });
+        })();
+
+        // アンサンブル統計の最小化・展開
+        var ehimeToggle = document.getElementById('ensemble_stats_toggle');
+        if (ehimeToggle) {
+            ehimeToggle.addEventListener('click', function () {
+                var body = document.querySelector('.ensemble-stats-body');
+                var panel = document.getElementById('ensemble_stats_panel');
+                if (body.style.display === 'none') {
+                    body.style.display = 'block'; this.innerHTML = '&minus;'; panel.style.maxHeight = '90vh';
+                    // Restore default floating position (remove minimize anchoring)
+                    panel.style.left = ''; panel.style.bottom = ''; panel.style.top = ''; panel.style.right = '';
+                } else {
+                    // Minimize: keep panel anchored to bottom-left on desktop
+                    body.style.display = 'none'; this.innerHTML = '&#43;'; panel.style.maxHeight = 'none';
+                    if (window.innerWidth > 768) {
+                        panel.style.left = '8px'; panel.style.bottom = '8px'; panel.style.top = 'auto'; panel.style.right = 'auto';
+                    }
+                }
+            });
+        }
+
+        // INFOウィンドウ(メトリクス)位置トグル・フローティング独立機能
+        var toggleMetricsBtn = document.getElementById('toggle_metrics_pos');
+        var popoutMetricsBtn = document.getElementById('popout_metrics_btn');
+        var metricsContainer = document.getElementById('scenario_info_floating_container');
+        var originalParent = document.getElementById('scenario_info');
+        var restoreAnchor = document.getElementById('metrics_restore_anchor');
+        function moveMetricsToFloating() { if (window.innerWidth <= 768) return; if (metricsContainer.parentNode !== document.body) document.body.appendChild(metricsContainer); metricsContainer.classList.add('floating-metrics-mode'); if (popoutMetricsBtn) popoutMetricsBtn.style.display = 'none'; }
+        function restoreMetricsToSidebar() { if (metricsContainer.parentNode !== originalParent) { if (restoreAnchor) originalParent.insertBefore(metricsContainer, restoreAnchor); else originalParent.appendChild(metricsContainer); } metricsContainer.classList.remove('floating-metrics-mode'); if (popoutMetricsBtn && window.innerWidth > 768) popoutMetricsBtn.style.display = 'inline-block'; metricsContainer.style.left = ''; metricsContainer.style.top = ''; }
+        if (toggleMetricsBtn) toggleMetricsBtn.addEventListener('click', function (e) { e.preventDefault(); restoreMetricsToSidebar(); });
+        if (popoutMetricsBtn) popoutMetricsBtn.addEventListener('click', moveMetricsToFloating);
+        if (window.innerWidth > 768) {
+            moveMetricsToFloating();
+        }
+
+        // パネルドラッグヘルパー
+        function enablePanelDrag(panelEl, handleEl, guardFn) {
+            if (!panelEl || !handleEl) return;
+            var dragging = false, offsetX = 0, offsetY = 0;
+            handleEl.style.cursor = 'grab';
+            handleEl.addEventListener('mousedown', function (e) {
+                if (guardFn && !guardFn()) return; if (e.target.tagName === 'BUTTON') return;
+                dragging = true; handleEl.style.cursor = 'grabbing';
+                var rect = panelEl.getBoundingClientRect();
+                panelEl.style.left = rect.left + 'px'; panelEl.style.top = rect.top + 'px';
+                panelEl.style.right = 'auto'; panelEl.style.bottom = 'auto';
+                offsetX = e.clientX - rect.left; offsetY = e.clientY - rect.top;
+                document.addEventListener('mousemove', onMouseMove); document.addEventListener('mouseup', onMouseUp);
+            });
+            function onMouseMove(e) { if (!dragging) return; panelEl.style.left = (e.clientX - offsetX) + 'px'; panelEl.style.top = (e.clientY - offsetY) + 'px'; }
+            function onMouseUp() { dragging = false; handleEl.style.cursor = 'grab'; document.removeEventListener('mousemove', onMouseMove); document.removeEventListener('mouseup', onMouseUp); }
+        }
+        var ensemblePanel = document.getElementById('ensemble_stats_panel');
+        var ensembleHeader = ensemblePanel ? ensemblePanel.querySelector('.ensemble-stats-header') : null;
+        enablePanelDrag(ensemblePanel, ensembleHeader, function () { return window.innerWidth > 768; });
+        var metricsHeader = metricsContainer ? metricsContainer.querySelector('.always-on-header') : null;
+        enablePanelDrag(metricsContainer, metricsHeader, function () { return window.innerWidth > 768 && metricsContainer.classList.contains('floating-metrics-mode'); });
+        window.addEventListener('resize', function () {
+            if (window.innerWidth <= 768 && metricsContainer.classList.contains('floating-metrics-mode')) restoreMetricsToSidebar();
+            else if (window.innerWidth <= 768 && popoutMetricsBtn) popoutMetricsBtn.style.display = 'none';
+            else if (window.innerWidth > 768 && popoutMetricsBtn && !metricsContainer.classList.contains('floating-metrics-mode')) popoutMetricsBtn.style.display = 'inline-block';
+        });
+    </script>
+
+    <!-- Mobile Bottom Navigation Bar -->
+    <nav id="mobile_nav" style="display:none;">
+        <button data-target="input_form">設定</button>
+        <button data-target="scenario_info">情報</button>
+        <button data-target="ensemble_stats_panel" id="mobile_nav_ehime">統計</button>
+        <button data-target="burst-calc-wrapper">計算</button>
+        <button type="button" id="mobile_dark_mode_toggle" data-theme-toggle="true" title="ダークモード切替">テーマ</button>
+    </nav>
+    <!-- トーストコンテナ -->
+    <div id="toast-container"></div>
+
+    <!-- ダークモード切替 + トースト通知API -->
+    <script>
+        (function () {
+            var root = document.documentElement;
+            var toggles = Array.prototype.slice.call(document.querySelectorAll('[data-theme-toggle]'));
+            var darkTileLayer = null; var lightTileLayer = null;
+            var DARK_TILE = 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png';
+            var DARK_TILE_ATTR = '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/">CARTO</a>';
+            var saved = localStorage.getItem('dark-mode');
+            if (saved === 'true') root.classList.add('dark-mode');
+            else if (saved === 'false') root.classList.add('light-mode');
+            function isDark() { return root.classList.contains('dark-mode') || (!root.classList.contains('light-mode') && window.matchMedia('(prefers-color-scheme: dark)').matches); }
+            function applyMapTile() {
+                if (typeof map === 'undefined') return;
+                if (isDark()) {
+                    if (!darkTileLayer) darkTileLayer = L.tileLayer(DARK_TILE, { attribution: DARK_TILE_ATTR, maxZoom: 19 });
+                    map.eachLayer(function (layer) { if (layer instanceof L.TileLayer && layer !== darkTileLayer) { lightTileLayer = layer; map.removeLayer(layer); } });
+                    darkTileLayer.addTo(map);
+                } else { if (darkTileLayer) map.removeLayer(darkTileLayer); if (lightTileLayer) lightTileLayer.addTo(map); }
+            }
+            function updateThemeToggleLabels() {
+                var dark = isDark();
+                toggles.forEach(function (btn) { if (!btn) return; btn.setAttribute('aria-pressed', dark ? 'true' : 'false'); if (btn.id === 'mobile_dark_mode_toggle') btn.textContent = dark ? 'ライト' : 'ダーク'; });
+            }
+            function handleThemeToggleClick() {
+                var isCurrentlyDark = isDark();
+                if (isCurrentlyDark) { root.classList.remove('dark-mode'); root.classList.add('light-mode'); localStorage.setItem('dark-mode', 'false'); }
+                else { root.classList.remove('light-mode'); root.classList.add('dark-mode'); localStorage.setItem('dark-mode', 'true'); }
+                applyMapTile(); updateThemeToggleLabels();
+                showToast(isCurrentlyDark ? 'ライトモードに切替' : 'ダークモードに切替', 'info', 2000);
+            }
+            toggles.forEach(function (btn) { btn.addEventListener('click', handleThemeToggleClick); });
+            setTimeout(applyMapTile, 1500); updateThemeToggleLabels();
+        })();
+
+        // トースト通知API
+        var TOAST_ICONS = {
+            success: '<svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z"></path></svg>',
+            warning: '<svg viewBox="0 0 24 24"><path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"></path></svg>',
+            error: '<svg viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12 19 6.41z"></path></svg>',
+            info: '<svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"></path></svg>'
+        };
+        function showToast(message, type, duration) {
+            type = type || 'info'; duration = duration || 4000;
+            var container = document.getElementById('toast-container');
+            if (!container) return;
+            var toast = document.createElement('div'); toast.className = 'toast toast-' + type;
+            var icon = document.createElement('span'); icon.className = 'toast-icon'; icon.innerHTML = TOAST_ICONS[type] || TOAST_ICONS.info;
+            var msg = document.createElement('span'); msg.className = 'toast-message'; msg.textContent = message;
+            var closeBtn = document.createElement('button'); closeBtn.className = 'toast-close'; closeBtn.innerHTML = '&times;';
+            closeBtn.onclick = function () { dismissToast(toast); };
+            toast.appendChild(icon); toast.appendChild(msg); toast.appendChild(closeBtn);
+            container.appendChild(toast);
+            var timer = setTimeout(function () { dismissToast(toast); }, duration); toast._timer = timer;
+        }
+        function dismissToast(toast) {
+            if (toast._dismissed) return; toast._dismissed = true;
+            clearTimeout(toast._timer); toast.classList.add('toast-exit');
+            setTimeout(function () { if (toast.parentNode) toast.parentNode.removeChild(toast); }, 300);
+        }
+    </script>
+
+    <script src="js/pred/mobile-ui.js"></script>
 </body>
 </html>

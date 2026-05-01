@@ -14,7 +14,7 @@
   }
 
   function buildPanels(){
-    const panelIds = ['input_form','scenario_info','ehime_panel','burst-calc-wrapper'];
+    const panelIds = ['input_form','scenario_info','ensemble_stats_panel','burst-calc-wrapper'];
     panels = panelIds.reduce((acc,id)=>{ const el=document.getElementById(id); if(el) acc[id]=el; return acc;},{});
   }
   function closeAll(){
@@ -38,6 +38,8 @@
     nav = document.getElementById('mobile_nav');
     if(!nav) return;
     buildPanels();
+    // Ensure the Ehime (統計) button is visible on mobile
+    var ehimeBtn = document.getElementById('mobile_nav_ehime'); if(ehimeBtn) ehimeBtn.style.display = 'block';
     nav.addEventListener('click', function(e){
       var btn = e.target.closest && e.target.closest('button[data-target]');
       if(!btn) return;

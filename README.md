@@ -1,11 +1,11 @@
 
 <div align="center">
 
-# Falling Position Simulator 2025
+# Falling Position Simulator 2026
 
 気球 / 高高度プラットフォームの飛行（上昇 → 破裂 → 下降）着地点を予測・可視化するシングルページ Web クライアント。Leaflet を用いて API から取得した飛行経路 / 着地点を地図上にレンダリングし、パラメータ感度 (Ehime 実験モード) を 13 バリアント同時比較します。
 
-👉 公開ページ (GitHub Pages): **https://wasa-rockoon.github.io/Falling-position-simulator2025/**
+👉 公開ページ (GitHub Pages): **現在公開してません**
 
 <sub>静的ホスティングのみで動作。バックエンド (風予測 API) は外部サービスを利用します。</sub>
 
@@ -244,6 +244,7 @@ Issue / PR 歓迎。バグ報告には以下を含めてください:
 | 日付 | 変更 |
 |------|------|
 | 2025-09-10 | README 大幅改訂 (構成拡張, 設定 / 品質 / 制限追加) |
+| 2026-05-01 | フロントエンド 大幅改訂 |
 
 ## 18. English Extended Summary
 Falling Position Simulator 2025 is a lightweight static web client (Leaflet + jQuery) that visualizes predicted high-altitude balloon flights (ascent → burst → descent). In the Ehime Experiment mode it concurrently runs 13 sensitivity variants (single-parameter ± changes and paired combinations) against a Tawhiri/SondeHub prediction API, displaying each landing point plus aggregated mean landing coordinates and maximum deviation. Land/Sea classification is a simple point-in-polygon test over a Japan landmask GeoJSON. No build step required; just serve the static files. Suggested future improvements include TypeScript refactor, automated testing, global landmask, and offline caching. Licensed under GPLv3. Live demo: https://wasa-rockoon.github.io/Falling-position-simulator2025/
@@ -282,6 +283,8 @@ Falling Position Simulator 2025 is a lightweight static web client (Leaflet + jQ
 	* 完了数 / 総数
 	* 平均着地点 (全バリアント平均緯度経度)
 	* 最大偏差 (平均地点から最も遠い着地点までの距離 km)
+5. 履歴パネルから過去結果を再表示できます。左右ボタンで前後の履歴へ移動し、再表示後は表の行クリックで該当ピンへ移動します。
+6. 履歴の重ね表示は、個別に色分けされた単純なオーバーレイとして切り替えできます。
 
 ### マップ表示の意味
 * カラフルな小円: 各バリアントの着地点（BASE はやや大きい）
