@@ -1,0 +1,20 @@
+{
+    "name": "WASA 気球実験用 予測ツール",
+    "short_name": "気球予測",
+    "start_url": "./index.html",
+    "display": "standalone",
+    "background_color": "#f2f2f7",
+    "theme_color": "#007aff",
+    "icons": [
+        {
+            "src": "images/target-8-sm.png",
+            "sizes": "192x192",
+            "type": "image/png"
+        },
+        {
+            "src": "images/target-8-sm.png",
+            "sizes": "512x512",
+            "type": "image/png"
+        }
+    ]
+}

@@ -18,7 +18,7 @@ var urlLonFromParams = null;
 // and the page is loaded
 $(document).ready(function() {
     // Initialise the map canvas with parameters (lat, long, zoom-level)
-    initMap(-34.03, 138.66, 8);
+    initMap(33.1333, 132.5052, 10);
 
     // Populate the launch site list from sites.json
     populateLaunchSite();
@@ -85,6 +85,13 @@ function readURLParams() {
     }
     if(url.searchParams.has('float_altitude')){
         $("#burst").val(url.searchParams.get('float_altitude'));
+    }
+    if(url.searchParams.has('api_source')){
+        var source = url.searchParams.get('api_source');
+        $("#api_source").val(source);
+    }
+    if(url.searchParams.has('api_custom_url')){
+        $("#api_custom_url").val(url.searchParams.get('api_custom_url'));
     }
 
     if(url.searchParams.has('launch_datetime')){

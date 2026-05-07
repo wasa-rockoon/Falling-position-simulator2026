@@ -199,7 +199,6 @@ function updateCoordinateFormat(){
     }
 }
 
-// Rebuild coordinate lines inside existing popups to match current format.
 function updateAllPopups(){
     function rewritePopup(marker){
         if(!marker || !marker.getLatLng || !marker.getPopup) return;
@@ -208,13 +207,17 @@ function updateAllPopups(){
         var ll = marker.getLatLng();
         var latStr = formatCoord(ll.lat,'lat');
         var lonStr = formatCoord(ll.lng,'lon');
-        var html = pop.getContent();
-        if(!html || typeof html !== 'string') return;
+        var content = pop.getContent();
+        if(!content) return;
+
+        var isElem = (typeof content === 'object' && content.nodeType);
+        var html = isElem ? content.innerHTML : content;
+        if(typeof html !== 'string') return;
+
         var labels = ['着地点:','位置:','緯度経度:','<b>予測着地点:</b>'];
         labels.forEach(function(label){
             var idx = html.indexOf(label);
             if(idx !== -1){
-                // find end (next < or line break)
                 var start = idx + label.length;
                 var end = html.indexOf('<', start);
                 if(end === -1) end = html.length;
@@ -222,7 +225,6 @@ function updateAllPopups(){
                 html = html.substring(0, idx) + replacement + html.substring(end);
             }
         });
-        // Special: BASE着地点 line should always use BASE variant's landing coords
         try {
             var baseIdx = html.indexOf('BASE着地点:');
             if(baseIdx !== -1 && typeof ehime_predictions !== 'undefined' && ehime_predictions){
@@ -236,17 +238,18 @@ function updateAllPopups(){
                 if(endB === -1) endB = html.length;
                 var repB = 'BASE着地点: ';
                 if(baseLL){
-                    var bLat = formatCoord(baseLL.lat,'lat');
-                    var bLon = formatCoord(baseLL.lng,'lon');
-                    repB += bLat + ', ' + bLon;
-                } else {
-                    repB += '-';
-                }
+                    repB += formatCoord(baseLL.lat,'lat') + ', ' + formatCoord(baseLL.lng,'lon');
+                } else { repB += '-'; }
                 html = html.substring(0, baseIdx) + repB + html.substring(endB);
             }
         } catch(e){}
-        pop.setContent(html);
-        // If open, force redraw
+
+        if(isElem){
+            content.innerHTML = html;
+        } else {
+            pop.setContent(html);
+        }
+        
         if(pop.isOpen && pop.isOpen()){
             marker.closePopup();
             marker.bindPopup(pop).openPopup();
