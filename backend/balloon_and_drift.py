@@ -316,6 +316,7 @@ def main():
     parser.add_argument("--hours", type=int, default=6, help="Drift duration hours")
     parser.add_argument("--outdir", type=str, default="outputs")
     parser.add_argument("--pretty-png", action="store_true", help="Generate a combined map image")
+    parser.add_argument("--no-drift", action="store_true", help="Skip ocean drift (OpenDrift) simulation")
     
     args = parser.parse_args()
     
@@ -332,6 +333,23 @@ def main():
     balloon_csv = os.path.join(args.outdir, "trajectory_balloon.csv")
     balloon_df.to_csv(balloon_csv, index=False)
     print(f"[Output] Balloon CSV: {balloon_csv}")
+
+    # If requested, skip OpenDrift / ocean drift to save time
+    if args.no_drift:
+        print("[INFO] --no-drift flag set; skipping ocean drift and returning balloon-only output.")
+        df_drift_mean = build_fallback_drift_dataframe(pd.to_datetime(landing_point['time']).replace(tzinfo=None), landing_point)
+        balloon_df['type'] = 'balloon'
+        cols = ['time', 'lat', 'lon', 'alt', 'type']
+        df_combined = pd.concat([
+            balloon_df.reindex(columns=cols),
+            df_drift_mean.reindex(columns=cols)
+        ])
+
+        combined_csv = os.path.join(args.outdir, "trajectory_combined.csv")
+        df_combined.to_csv(combined_csv, index=False)
+        print(f"[Output] Combined CSV: {combined_csv}")
+        print("[DONE] Balloon-only (no-drift) completed successfully.")
+        return
 
     # 2. OpenDrift 準備
     try:

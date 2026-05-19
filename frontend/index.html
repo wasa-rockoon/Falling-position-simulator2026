@@ -28,7 +28,7 @@
     <script src="js/pred/pred-map.js" type="text/javascript"></script>
     <script src="js/pred/pred-event.js" type="text/javascript"></script>
     <script src="js/pred/pred-new.js" type="text/javascript"></script>
-    <script src="js/pred/pred.js" type="text/javascript"></script>
+    <script src="js/pred/pred.js?v=20260519a" type="text/javascript"></script>
     <script src="js/calc/calc.js" type="text/javascript"></script>
     <script src="js/colour-map.js" type="text/javascript"></script>
 
@@ -116,8 +116,8 @@
     </tr>
     </table>
     </form><br />
-    <a id="req_close">Close this window</a>
-</div>
+    </div>
+
 
 <!-- View saved locations -->
 <div id="location_save_local" class="box ui-corner-all">
@@ -469,6 +469,10 @@
                 <option value="12_hour">12-Hourly</option>
                 <option value="daily">Daily</option>
             </select></td>
+        </tr>
+        <tr>
+            <td>Enable Ocean Drift:</td>
+            <td><input id="enable_drift" type="checkbox" name="enable_drift" checked></td>
         </tr>
         <tr>
             <td></td>

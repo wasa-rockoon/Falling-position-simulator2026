@@ -180,13 +180,17 @@ function runPrediction() {
     const driftInput = document.getElementById('drift_hours');
     const driftHours = driftInput ? driftInput.value : 6;
 
+    // Ocean drift toggle (default true)
+    const driftCheckbox = document.getElementById('enable_drift');
+    const oceanDrift = driftCheckbox ? (driftCheckbox.checked ? 'true' : 'false') : 'true';
+
     // APIベースURLは window.PREDICTOR_API_BASE があれば優先して使う。
     const apiBase = (typeof window.PREDICTOR_API_BASE === 'string' && window.PREDICTOR_API_BASE.trim() !== '')
         ? window.PREDICTOR_API_BASE.replace(/\/$/, '')
         : '';
 
     // ローカル/リモートのPython API URLを構築
-    const apiUrl = `${apiBase}/api/simulate?lat=${lat}&lon=${lon}&time=${timeISO}&ascent_rate=${ascent}&burst_alt=${burst}&descent_rate=${drag}&hours=${driftHours}`;
+    const apiUrl = `${apiBase}/api/simulate?lat=${lat}&lon=${lon}&time=${timeISO}&ascent_rate=${ascent}&burst_alt=${burst}&descent_rate=${drag}&hours=${driftHours}&ocean_drift=${oceanDrift}`;
 
     // APIを呼び出す
     fetch(apiUrl)

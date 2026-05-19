@@ -46,7 +46,8 @@ def run_simulation(
     ascent_rate: float = Query(5.0),
     burst_alt: float = Query(30000.0),
     descent_rate: float = Query(10.0),
-    hours: int = Query(6)
+    hours: int = Query(6),
+    ocean_drift: bool = Query(True)
 ):
     print(f"シミュレーション開始リクエスト受信: lat={lat}, lon={lon}, time={time}")
     
@@ -63,6 +64,9 @@ def run_simulation(
         "--hours", str(hours),
         "--outdir", OUTPUT_DIR
     ]
+    # If ocean drift is disabled from the frontend, pass a flag to skip OpenDrift
+    if not ocean_drift:
+        cmd.append("--no-drift")
     
     try:
         # シミュレーションの実行（同期処理なので、計算が終わるまで待機します）
