@@ -21,10 +21,6 @@ body {
         background-color: #000000;
 }
 
-/* --- Desktop: hide elements meant only for mobile (mobile CSS will re-display at <=768px) --- */
-/* NOTE: no !important so predictor-mobile.css can override */
-.mobile-only { display: none; }
-
 a { text-decoration: underline; color: #333; cursor: pointer; }
 
 /* The whoppping map in the centre */
@@ -163,71 +159,6 @@ html, body, #map_canvas {
 	width: 25em;
 }
 
-/* Ehime side panel */
-#ehime_panel {
-    bottom: 0px;
-    left: 0px;
-    top: auto;
-    width: 520px;
-    max-height: 70vh;
-    overflow: hidden;
-    display:none;
-    transition: width 0.25s ease, opacity 0.25s ease;
-    position:absolute;
-}
-.ehime-collapsed { width:28px !important; }
-.ehime-collapsed .ehime-collapsible { display:none !important; }
-#ehime_panel_toggle {
-    position:absolute;
-    top:2px;
-    right:4px;
-    font-weight:bold;
-    font-size:14px;
-    cursor:pointer;
-    color:#004080;
-    user-select:none;
-}
-.ehime-collapsed #ehime_panel_toggle { right:4px; }
-#ehime_variants_wrapper {
-    overflow-y: auto;
-    max-height: 50vh;
-    border:1px solid #ccc;
-    background: rgba(255,255,255,0.6);
-}
-#ehime_variants_table {
-    width:100%;
-    border-collapse:collapse;
-    font-size:11px;
-}
-#ehime_variants_table thead th {
-    position:sticky;
-    top:0;
-    background:#eef4ff;
-    border-bottom:1px solid #aac;
-    padding:2px 3px;
-}
-#ehime_variants_table tbody td {
-    padding:2px 3px;
-    border-bottom:1px solid #ddd;
-    text-align:center;
-}
-#ehime_variants_table tbody tr:hover {
-    background:#f5faff;
-    cursor:pointer;
-}
-.ehime-color-swatch {
-    width:14px;
-    height:14px;
-    border:1px solid #000;
-    display:inline-block;
-}
-.ehime-status-pending { color:#996600; }
-.ehime-status-ok { color:#006600; font-weight:bold; }
-.ehime-status-error { color:#cc0000; font-weight:bold; }
-.ehime-row-base { font-weight:bold; }
-/* 陸海判定: 海セル強調 */
-.ehime-landsea-sea { color:#33aaff !important; font-weight:bold; }
-
 #trail_table { 
 	right: 0; bottom: 0;
 	border-right: none;
@@ -289,7 +220,6 @@ html, body, #map_canvas {
     color: #888;
     -webkit-user-select:none;
     -moz-user-select:none;
-    user-select:none;
     cursor: default;
     line-height: 220%;
     font-size: 10px;
@@ -340,15 +270,8 @@ table#trails th {
 
 .tipsy { padding: 5px; font-size: 10px; opacity: 0.8; filter: alpha(opacity=80); background-repeat: no-repeat;  background-image: url(../images/tipsy.gif); }
   .tipsy-inner { padding: 5px 8px 4px 8px; background-color: black; color: white; max-width: 200px; text-align: center; }
-    .tipsy-inner { -moz-border-radius:3px; -webkit-border-radius:3px; border-radius:3px; }
+  .tipsy-inner { -moz-border-radius:3px; -webkit-border-radius:3px; }
   .tipsy-north { background-position: top center; }
   .tipsy-south { background-position: bottom center; }
   .tipsy-east { background-position: right center; }
   .tipsy-west { background-position: left center; }
-
-/* 落下モードで無効化された入力フィールドの視覚スタイル */
-.fall-disabled {
-    background: #f2f2f2 !important;
-    color: #888 !important;
-    border-color: #ccc !important;
-}
