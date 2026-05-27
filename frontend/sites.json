@@ -1,58 +1,42 @@
 {
-    "Auburn": {
-        "altitude"  :   306,
-        "latitude"  :   -34.0297,
-        "longitude" :   138.6917
+    "南レク南楽園ファミリーパーク": {
+        "altitude"  :   1.4,
+        "latitude"  :   33.13492,
+        "longitude" :   132.50477
     },
-    "Churchill": {
-        "latitude"  :   52.2135,
-        "longitude" :   0.0964,
-        "altitude"  :   0
+    "津島プレーランド": {
+        "altitude"  :   1.4,
+        "latitude"  :   33.12604,
+        "longitude" :   132.50333
     },
-    "Elsworth": {
-        "latitude"  :   52.2511,
-        "longitude" :   -0.0927,
-        "altitude"  :   0
+    "須ノ川公園キャンプ場": {
+        "altitude"  :   1.6,
+        "latitude"  :   33.04107,
+        "longitude" :   132.48698
     },
-    "Adelaide": {
-        "altitude"  :   0,
-        "latitude"  :   -34.9499,
-        "longitude" :   138.5194
+    "南レク松軒山公園": {
+        "altitude"  :   160.2,
+        "latitude"  :   32.97239,
+        "longitude" :   132.55583
     },
-    "Tullamarine": {
-        "altitude": 0,
-        "latitude": -37.6656,
-        "longitude": 144.8319
+    "南レク御荘公園": {
+        "altitude"  :   2.7,
+        "latitude"  :   32.96417,
+        "longitude" :   132.55206
     },
-    "Boston Spa": { 
-        "latitude"  :   53.8997,
-        "longitude" :   -1.3629,
-        "altitude"  :   0
+    "南レク城辺公園": { 
+        "altitude"  :   44.1,
+        "latitude"  :   32.95287,
+        "longitude" :   132.58429
     },
-    "Mt Barker": {
-        "altitude"  :   360,
-        "latitude"  :   -35.0765,
-        "longitude" :   138.8569
+    "土佐西南大規模公園": {
+        "altitude"  :   11.3,
+        "latitude"  :   33.02483,
+        "longitude" :   133.01651
     },
-    "Cookstown": {
-        "altitude"  :   60,
-        "latitude"  :   54.632162,
-        "longitude" :   -6.757982
-    },
-    "Preston St Mary": {
-        "latitude"  :   52.1215,
-        "longitude" :   0.8078,
-        "altitude"  :   70
-    },
-    "Ross-on-Wye": {
-        "altitude"  :   150,
-        "latitude"  :   51.95023,
-        "longitude" :   -2.5445
-    },
-    "Ararat": {
-        "altitude"  :   295,
-        "latitude"  :   -37.294,
-        "longitude" :   142.9374
+    "一本松温泉あけぼの荘": {
+        "altitude"  :   89.4,
+        "latitude"  :   32.9676641,
+        "longitude" :   132.6568765
     }
-
 }

@@ -1,7 +1,7 @@
 import os
 import sys
 import subprocess
-from fastapi import FastAPI, Query, HTTPException
+from fastapi import FastAPI, Query, HTTPException, Body
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
@@ -92,15 +92,49 @@ def run_simulation(
 app.mount("/js", StaticFiles(directory=os.path.join(FRONTEND_DIR, "js")), name="js")
 app.mount("/css", StaticFiles(directory=os.path.join(FRONTEND_DIR, "css")), name="css")
 app.mount("/images", StaticFiles(directory=os.path.join(FRONTEND_DIR, "images")), name="images")
+app.mount("/data", StaticFiles(directory=os.path.join(FRONTEND_DIR, "data")), name="data")
 
 # sites.json など、フロントエンド直下にあるファイルを直接読みたい場合の対応
 @app.get("/sites.json")
 def read_sites():
     return FileResponse(os.path.join(FRONTEND_DIR, "sites.json"))
 
+
+@app.get("/manifest.json")
+def read_manifest():
+    return FileResponse(os.path.join(FRONTEND_DIR, "manifest.json"))
+
+
+@app.get("/sw.js")
+def read_service_worker():
+    return FileResponse(os.path.join(FRONTEND_DIR, "sw.js"), media_type="application/javascript")
+
+
+@app.get("/favicon.ico")
+def read_favicon():
+    return FileResponse(os.path.join(FRONTEND_DIR, "favicon.ico"))
+
+
+@app.post("/_client_error")
+async def client_error(payload: dict = Body(...)):
+    # Log client-side JS errors for debugging during development
+    try:
+        print("[CLIENT ERROR]", payload)
+    except Exception:
+        print("[CLIENT ERROR] (could not parse payload)")
+    return {"ok": True}
+
 # ルートURL ("/") にアクセスが来た時に index.html を返す
 @app.get("/")
 def read_index():
+    index_path = os.path.join(FRONTEND_DIR, "index.html")
+    if not os.path.exists(index_path):
+        return {"error": "index.htmlが見つかりません。frontendフォルダの中にindex.htmlがあるか確認してください。"}
+    return FileResponse(index_path)
+
+
+@app.get("/index.html")
+def read_index_html():
     index_path = os.path.join(FRONTEND_DIR, "index.html")
     if not os.path.exists(index_path):
         return {"error": "index.htmlが見つかりません。frontendフォルダの中にindex.htmlがあるか確認してください。"}

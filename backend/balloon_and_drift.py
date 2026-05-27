@@ -26,6 +26,7 @@ Dependencies:
 import os
 import sys
 import argparse
+import json
 import subprocess
 import shutil
 import requests
@@ -161,6 +162,135 @@ def nc_time_bounds(path):
         t = pd.to_datetime(ds["time"].values)
         return t.min().to_pydatetime().replace(tzinfo=None), t.max().to_pydatetime().replace(tzinfo=None)
 
+
+def nc_spatial_bounds(path):
+    with xr.open_dataset(path) as ds:
+        lon_name = None
+        lat_name = None
+        for candidate in ["longitude", "lon", "x"]:
+            if candidate in ds.coords or candidate in ds.data_vars:
+                lon_name = candidate
+                break
+        for candidate in ["latitude", "lat", "y"]:
+            if candidate in ds.coords or candidate in ds.data_vars:
+                lat_name = candidate
+                break
+
+        if lon_name is None or lat_name is None:
+            return None
+
+        lon = ds[lon_name].values
+        lat = ds[lat_name].values
+        return float(np.nanmin(lon)), float(np.nanmax(lon)), float(np.nanmin(lat)), float(np.nanmax(lat))
+
+
+_LAND_FEATURES = None
+
+
+def load_land_features():
+    global _LAND_FEATURES
+    if _LAND_FEATURES is not None:
+        return _LAND_FEATURES
+
+    land_path = os.path.join(FRONTEND_DIR, "data", "land_japan_raw.geojson")
+    features = []
+    try:
+        with open(land_path, 'r', encoding='utf-8') as f:
+            geo = json.load(f)
+        for feat in geo.get('features', []):
+            geom = feat.get('geometry') or {}
+            if geom.get('type') not in ('Polygon', 'MultiPolygon'):
+                continue
+            features.append({'geometry': geom, 'bbox': compute_geometry_bbox(geom)})
+    except Exception as exc:
+        print(f"[WARN] Failed to load land mask: {exc}")
+        features = []
+
+    _LAND_FEATURES = features
+    return _LAND_FEATURES
+
+
+def compute_geometry_bbox(geom):
+    min_x = 999.0
+    min_y = 999.0
+    max_x = -999.0
+    max_y = -999.0
+
+    def add_coord(coord):
+        nonlocal min_x, min_y, max_x, max_y
+        x = coord[0]
+        y = coord[1]
+        min_x = min(min_x, x)
+        min_y = min(min_y, y)
+        max_x = max(max_x, x)
+        max_y = max(max_y, y)
+
+    if geom.get('type') == 'Polygon':
+        for ring in geom.get('coordinates', []):
+            for coord in ring:
+                add_coord(coord)
+    elif geom.get('type') == 'MultiPolygon':
+        for poly in geom.get('coordinates', []):
+            for ring in poly:
+                for coord in ring:
+                    add_coord(coord)
+    return (min_x, min_y, max_x, max_y)
+
+
+def point_in_ring(lon, lat, ring):
+    inside = False
+    j = len(ring) - 1
+    for i in range(len(ring)):
+        xi, yi = ring[i][0], ring[i][1]
+        xj, yj = ring[j][0], ring[j][1]
+        intersect = ((yi > lat) != (yj > lat)) and (lon < (xj - xi) * (lat - yi) / ((yj - yi) or 1e-12) + xi)
+        if intersect:
+            inside = not inside
+        j = i
+    return inside
+
+
+def is_land_point(lat, lon):
+    features = load_land_features()
+    if not features:
+        return False
+    for feat in features:
+        bbox = feat['bbox']
+        if lon < bbox[0] or lon > bbox[2] or lat < bbox[1] or lat > bbox[3]:
+            continue
+        geom = feat['geometry']
+        if geom.get('type') == 'Polygon':
+            if geom.get('coordinates') and point_in_ring(lon, lat, geom['coordinates'][0]):
+                return True
+        elif geom.get('type') == 'MultiPolygon':
+            for poly in geom.get('coordinates', []):
+                if poly and point_in_ring(lon, lat, poly[0]):
+                    return True
+    return False
+
+
+def find_nearest_sea_point(lat, lon, max_radius_deg=1.5, step_deg=0.02):
+    if not is_land_point(lat, lon):
+        return lat, lon
+
+    max_radius_deg = max(0.05, float(max_radius_deg))
+    step_deg = max(0.005, float(step_deg))
+    offsets = []
+    radius = step_deg
+    while radius <= max_radius_deg + 1e-9:
+        for angle_idx in range(16):
+            angle = (2 * math.pi * angle_idx) / 16.0
+            dlat = radius * math.sin(angle)
+            dlon = radius * math.cos(angle) / max(0.2, math.cos(math.radians(lat)))
+            offsets.append((lat + dlat, lon + dlon))
+        radius += step_deg
+
+    for cand_lat, cand_lon in offsets:
+        if not is_land_point(cand_lat, cand_lon):
+            return cand_lat, cand_lon
+
+    return lat, lon
+
 def cmems_subset(out_nc, dataset_id, vars, lon, lat, start_utc, end_utc, radius_km, force=False):
     os.makedirs(os.path.dirname(out_nc), exist_ok=True)
     
@@ -168,11 +298,15 @@ def cmems_subset(out_nc, dataset_id, vars, lon, lat, start_utc, end_utc, radius_
     if os.path.exists(out_nc) and not force:
         try:
             tmin, tmax = nc_time_bounds(out_nc)
+            bounds = nc_spatial_bounds(out_nc)
             s_naive = start_utc.replace(tzinfo=None)
             e_naive = end_utc.replace(tzinfo=None)
-            if tmin <= s_naive and tmax >= e_naive:
-                print(f"[CMEMS] Using cache: {out_nc}")
-                return out_nc
+            if tmin <= s_naive and tmax >= e_naive and bounds is not None:
+                lon_min, lon_max, lat_min, lat_max = bounds
+                if (lon_min - 1.0) <= lon <= (lon_max + 1.0) and (lat_min - 1.0) <= lat <= (lat_max + 1.0):
+                    print(f"[CMEMS] Using cache: {out_nc}")
+                    return out_nc
+                print(f"[CMEMS] Cache spatial bounds do not match request, refreshing: {out_nc}")
         except Exception:
             pass 
 
@@ -300,6 +434,78 @@ def build_fallback_drift_dataframe(splash_time, landing_point):
         'type': ['drift_mean']
     })
 
+
+def build_integrated_drift_dataframe(curr_nc, splash_time, landing_point, hours, step_minutes=10, seed_lat=None, seed_lon=None):
+    if not curr_nc or not os.path.exists(curr_nc):
+        return build_fallback_drift_dataframe(splash_time, landing_point)
+
+    try:
+        ds = xr.open_dataset(curr_nc)
+    except Exception:
+        return build_fallback_drift_dataframe(splash_time, landing_point)
+
+    lat_name = 'latitude' if 'latitude' in ds.coords else 'lat'
+    lon_name = 'longitude' if 'longitude' in ds.coords else 'lon'
+    time_name = 'time'
+    depth_name = 'depth' if 'depth' in ds.coords else None
+    u_name = 'uo' if 'uo' in ds else None
+    v_name = 'vo' if 'vo' in ds else None
+
+    if u_name is None or v_name is None:
+        return build_fallback_drift_dataframe(splash_time, landing_point)
+
+    lat = float(seed_lat if seed_lat is not None else landing_point['lat'])
+    lon = float(seed_lon if seed_lon is not None else landing_point['lon'])
+    current_time = pd.to_datetime(splash_time).to_pydatetime().replace(tzinfo=None)
+    end_time = current_time + timedelta(hours=float(hours))
+    step = timedelta(minutes=int(step_minutes))
+    last_u = 0.0
+    last_v = 0.0
+
+    rows = []
+    while current_time <= end_time:
+        rows.append({'time': current_time, 'lat': lat, 'lon': lon, 'alt': 0.0, 'type': 'drift_mean'})
+
+        try:
+            current_slice = ds
+            if depth_name is not None:
+                current_slice = current_slice.sel({depth_name: current_slice[depth_name].values[0]}, method='nearest')
+            current_slice = current_slice.sel({time_name: np.datetime64(current_time)}, method='nearest')
+            lat_pad = 0.25
+            lon_pad = 0.25
+            u_box = current_slice[u_name].sel({lat_name: slice(lat - lat_pad, lat + lat_pad), lon_name: slice(lon - lon_pad, lon + lon_pad)})
+            v_box = current_slice[v_name].sel({lat_name: slice(lat - lat_pad, lat + lat_pad), lon_name: slice(lon - lon_pad, lon + lon_pad)})
+            if u_box.size > 0 and v_box.size > 0:
+                u = float(u_box.mean(skipna=True).values)
+                v = float(v_box.mean(skipna=True).values)
+            else:
+                u = float(current_slice[u_name].mean(skipna=True).values)
+                v = float(current_slice[v_name].mean(skipna=True).values)
+            if (not np.isfinite(u)) or (not np.isfinite(v)) or (abs(u) + abs(v) < 1e-6):
+                try:
+                    u = float(current_slice[u_name].mean(skipna=True).values)
+                    v = float(current_slice[v_name].mean(skipna=True).values)
+                except Exception:
+                    pass
+            if not np.isfinite(u):
+                u = last_u
+            if not np.isfinite(v):
+                v = last_v
+        except Exception:
+            u = last_u
+            v = last_v
+
+        last_u = u
+        last_v = v
+
+        dt = step.total_seconds()
+        lat += (v * dt) / 111320.0
+        lon += (u * dt) / (111320.0 * max(0.1, math.cos(math.radians(lat))))
+        lon = ((lon + 180.0) % 360.0) - 180.0
+        current_time += step
+
+    return pd.DataFrame(rows)
+
 # =============================================================================
 # Main
 # =============================================================================
@@ -424,9 +630,13 @@ def main():
     o.set_config('drift:horizontal_diffusivity', 10.0)
     o.set_config('general:coastline_action', 'stranding')
     
+    drift_seed_lat, drift_seed_lon = find_nearest_sea_point(float(landing_point['lat']), float(landing_point['lon']))
+    if drift_seed_lat != float(landing_point['lat']) or drift_seed_lon != float(landing_point['lon']):
+        print(f"[OpenDrift] Adjusted land splash point to sea seed: {drift_seed_lat:.5f}, {drift_seed_lon:.5f}")
+
     o.seed_elements(
-        lon=landing_point['lon'],
-        lat=landing_point['lat'],
+        lon=drift_seed_lon,
+        lat=drift_seed_lat,
         time=splash_time,
         number=200,
         radius=1000,
@@ -456,9 +666,17 @@ def main():
             'alt': 0.0,
             'type': 'drift_mean'
         })
+
+        try:
+            unique_positions = df_drift_mean[['lat', 'lon']].drop_duplicates().shape[0]
+        except Exception:
+            unique_positions = 0
+        if unique_positions <= 1:
+            print('[WARN] OpenDrift output is stationary; using CMEMS current integration fallback.')
+            df_drift_mean = build_integrated_drift_dataframe(curr_nc, splash_time, landing_point, args.hours, seed_lat=drift_seed_lat, seed_lon=drift_seed_lon)
     else:
         # Fallback: keep a single drift point at splashdown so frontend can still render.
-        df_drift_mean = build_fallback_drift_dataframe(splash_time, landing_point)
+        df_drift_mean = build_integrated_drift_dataframe(curr_nc, splash_time, landing_point, args.hours, seed_lat=drift_seed_lat, seed_lon=drift_seed_lon)
     
     # 【修正箇所】ここで df_balloon ではなく balloon_df を使う
     balloon_df['type'] = 'balloon'

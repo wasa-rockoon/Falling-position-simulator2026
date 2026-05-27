@@ -13,17 +13,9 @@
 
 // Initialise the UI - this must be called on document ready
 function initUI() {
-    // Make UI elements such as windows draggable
-    $("#input_form").draggable({containment: '#map_canvas', handle:
-        'img.handle', snap: '#map_canvas'});
-    $("#scenario_info").draggable({containment: '#map_canvas', handle:
-        'img.handle', snap: '#map_canvas'});
-    $("#location_save").draggable({containment: '#map_canvas', handle:
-        'img.handle', snap: '#map_canvas'});
-    $("#location_save_local").draggable({containment: '#map_canvas', handle:
-            'img.handle', snap: '#map_canvas'});
-    $("#burst-calc-wrapper").draggable({containment: '#map_canvas', handle:
-            'img.handle', snap: '#map_canvas'}); 
+    // モバイルではドラッグを無効化し、パネルが画面外へ移動する不具合を防ぐ。
+    setupDraggablePanels();
+    $(window).on('resize', setupDraggablePanels);
     
     // Activate buttons to jqueryui styling
     $("#run_pred_btn").button();
@@ -32,6 +24,54 @@ function initUI() {
     $("#burst-calc-close").button();
     $("#burst-calc-advanced-show").button();
     $("#burst-calc-advanced-hide").button();
+
+    // 放球ウィンドウ分析UI初期化
+    if (typeof initLaunchWindowUI === 'function') {
+        initLaunchWindowUI();
+    }
+}
+
+function isMobileUIViewport() {
+    return window.matchMedia && window.matchMedia('(max-width: 768px)').matches;
+}
+
+function setupDraggablePanels() {
+    // サイドバー固定パネルはドラッグさせない（画面外へ消える不具合対策）
+    var anchoredIds = ['#input_form', '#scenario_info'];
+    var floatingIds = ['#location_save', '#location_save_local', '#burst-calc-wrapper'];
+    var shouldEnableFloating = !isMobileUIViewport();
+
+    anchoredIds.forEach(function(id) {
+        var el = $(id);
+        if (!el.length) return;
+
+        if (el.data('ui-draggable')) {
+            try { el.draggable('destroy'); } catch (_e) {}
+        }
+        el.css({ left: '', top: '' });
+    });
+
+    floatingIds.forEach(function(id) {
+        var el = $(id);
+        if (!el.length) return;
+
+        if (shouldEnableFloating) {
+            if (!el.data('ui-draggable')) {
+                el.draggable({
+                    containment: '#map_canvas',
+                    handle: 'img.handle',
+                    snap: '#map_canvas'
+                });
+            }
+            return;
+        }
+
+        if (el.data('ui-draggable')) {
+            try { el.draggable('destroy'); } catch (_e) {}
+        }
+        // fixed シートとして使うため、ドラッグ座標をクリア
+        el.css({ left: '', top: '' });
+    });
 }
 
 // Throw an error window containing <data> and a 'close' link
@@ -101,6 +141,29 @@ function appendDebug(appendage, clear) {
     }
     // keep the debug window scrolled to bottom
     scrollToBottom("scenario_template_scroller");
+}
+
+function setOceanDriftStatus(message, state) {
+    var el = document.getElementById('ocean_drift_status');
+    if (!el) return;
+
+    el.classList.remove('is-running', 'is-success', 'is-error');
+
+    if (!message) {
+        el.style.display = 'none';
+        el.textContent = '';
+        return;
+    }
+
+    el.textContent = message;
+    if (state) {
+        el.classList.add('is-' + state);
+    }
+    el.style.display = 'flex';
+}
+
+function clearOceanDriftStatus() {
+    setOceanDriftStatus('', null);
 }
 
 // A function to scroll a scrollable <div> all the way to the bottom

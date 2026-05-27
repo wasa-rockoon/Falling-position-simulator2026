@@ -131,16 +131,60 @@ function EH_ScenarioInfo() {
     });
 
     $("#about_window_show").click(function() {
+        var isMobile = window.matchMedia && window.matchMedia('(max-width: 768px)').matches;
+        var viewportW = Math.max(document.documentElement.clientWidth || 0, window.innerWidth || 0);
+        var viewportH = Math.max(document.documentElement.clientHeight || 0, window.innerHeight || 0);
+
         $("#about_window").dialog({
-            modal:true,
-            width:600,
-            height: $(document).height() - 200,
+            modal: true,
+            width: isMobile ? Math.min(viewportW - 16, 640) : 600,
+            height: isMobile ? Math.max(320, viewportH - 24) : Math.max(420, $(document).height() - 200),
+            maxHeight: isMobile ? Math.max(320, viewportH - 24) : undefined,
+            draggable: !isMobile,
+            resizable: false,
+            closeOnEscape: true,
+            position: { my: 'center top+8', at: 'center top', of: window },
             buttons: {
-                Close: function() {
-                        $(this).dialog('close');
-                    }
+                "閉じる": function() {
+                    $(this).dialog('close');
+                }
+            },
+            open: function() {
+                // モバイル時に閉じる操作が見切れないよう、本文側を確実にスクロール可能にする。
+                $(this).css({ 'overflow-y': 'auto' });
             }
         });
+    });
+
+    // 落下位置一覧の表示/非表示トグル
+    $("#toggle_pos_list").click(function () {
+        var el = $("#pos_list_container");
+        if (el.is(":visible")) {
+            el.hide();
+            $(this).text("落下位置一覧を表示");
+        } else {
+            el.show();
+            $(this).text("落下位置一覧を非表示");
+        }
+    });
+
+    // Coordinate format toggle (Decimal <-> DMS)
+    $("#coord_format_toggle").click(function(){
+        if(window.coordFormat === 'dd'){
+            window.coordFormat = 'dms';
+            $(this).text('10進法表示').attr('title','緯度経度表示を 60 進法 から 10 進法 に切替');
+        } else {
+            window.coordFormat = 'dd';
+            $(this).text('60進法表示').attr('title','緯度経度表示を 10 進法 から 60 進法 に切替');
+        }
+        // 直ちに表示更新 (直前のマウス位置は不明なので map 中心座標を使用)
+        if(window.map){
+            var c = window.map.getCenter();
+            showMousePos(c);
+            if(typeof updateCoordinateFormat === 'function'){
+                updateCoordinateFormat();
+            }
+        }
     });
 }
 
