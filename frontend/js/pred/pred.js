@@ -219,7 +219,7 @@ function addHashLink(link) {
 function populateLaunchSite() {
     $("#site > option").remove();
     // キャッシュ回避のためバージョン付きで取得し、ロード結果をコンソールに出す
-    $.getJSON("sites.json?v=12", function(sites) {
+    $.getJSON("sites.json?v=13", function(sites) {
         console.log('[DEBUG] Loaded sites.json, entries=', Object.keys(sites || {}).length, sites);
         // キャッシュしておく（changeLaunchSite で同期的に参照するため）
         window._launch_sites = sites;
@@ -716,10 +716,6 @@ function plotOceanDriftOverlay(csvText, landPoint) {
 
     if (driftPath.length === 0) {
         return false;
-    }
-
-    if (landPoint) {
-        driftPath.unshift(L.latLng(landPoint.lat, landPoint.lng));
     }
 
     if (map_items['drift_polyline']) {

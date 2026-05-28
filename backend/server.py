@@ -53,8 +53,34 @@ def run_simulation(
     
     # balloon_and_drift.py を呼び出すコマンドを構築
     script_path = os.path.join(BACKEND_DIR, "balloon_and_drift.py")
+
+    # Determine which Python executable to use for the subprocess.
+    # Preference order:
+    # 1) Environment variable `PYTHON_INTERPRETER`
+    # 2) Project virtualenvs in repo root (e.g. .venv311, .venv, venv)
+    # 3) The current interpreter `sys.executable` as fallback
+    def _find_project_venv_python() -> str | None:
+        candidates = [
+            os.getenv("PYTHON_INTERPRETER"),
+            os.path.join(BASE_DIR, ".venv311", "Scripts", "python.exe"),
+            os.path.join(BASE_DIR, ".venv311", "bin", "python"),
+            os.path.join(BASE_DIR, ".venv", "Scripts", "python.exe"),
+            os.path.join(BASE_DIR, ".venv", "bin", "python"),
+            os.path.join(BASE_DIR, "venv", "Scripts", "python.exe"),
+            os.path.join(BASE_DIR, "venv", "bin", "python"),
+        ]
+        for p in candidates:
+            if not p:
+                continue
+            if os.path.exists(p) and os.access(p, os.X_OK):
+                return p
+        return None
+
+    python_exec = _find_project_venv_python() or sys.executable
+    print(f"Using Python for subprocess: {python_exec}")
+
     cmd = [
-        sys.executable, script_path,
+        python_exec, script_path,
         "--lat", str(lat), 
         "--lon", str(lon), 
         "--time", time,

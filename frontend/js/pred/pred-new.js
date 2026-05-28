@@ -3210,9 +3210,9 @@ function parseFishingPortsFromKML(xml) {
 function loadFishingPortData() {
     if (_fishingPortsLoaded) return;
     var kmlCandidates = [
-        '/data/漁船・回収地点位置関係マップ.kml?v=12',
-        'data/漁船・回収地点位置関係マップ.kml?v=12',
-        '漁船・回収地点位置関係マップ.kml?v=12'
+        '/data/漁船・回収地点位置関係マップ.kml?v=13',
+        'data/漁船・回収地点位置関係マップ.kml?v=13',
+        '漁船・回収地点位置関係マップ.kml?v=13'
     ];
 
     function tryNext(index) {

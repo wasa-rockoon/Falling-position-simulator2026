@@ -37,6 +37,11 @@ import xarray as xr
 import matplotlib.pyplot as plt
 from datetime import datetime, timedelta
 
+# Base directory paths (so this script works when invoked from server subprocess)
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+BACKEND_DIR = os.path.join(BASE_DIR, "backend")
+FRONTEND_DIR = os.path.join(BASE_DIR, "frontend")
+
 # OpenDrift modules
 # cartopy は OpenDrift の内部依存で、未導入だと import 時点で失敗することがある。
 # その場合は漂流計算をスキップして、気球軌道のみ返すようにする。
@@ -506,6 +511,26 @@ def build_integrated_drift_dataframe(curr_nc, splash_time, landing_point, hours,
 
     return pd.DataFrame(rows)
 
+
+def rebase_drift_dataframe_to_landing(df_drift_mean, landing_point):
+    if df_drift_mean is None or df_drift_mean.empty:
+        return df_drift_mean
+
+    first_row = df_drift_mean.iloc[0]
+    lat_shift = float(landing_point['lat']) - float(first_row['lat'])
+    lon_shift = float(landing_point['lon']) - float(first_row['lon'])
+
+    if abs(lat_shift) < 1e-9 and abs(lon_shift) < 1e-9:
+        return df_drift_mean
+
+    rebased = df_drift_mean.copy()
+    rebased['lat'] = rebased['lat'].astype(float) + lat_shift
+    rebased['lon'] = rebased['lon'].astype(float) + lon_shift
+    rebased['lon'] = ((rebased['lon'] + 180.0) % 360.0) - 180.0
+    rebased.iloc[0, rebased.columns.get_loc('lat')] = float(landing_point['lat'])
+    rebased.iloc[0, rebased.columns.get_loc('lon')] = float(landing_point['lon'])
+    return rebased
+
 # =============================================================================
 # Main
 # =============================================================================
@@ -630,9 +655,9 @@ def main():
     o.set_config('drift:horizontal_diffusivity', 10.0)
     o.set_config('general:coastline_action', 'stranding')
     
-    drift_seed_lat, drift_seed_lon = find_nearest_sea_point(float(landing_point['lat']), float(landing_point['lon']))
-    if drift_seed_lat != float(landing_point['lat']) or drift_seed_lon != float(landing_point['lon']):
-        print(f"[OpenDrift] Adjusted land splash point to sea seed: {drift_seed_lat:.5f}, {drift_seed_lon:.5f}")
+    drift_seed_lat = float(landing_point['lat'])
+    drift_seed_lon = float(landing_point['lon'])
+    print(f"[OpenDrift] Using Tawhiri landing point as drift origin: {drift_seed_lat:.5f}, {drift_seed_lon:.5f}")
 
     o.seed_elements(
         lon=drift_seed_lon,
@@ -677,6 +702,10 @@ def main():
     else:
         # Fallback: keep a single drift point at splashdown so frontend can still render.
         df_drift_mean = build_integrated_drift_dataframe(curr_nc, splash_time, landing_point, args.hours, seed_lat=drift_seed_lat, seed_lon=drift_seed_lon)
+
+    # Rebase the plotted drift path to the Tawhiri landing point so the visual origin
+    # and the drift origin remain aligned on the map.
+    df_drift_mean = rebase_drift_dataframe_to_landing(df_drift_mean, landing_point)
     
     # 【修正箇所】ここで df_balloon ではなく balloon_df を使う
     balloon_df['type'] = 'balloon'

@@ -14,21 +14,21 @@
     <link rel="manifest" href="manifest.json">
 
     <!-- Stylesheets -->
-    <link href="css/leaflet.css?v=12" rel="stylesheet">
-    <link href="css/jquery-ui.css?v=12" rel="stylesheet">
-    <link href="css/predictor.css?v=12" rel="stylesheet">
-    <link href="css/predictor-mobile.css?v=12" rel="stylesheet" media="(max-width: 768px)">
+    <link href="css/leaflet.css?v=13" rel="stylesheet">
+    <link href="css/jquery-ui.css?v=13" rel="stylesheet">
+    <link href="css/predictor.css?v=13" rel="stylesheet">
+    <link href="css/predictor-mobile.css?v=13" rel="stylesheet" media="(max-width: 768px)">
 
     <!-- Core Libraries -->
-    <script src="js/jquery-3.3.1.min.js?v=12"></script>
-    <script src="js/jquery-ui.min.js?v=12"></script>
-    <script src="js/jquery.tipsy.js?v=12"></script>
-    <script src="js/jquery.form.js?v=12" type="text/javascript"></script>
-    <script src="js/jquery.jookie.js?v=12" type="text/javascript"></script>
-    <script src="js/leaflet.js?v=12"></script>
-    <script src="js/moment.js?v=12"></script>
-    <script src="js/chart.min.js?v=12"></script>
-    <script src="js/html2canvas.min.js?v=12"></script>
+    <script src="js/jquery-3.3.1.min.js?v=13"></script>
+    <script src="js/jquery-ui.min.js?v=13"></script>
+    <script src="js/jquery.tipsy.js?v=13"></script>
+    <script src="js/jquery.form.js?v=13" type="text/javascript"></script>
+    <script src="js/jquery.jookie.js?v=13" type="text/javascript"></script>
+    <script src="js/leaflet.js?v=13"></script>
+    <script src="js/moment.js?v=13"></script>
+    <script src="js/chart.min.js?v=13"></script>
+    <script src="js/html2canvas.min.js?v=13"></script>
     <script src="https://cdn.jsdelivr.net/npm/@turf/turf@7/turf.min.js"></script>
     <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
     <script type="text/javascript">
@@ -39,22 +39,22 @@
 
     <!-- Application Scripts -->
     <script src="js/pred/pred-config.js?v=12" type="text/javascript"></script>
-    <script src="js/pred/pred-ui.js?v=12" type="text/javascript"></script>
-    <script src="js/pred/pred-cookie.js?v=12" type="text/javascript"></script>
-    <script src="js/pred/pred-map.js?v=12" type="text/javascript"></script>
-    <script src="js/pred/pred-event.js?v=12" type="text/javascript"></script>
-    <script src="js/pred/landsea.js?v=12" type="text/javascript"></script>
-    <script src="js/pred/pred-common.js?v=12" type="text/javascript"></script>
-    <script src="js/pred/pred-new.js?v=12" type="text/javascript"></script>
-    <script src="js/pred/pred.js?v=12" type="text/javascript"></script>
-    <script src="js/pred/log-overlay.js?v=12" type="text/javascript"></script>
-    <script src="js/pred/pred-collaborate.js?v=12" type="text/javascript"></script>
-    <script src="js/pred/pred-chart.js?v=12" type="text/javascript"></script>
-    <script src="js/pred/ehime-enhancements.js?v=12" type="text/javascript"></script>
-    <script src="js/pred/launch-window.js?v=12" type="text/javascript"></script>
-    <script src="js/calc/calc.js?v=12" type="text/javascript"></script>
-    <script src="js/colour-map.js?v=12" type="text/javascript"></script>
-
+    <script src="js/pred/pred-config.js?v=13" type="text/javascript"></script>
+    <script src="js/pred/pred-ui.js?v=13" type="text/javascript"></script>
+    <script src="js/pred/pred-cookie.js?v=13" type="text/javascript"></script>
+    <script src="js/pred/pred-map.js?v=13" type="text/javascript"></script>
+    <script src="js/pred/pred-event.js?v=13" type="text/javascript"></script>
+    <script src="js/pred/landsea.js?v=13" type="text/javascript"></script>
+    <script src="js/pred/pred-common.js?v=13" type="text/javascript"></script>
+    <script src="js/pred/pred-new.js?v=13" type="text/javascript"></script>
+    <script src="js/pred/pred.js?v=13" type="text/javascript"></script>
+    <script src="js/pred/log-overlay.js?v=13" type="text/javascript"></script>
+    <script src="js/pred/pred-collaborate.js?v=13" type="text/javascript"></script>
+    <script src="js/pred/pred-chart.js?v=13" type="text/javascript"></script>
+    <script src="js/pred/ehime-enhancements.js?v=13" type="text/javascript"></script>
+    <script src="js/pred/launch-window.js?v=13" type="text/javascript"></script>
+    <script src="js/calc/calc.js?v=13"></script>
+    <script src="js/colour-map.js?v=13" type="text/javascript"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
 </head>
 
@@ -655,7 +655,7 @@
         // Service Worker Registration
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', function () {
-                navigator.serviceWorker.register('./sw.js?v=12').then(function (registration) {
+                navigator.serviceWorker.register('./sw.js?v=13').then(function (registration) {
                     if (registration && registration.update) {
                         registration.update();
                     }
