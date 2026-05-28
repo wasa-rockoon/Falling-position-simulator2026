@@ -444,6 +444,15 @@ function clearMapItems() {
             }
         }
     }
+    // Clear landing history markers (persisted markers from previous runs)
+    try {
+        if (typeof landing_history_markers !== 'undefined' && Array.isArray(landing_history_markers)) {
+            for (var _i = 0; _i < landing_history_markers.length; _i++) {
+                try { var _m = landing_history_markers[_i]; if (_m && typeof _m.remove === 'function') _m.remove(); } catch(_e){}
+            }
+            landing_history_markers = [];
+        }
+    } catch (_e) {}
 }
 
 // The Haversine formula to calculate the distance across the surface between

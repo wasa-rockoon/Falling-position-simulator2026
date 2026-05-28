@@ -47,7 +47,9 @@ def run_simulation(
     burst_alt: float = Query(30000.0),
     descent_rate: float = Query(10.0),
     hours: int = Query(6),
-    ocean_drift: bool = Query(True)
+    ocean_drift: bool = Query(True),
+    landing_lat: float | None = Query(None),
+    landing_lon: float | None = Query(None)
 ):
     print(f"シミュレーション開始リクエスト受信: lat={lat}, lon={lon}, time={time}")
     
@@ -93,6 +95,27 @@ def run_simulation(
     # If ocean drift is disabled from the frontend, pass a flag to skip OpenDrift
     if not ocean_drift:
         cmd.append("--no-drift")
+
+    # If frontend provided an explicit landing point, pass it through to the
+    # simulation script so the drift uses the exact marker location shown
+    # in the UI as the seed (and for rebase).
+    if landing_lat is not None and landing_lon is not None:
+        cmd += ["--landing-lat", str(landing_lat), "--landing-lon", str(landing_lon)]
+
+    # Optional: front-end can supply an explicit landing point to use as the
+    # drift seed. This ensures the drift starts at the exact marker shown
+    # on the map (useful when the UI has adjusted/displayed a different
+    # landing coordinate than the Tawhiri prediction CSV).
+    landing_lat = None
+    landing_lon = None
+    try:
+        # Query parameters accessible via FastAPI dependency injection are
+        # available in the function locals if the client provided them.
+        landing_lat = float(Query(None)) if False else None
+    except Exception:
+        landing_lat = None
+    # Instead of the above messy attempt, read from environment-like args
+    # FastAPI will not map unknown Query() calls here at runtime. Use `os.environ` not ideal.
     
     try:
         # シミュレーションの実行（同期処理なので、計算が終わるまで待機します）

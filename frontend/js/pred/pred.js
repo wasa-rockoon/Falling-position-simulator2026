@@ -639,6 +639,20 @@ function requestOceanDriftOverlay(context) {
         ocean_drift: true
     };
 
+    // If the caller provided the displayed landing point, include it so the
+    // backend can seed the drift exactly at the map marker the user sees.
+    if (context.landPoint) {
+        try {
+            if (typeof context.landPoint.lat === 'function' && typeof context.landPoint.lng === 'function') {
+                dataParams.landing_lat = context.landPoint.lat();
+                dataParams.landing_lon = context.landPoint.lng();
+            } else if (context.landPoint.lat !== undefined && context.landPoint.lng !== undefined) {
+                dataParams.landing_lat = parseFloat(context.landPoint.lat);
+                dataParams.landing_lon = parseFloat(context.landPoint.lng);
+            }
+        } catch (_e) {}
+    }
+
     console.log('[DEBUG] Ocean drift request', apiEndpoint, dataParams);
     if (typeof setOceanDriftStatus === 'function') {
         setOceanDriftStatus('海流予測中...', 'running');
@@ -697,12 +711,22 @@ function plotOceanDriftOverlay(csvText, landPoint) {
     }
 
     var driftPath = [];
+    // Determine landing point from returned CSV (last 'balloon' row)
+    var landingFromCsv = null;
     for (var i = 1; i < lines.length; i++) {
         var parts = lines[i].split(',');
         if (parts.length < 5) {
             continue;
         }
         var type = String(parts[4] || '').trim();
+        // capture last balloon row as landing point
+        if (type === 'balloon') {
+            var _bLat = parseFloat(parts[1]);
+            var _bLon = parseFloat(parts[2]);
+            if (isFinite(_bLat) && isFinite(_bLon)) {
+                landingFromCsv = { lat: _bLat, lon: _bLon };
+            }
+        }
         if (type !== 'drift_mean') {
             continue;
         }
@@ -743,7 +767,29 @@ function plotOceanDriftOverlay(csvText, landPoint) {
     }).addTo(map).bindTooltip('着水＆漂流開始地点');
 
     if (splash_marker.bindPopup) {
-        splash_marker.bindPopup('着水＆漂流開始地点');
+        // Show diagnostic info: compare Tawhiri landing (landPoint) vs drift start
+            try {
+                var _dp = { lat: driftPath[0].lat, lon: driftPath[0].lng };
+                var _lp = null;
+                if (landingFromCsv) {
+                    _lp = landingFromCsv;
+                } else if (landPoint) {
+                    if (typeof landPoint.lat === 'function' && typeof landPoint.lng === 'function') {
+                        _lp = { lat: landPoint.lat(), lon: landPoint.lng() };
+                    } else if (landPoint.lat !== undefined && landPoint.lng !== undefined) {
+                        _lp = { lat: parseFloat(landPoint.lat), lon: parseFloat(landPoint.lng) };
+                    }
+                }
+                var _dist = typeof distHaversine === 'function' && _lp ? distHaversine({lat: _lp.lat, lng: _lp.lon}, {lat: _dp.lat, lng: _dp.lon}, 2) : 'N/A';
+                console.log('[DEBUG] landingFromCsv vs drift start', { landingFromCsv: _lp, driftStart: _dp, distance_km: _dist });
+                var popupHtml = '着水＆漂流開始地点<br/>' +
+                    'drift start: ' + _dp.lat.toFixed(6) + ', ' + _dp.lon.toFixed(6) + '<br/>' +
+                    (_lp ? ('Tawhiri landing (CSV): ' + _lp.lat.toFixed(6) + ', ' + _lp.lon.toFixed(6) + '<br/>') : '') +
+                    '差 (km): ' + _dist;
+                splash_marker.bindPopup(popupHtml);
+            } catch (_e) {
+                splash_marker.bindPopup('着水＆漂流開始地点');
+            }
     }
 
     map_items['drift_polyline'] = drift_polyline;

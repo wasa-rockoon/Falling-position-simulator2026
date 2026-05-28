@@ -548,6 +548,8 @@ def main():
     parser.add_argument("--outdir", type=str, default="outputs")
     parser.add_argument("--pretty-png", action="store_true", help="Generate a combined map image")
     parser.add_argument("--no-drift", action="store_true", help="Skip ocean drift (OpenDrift) simulation")
+    parser.add_argument("--landing-lat", type=float, default=None, help="Override landing latitude (useful to seed drift from frontend-displayed point)")
+    parser.add_argument("--landing-lon", type=float, default=None, help="Override landing longitude (useful to seed drift from frontend-displayed point)")
     
     args = parser.parse_args()
     
@@ -564,6 +566,17 @@ def main():
     balloon_csv = os.path.join(args.outdir, "trajectory_balloon.csv")
     balloon_df.to_csv(balloon_csv, index=False)
     print(f"[Output] Balloon CSV: {balloon_csv}")
+
+    # If the frontend supplied an override landing point, prefer that for
+    # seeding the drift. This ensures the drift origin matches the point the
+    # user sees on the map.
+    if args.landing_lat is not None and args.landing_lon is not None:
+        try:
+            print(f"[INFO] Overriding landing point with frontend-supplied coordinates: {args.landing_lat}, {args.landing_lon}")
+            landing_point['lat'] = float(args.landing_lat)
+            landing_point['lon'] = float(args.landing_lon)
+        except Exception as _e:
+            print(f"[WARN] Failed to override landing point: {_e}")
 
     # If requested, skip OpenDrift / ocean drift to save time
     if args.no_drift:
