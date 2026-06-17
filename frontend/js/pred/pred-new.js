@@ -2472,6 +2472,28 @@ function plotStandardPrediction(prediction, settings) {
     if (typeof landing_history_markers !== 'undefined') {
         landing_history_markers.push(historyMarker);
     }
+    // Enforce a maximum history length: remove oldest markers beyond 10
+    try {
+        var HISTORY_MAX = 10;
+        if (Array.isArray(landing_history_markers) && landing_history_markers.length > HISTORY_MAX) {
+            var removeCount = landing_history_markers.length - HISTORY_MAX;
+            for (var rc = 0; rc < removeCount; rc++) {
+                var old = landing_history_markers.shift();
+                try {
+                    if (old) {
+                        if (old.associatedPath && typeof old.associatedPath.remove === 'function') {
+                            old.associatedPath.remove();
+                        }
+                        if (typeof old.remove === 'function') {
+                            old.remove();
+                        }
+                        // Remove list row if present
+                        try { if (old.uniqueId) $('#tr_' + old.uniqueId).remove(); } catch(_e) {}
+                    }
+                } catch (_e2) {}
+            }
+        }
+    } catch (_e3) {}
     // ---------------------------------
 
     // Pan to the new position

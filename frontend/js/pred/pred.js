@@ -711,6 +711,7 @@ function plotOceanDriftOverlay(csvText, landPoint) {
     }
 
     var driftPath = [];
+    var driftEntries = []; // {lat, lon, timeStr, timeDate}
     // Determine landing point from returned CSV (last 'balloon' row)
     var landingFromCsv = null;
     for (var i = 1; i < lines.length; i++) {
@@ -732,10 +733,13 @@ function plotOceanDriftOverlay(csvText, landPoint) {
         }
         var lat = parseFloat(parts[1]);
         var lon = parseFloat(parts[2]);
+        var timeStr = parts[0];
+        var timeDate = new Date(timeStr);
         if (!isFinite(lat) || !isFinite(lon)) {
             continue;
         }
         driftPath.push(L.latLng(lat, lon));
+        driftEntries.push({ lat: lat, lon: lon, timeStr: timeStr, timeDate: timeDate });
     }
 
     if (driftPath.length === 0) {
@@ -745,6 +749,13 @@ function plotOceanDriftOverlay(csvText, landPoint) {
     if (map_items['drift_polyline']) {
         try { map.removeLayer(map_items['drift_polyline']); } catch (_e) {}
         delete map_items['drift_polyline'];
+    }
+    // Remove previous drift interval markers if present
+    if (map_items['drift_markers'] && Array.isArray(map_items['drift_markers'])) {
+        try {
+            map_items['drift_markers'].forEach(function(m){ if (m && typeof m.remove === 'function') m.remove(); });
+        } catch(_e){}
+        delete map_items['drift_markers'];
     }
     if (map_items['splash_marker']) {
         try { map.removeLayer(map_items['splash_marker']); } catch (_e2) {}
@@ -794,6 +805,30 @@ function plotOceanDriftOverlay(csvText, landPoint) {
 
     map_items['drift_polyline'] = drift_polyline;
     map_items['splash_marker'] = splash_marker;
+
+    // Add markers every 30 minutes along the drift path
+    try {
+        var markers = [];
+        if (driftEntries.length > 0) {
+            var t0 = driftEntries[0].timeDate.getTime();
+            for (var k = 0; k < driftEntries.length; k++) {
+                var e = driftEntries[k];
+                if (!e.timeDate || isNaN(e.timeDate.getTime())) continue;
+                var minutes = Math.round((e.timeDate.getTime() - t0) / 60000);
+                if (minutes % 30 === 0) {
+                    var m = L.circleMarker([e.lat, e.lon], {
+                        radius: 4,
+                        color: '#f97316',
+                        weight: 1,
+                        fillColor: '#fb923c',
+                        fillOpacity: 0.95
+                    }).addTo(map).bindTooltip('+' + minutes + ' min\n' + e.timeStr);
+                    markers.push(m);
+                }
+            }
+        }
+        if (markers.length > 0) map_items['drift_markers'] = markers;
+    } catch(_err) {}
 
     if (typeof map.fitBounds === 'function') {
         var bounds = L.latLngBounds(driftPath);
