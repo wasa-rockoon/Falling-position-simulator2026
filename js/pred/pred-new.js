@@ -348,10 +348,6 @@ var EHIME_HISTORY_LAYER_PREFIX = 'ehime_history_layer_';
 var EHIME_HISTORY_REPLAY_LAYER_ID = 'ehime_history_replay_layer';
 var ehime_history_layers = {};
 // (Removed visual summary overlays as per request)
-var ehime_mean_marker = null; // kept for compatibility but unused
-var ehime_dispersion_circle = null; // unused
-var ehime_burst_circle = null; // unused
-
 function toEhimeFiniteNumber(value) {
     var num = parseFloat(value);
     return isFinite(num) ? num : null;
@@ -1222,6 +1218,575 @@ function runNextBatchSite() {
         runPrediction();
     }
 }
+
+// --- 放球自動探索機能 ---
+function showAutoSearchModal() {
+    // Populate defaults: start = now, end = now + 12h
+    var nowJst = moment.utc().utcOffset(9 * 60);
+    $('#auto_start_date').val(nowJst.format('YYYY-MM-DD'));
+    $('#auto_start_time').val(nowJst.format('HH:mm'));
+    var later = nowJst.clone().add(12, 'hours');
+    $('#auto_end_date').val(later.format('YYYY-MM-DD'));
+    $('#auto_end_time').val(later.format('HH:mm'));
+    $('#auto_interval_min').val(15);
+    $('#auto_sea_threshold').val(75);
+    $('#auto_results').hide(); $('#auto_results_body').empty();
+    populateAutoSitesSelect();
+    
+    // Reset state and UI
+    autoSearchState.phase = 0;
+    autoSearchState.running = false;
+    updateAutoUI('条件を設定すると、探索前にAPI呼び出し回数と所要時間の概算を表示します。', 0, 0, 0);
+    $('#auto_action_btn').text('条件確定・見積り').prop('disabled', false);
+    
+    $('#auto_search_modal').show();
+}
+
+function hideAutoSearchModal() {
+    $('#auto_search_modal').hide();
+}
+
+function populateAutoSitesSelect() {
+    var $container = $('#auto_sites_container');
+    $container.empty();
+    $container.append('<div style="color:var(--text-secondary);">読み込み中...</div>');
+    $.getJSON('sites.json')
+        .done(function (sites) {
+            $container.empty();
+            var count = 0;
+            $.each(sites, function (name, s) {
+                var id = 'auto_site_' + name.replace(/[^a-z0-9_-]/ig, '_');
+                var cb = $('<input>').attr({type:'checkbox', id:id, 'data-name':name, 'data-lat':s.latitude, 'data-lon':s.longitude, style:'margin-right:4px;'});
+                var label = $('<label>').attr('for', id).css({display:'block', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis', marginBottom:'4px'}).append(cb).append(document.createTextNode(' ' + name + ' (' + s.latitude.toFixed(3) + ',' + s.longitude.toFixed(3) + ')'));
+                $container.append(label);
+                count += 1;
+            });
+            if (count === 0) {
+                $container.append('<div style="color:var(--text-secondary);">地点が見つかりません</div>');
+                // fallback: copy from existing #site select if available
+                $('#site option').each(function () {
+                    var name = $(this).val();
+                    if (!name) return;
+                    var id = 'auto_site_' + name.replace(/[^a-z0-9_-]/ig, '_');
+                    var cb = $('<input>').attr({type:'checkbox', id:id, 'data-name':name, style:'margin-right:4px;'});
+                    var label = $('<label>').attr('for', id).css({display:'block', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis', marginBottom:'4px'}).append(cb).append(document.createTextNode(' ' + $(this).text()));
+                    $container.append(label);
+                });
+            }
+        })
+        .fail(function () {
+            $container.empty();
+            $container.append('<div style="color:var(--text-secondary);">読み込みに失敗しました。既存サイトから復元します。</div>');
+            $('#site option').each(function () {
+                var name = $(this).val();
+                if (!name) return;
+                var id = 'auto_site_' + name.replace(/[^a-z0-9_-]/ig, '_');
+                var cb = $('<input>').attr({type:'checkbox', id:id, 'data-name':name, style:'margin-right:4px;'});
+                var label = $('<label>').attr('for', id).css({display:'block', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis', marginBottom:'4px'}).append(cb).append(document.createTextNode(' ' + $(this).text()));
+                $container.append(label);
+            });
+        });
+}
+
+function jstToUtcMoment(dateStr, timeStr) {
+    // dateStr: YYYY-MM-DD, timeStr: HH:mm
+    if (typeof moment === 'undefined') return null;
+    try {
+        var parts = dateStr.split('-');
+        var tparts = timeStr.split(':');
+        var m = moment.tz ? moment.tz([parts[0], parseInt(parts[1],10)-1, parts[2], tparts[0], tparts[1], 0], 'Asia/Tokyo') : moment([parts[0], parseInt(parts[1],10)-1, parts[2], tparts[0], tparts[1], 0]).utcOffset(9*60);
+        return m.clone().utc();
+    } catch (e) { return null; }
+}
+
+function estimateAutoSearch() {
+    var startUtc = jstToUtcMoment($('#auto_start_date').val(), $('#auto_start_time').val());
+    var endUtc = jstToUtcMoment($('#auto_end_date').val(), $('#auto_end_time').val());
+    if (!startUtc || !endUtc || endUtc.isBefore(startUtc)) {
+        $('#auto_estimate_text').text('時間範囲が不正です');
+        return;
+    }
+    var interval = parseInt($('#auto_interval_min').val(), 10) || 15;
+    // count checked sites
+    var sites = [];
+    $('#auto_sites_container input[type=checkbox]:checked').each(function () { sites.push($(this).data('name')); });
+    var candidateCount = (Math.floor(endUtc.diff(startUtc, 'minutes') / interval) + 1) * sites.length;
+    var weatherCalls = candidateCount;
+    var coarseCalls = candidateCount;
+    var fineCallsMax = candidateCount * 13;
+    var totalCalls = weatherCalls + coarseCalls + fineCallsMax;
+    var estSec = Math.ceil((weatherCalls * AUTO_SEARCH_SECONDS_PER_WEATHER_CALL) +
+        ((coarseCalls + fineCallsMax) * AUTO_SEARCH_SECONDS_PER_PREDICTION_CALL));
+    var estText = '最大API呼び出し: ' + totalCalls + '回（天候 ' + weatherCalls +
+        ' / 粗探索 ' + coarseCalls + ' / 精密探索 ' + fineCallsMax +
+        '）、所要時間概算: 約' + Math.max(1, Math.ceil(estSec / 60)) + '分';
+    if ($('#api_source').val() === 'sondehub') {
+        estText += ' — SondeHub 公開APIへは負荷がかかります。';
+    }
+    $('#auto_estimate_text').text(estText);
+}
+
+var autoSearchState = {
+    running: false, canceled: false, phase: 0,
+    queue: [], p1Passed: [], p2Passed: [], results: [], matches: {},
+    total: 0, done: 0, currentXhr: null, runSettingsCache: {}
+};
+
+var AUTO_SEARCH_MAX_OFFSHORE_KM = 22.2;
+var AUTO_SEARCH_SECONDS_PER_WEATHER_CALL = 1.2;
+var AUTO_SEARCH_SECONDS_PER_PREDICTION_CALL = 1.5;
+
+var autoSearchPorts = [];
+$.getJSON('ports.json', function(data) {
+    if(data && data.length) autoSearchPorts = data;
+}).fail(function() { console.warn('ports.json not loaded'); });
+
+function updateAutoUI(statusText, progressDone, progressTotal, phaseActive) {
+    $('#auto_progress_text').text(progressDone + ' / ' + progressTotal);
+    var pct = progressTotal > 0 ? Math.round((progressDone / progressTotal) * 100) : 0;
+    $('#auto_progress_bar').css('width', pct + '%');
+    if (statusText) {
+        $('#auto_estimate_text').html(statusText);
+    }
+    
+    // Update step indicators
+    [1, 2, 3].forEach(p => {
+        var el = document.getElementById('step_indicator_' + p);
+        if (el) {
+            if (p < phaseActive || (phaseActive === 4)) {
+                el.style.color = 'var(--text-secondary)';
+                el.style.borderBottom = '3px solid var(--color-accent)';
+            } else if (p === phaseActive) {
+                el.style.color = 'var(--color-primary)';
+                el.style.borderBottom = '3px solid var(--color-primary)';
+            } else {
+                el.style.color = 'var(--text-secondary)';
+                el.style.borderBottom = '3px solid var(--border-color)';
+            }
+        }
+    });
+}
+
+function startAutoSearch() {
+    var startUtc = jstToUtcMoment($('#auto_start_date').val(), $('#auto_start_time').val());
+    var endUtc = jstToUtcMoment($('#auto_end_date').val(), $('#auto_end_time').val());
+    if (!startUtc || !endUtc || endUtc.isBefore(startUtc)) {
+        alert('時間範囲が不正です'); return;
+    }
+    var interval = parseInt($('#auto_interval_min').val(), 10) || 15;
+    var selected = [];
+    $('#auto_sites_container input[type=checkbox]:checked').each(function () { selected.push($(this).data()); });
+    if (selected.length === 0) { alert('地点を1つ以上選択してください'); return; }
+    
+    $.getJSON('sites.json', function (sites) {
+        var queue = [];
+        selected.forEach(function (d) {
+            var name = d['name'];
+            var s = sites[name];
+            if (!s) return;
+            var cur = startUtc.clone();
+            while (cur.isSameOrBefore(endUtc)) {
+                queue.push({ name: name, lat: s.latitude, lon: s.longitude, alt: s.altitude, launch_utc: cur.clone() });
+                cur.add(interval, 'minutes');
+            }
+        });
+        if (queue.length === 0) { alert('実行する項目がありません'); return; }
+
+        autoSearchState = {
+            running: false, canceled: false, phase: 1,
+            queue: queue, p1Passed: [], p2Passed: [], results: [], matches: {},
+            total: queue.length, done: 0, currentXhr: null, runSettingsCache: {}
+        };
+
+        // Cache run settings
+        var rs = {};
+        rs.profile = $('#flight_profile').val();
+        rs.pred_type = $('#prediction_type').val();
+        rs.ascent_rate = parseFloat($('#ascent').val());
+        if (rs.profile === 'standard_profile') {
+            rs.burst_altitude = parseFloat($('#burst').val());
+            rs.descent_rate = parseFloat($('#drag').val());
+        } else {
+            rs.float_altitude = parseFloat($('#burst').val());
+        }
+        autoSearchState.runSettingsCache = rs;
+
+        var weatherCalls = queue.length;
+        var coarseCalls = queue.length;
+        var fineCallsMax = queue.length * 13;
+        var estimatedSeconds = (weatherCalls * AUTO_SEARCH_SECONDS_PER_WEATHER_CALL) +
+            ((coarseCalls + fineCallsMax) * AUTO_SEARCH_SECONDS_PER_PREDICTION_CALL);
+        var estimatedMinutes = Math.max(1, Math.ceil(estimatedSeconds / 60));
+        updateAutoUI(
+            `<b>探索条件を確定しました</b><br>` +
+            `Phase 1 天候API: ${weatherCalls}回<br>` +
+            `Phase 2 予測API（最大）: ${coarseCalls}回<br>` +
+            `Phase 3 予測API（最大）: ${fineCallsMax}回（13バリアント）<br>` +
+            `<b>最大合計: ${weatherCalls + coarseCalls + fineCallsMax}回 / 推定所要時間: 約${estimatedMinutes}分</b><br>` +
+            `各Phaseのフィルタを通過した候補だけが次へ進むため、実際の回数と時間は少なくなる場合があります。`,
+            0, queue.length, 1
+        );
+        $('#auto_results_list').empty(); $('#auto_results').hide();
+        $('#auto_action_btn').text('Phase 1 開始').show().prop('disabled', false);
+    });
+}
+
+function autoActionClicked() {
+    if (autoSearchState.phase === 0) {
+        // 探索開始前にキューを確定し、API回数と所要時間の概算を表示する。
+        startAutoSearch();
+    } else if (autoSearchState.phase === 1 && !autoSearchState.running) {
+        runPhase1();
+    } else if (autoSearchState.phase === 2 && !autoSearchState.running) {
+        runPhase2();
+    } else if (autoSearchState.phase === 3 && !autoSearchState.running) {
+        runPhase3();
+    }
+}
+
+function cancelAutoSearch() {
+    // 実行中の1件は完了させ、その後のループを開始しない方式で中断する。
+    autoSearchState.canceled = true;
+    if (autoSearchState.currentXhr && typeof autoSearchState.currentXhr.abort === 'function') {
+        try { autoSearchState.currentXhr.abort(); } catch (e) { }
+    }
+    autoSearchState.running = false;
+    updateAutoUI('中断されました', autoSearchState.done, autoSearchState.total, autoSearchState.phase);
+    $('#auto_action_btn').text('中断済').prop('disabled', true);
+}
+
+async function checkWeatherOk(lat, lon, utcMoment) {
+    try {
+        var rainThresh = parseFloat($('#auto_rain_threshold').val()) || 1.0;
+        var windThresh = parseFloat($('#auto_wind_threshold').val()) || 10.0;
+        var dateStr = utcMoment.format('YYYY-MM-DD');
+        var hourStr = utcMoment.format('YYYY-MM-DDTHH:00'); 
+        var url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&hourly=precipitation,windspeed_10m&start_date=${dateStr}&end_date=${dateStr}`;
+        var res = await fetch(url);
+        var data = await res.json();
+        if (data && data.hourly && data.hourly.time) {
+            var idx = data.hourly.time.findIndex(t => t.startsWith(hourStr));
+            if (idx >= 0) {
+                var rain = data.hourly.precipitation[idx] || 0;
+                var wind = data.hourly.windspeed_10m[idx] || 0;
+                if (rain >= rainThresh || wind >= windThresh) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    } catch (e) {
+        return true;
+    }
+}
+
+async function runPhase1() {
+    autoSearchState.running = true;
+    autoSearchState.phase = 1;
+    autoSearchState.done = 0;
+    autoSearchState.total = autoSearchState.queue.length;
+    $('#auto_action_btn').text('Phase 1 実行中...').prop('disabled', true);
+    
+    for (let i = 0; i < autoSearchState.queue.length; i++) {
+        if (autoSearchState.canceled) break;
+        let item = autoSearchState.queue[i];
+        let ok = await checkWeatherOk(item.lat, item.lon, item.launch_utc);
+        if (ok) {
+            autoSearchState.p1Passed.push(item);
+        }
+        autoSearchState.done++;
+        updateAutoUI(`Phase 1 実行中: ${item.name} (${autoSearchState.done}/${autoSearchState.total})`, autoSearchState.done, autoSearchState.total, 1);
+    }
+    
+    autoSearchState.running = false;
+    if (autoSearchState.canceled) return;
+    
+    autoSearchState.phase = 2;
+    var estMin = Math.ceil((autoSearchState.p1Passed.length * 1.5) / 60);
+    updateAutoUI(
+        `<b>Phase 1 完了</b><br>${autoSearchState.total}件中 ${autoSearchState.p1Passed.length}件 が天候条件をクリアしました。<br>次に Phase 2 (1バリアント粗探索) を実行しますか？<br>推定APIコール数: ${autoSearchState.p1Passed.length}回 / 推定所要時間: 約${estMin}分`,
+        0, autoSearchState.p1Passed.length, 2
+    );
+    $('#auto_action_btn').text('Phase 2 開始').prop('disabled', false);
+}
+
+async function runPhase2Coarse(params) {
+    return new Promise((resolve) => {
+        $.get({ url: tawhiri_api, data: params })
+            .done(function (data) {
+                try {
+                    if (data && data.prediction) {
+                        var parsed = parsePrediction(data.prediction);
+                        var ll = parsed.landing.latlng;
+                        var isLand = (typeof LandSea !== 'undefined') ? LandSea.isLand(ll.lat, ll.lng) : null;
+                        var distKm = (typeof LandSea !== 'undefined' && typeof LandSea.distanceToCoastKm === 'function') ? LandSea.distanceToCoastKm(ll.lat, ll.lng) : 0;
+                        if (isLand || distKm > AUTO_SEARCH_MAX_OFFSHORE_KM) {
+                            resolve({ok: false}); return;
+                        }
+                        resolve({ok: true});
+                    } else { resolve({ok: false}); }
+                } catch(e) { resolve({ok: false}); }
+            })
+            .fail(function() { resolve({ok: false}); });
+    });
+}
+
+async function runPhase2() {
+    autoSearchState.running = true;
+    autoSearchState.phase = 2;
+    autoSearchState.done = 0;
+    autoSearchState.total = autoSearchState.p1Passed.length;
+    $('#auto_action_btn').text('Phase 2 実行中...').prop('disabled', true);
+    
+    for (let i = 0; i < autoSearchState.p1Passed.length; i++) {
+        if (autoSearchState.canceled) break;
+        let item = autoSearchState.p1Passed[i];
+        
+        var params = Object.assign({}, autoSearchState.runSettingsCache);
+        params.profile = 'standard_profile';
+        params.launch_datetime = item.launch_utc.clone().format();
+        params.launch_latitude = parseFloat(item.lat);
+        params.launch_longitude = parseFloat(item.lon);
+        if (params.launch_longitude < 0) params.launch_longitude += 360;
+        params.launch_altitude = parseFloat(item.alt);
+        
+        let p2Result = await runPhase2Coarse(params);
+        if (p2Result.ok) {
+            autoSearchState.p2Passed.push(item);
+        }
+        autoSearchState.done++;
+        updateAutoUI(`Phase 2 実行中: ${item.name} (${autoSearchState.done}/${autoSearchState.total})`, autoSearchState.done, autoSearchState.total, 2);
+    }
+    
+    autoSearchState.running = false;
+    if (autoSearchState.canceled) return;
+    
+    autoSearchState.phase = 3;
+    var perRunCalls = 13;
+    var estMin = Math.ceil((autoSearchState.p2Passed.length * perRunCalls * AUTO_SEARCH_SECONDS_PER_PREDICTION_CALL) / 60);
+    
+    updateAutoUI(
+        `<b>Phase 2 完了</b><br>${autoSearchState.total}件中 ${autoSearchState.p2Passed.length}件 が海上かつ沖合${AUTO_SEARCH_MAX_OFFSHORE_KM}km以内の条件をクリアしました。<br>次に Phase 3 (精密探索) を実行しますか？<br>推定APIコール数: ${autoSearchState.p2Passed.length * perRunCalls}回 / 推定時間: 約${estMin}分`,
+        0, autoSearchState.p2Passed.length, 3
+    );
+    $('#auto_action_btn').text('Phase 3 開始').prop('disabled', false);
+}
+
+async function runPhase3Fine(baseParams, threshold) {
+    return new Promise((resolve) => {
+        var prevApi = tawhiri_api;
+        try {
+            var handler = function () {
+                // 完了した13バリアントの現在状態から直接集計し、別履歴との取り違えを防ぐ。
+                var snap = buildEhimeHistorySnapshot();
+                var result = {ok: false, seaPct: 0, maxOffshore: 0, centroidLat: 0, centroidLon: 0};
+                if (snap) {
+                    var l = snap.landCount || 0; var w = snap.waterCount || 0; var det = l + w; 
+                    result.seaPct = det > 0 ? Math.round((w / det) * 100) : 0;
+                    
+                    var latSum = 0, lonSum = 0, count = 0, maxDist = 0;
+                    if (snap.rows) {
+                        for(var i=0; i<snap.rows.length; i++) {
+                            var pt = snap.rows[i];
+                            if(pt && pt.lat && pt.lng) {
+                                latSum += pt.lat; lonSum += pt.lng; count++;
+                                if (typeof LandSea !== 'undefined' && typeof LandSea.distanceToCoastKm === 'function') {
+                                    var d = LandSea.distanceToCoastKm(pt.lat, pt.lng);
+                                    if(d > maxDist && d !== 999) maxDist = d;
+                                }
+                            }
+                        }
+                    }
+                    if(count > 0) {
+                        result.centroidLat = latSum / count;
+                        result.centroidLon = lonSum / count;
+                        result.maxOffshore = maxDist;
+                    }
+                    if (result.seaPct >= threshold) result.ok = true;
+                    // 設定値以上の海落ち率を合格とする。
+                }
+                $(document).off('ehime_run_complete', handler);
+                tawhiri_api = prevApi;
+                resolve(result);
+            };
+            $(document).on('ehime_run_complete', handler);
+            run13VariantEnsemble(baseParams);
+        } catch (e) {
+            $(document).off('ehime_run_complete');
+            tawhiri_api = prevApi;
+            resolve({ok: false});
+        }
+    });
+}
+
+async function runPhase3() {
+    autoSearchState.running = true;
+    autoSearchState.phase = 3;
+    autoSearchState.done = 0;
+    autoSearchState.total = autoSearchState.p2Passed.length;
+    $('#auto_action_btn').text('Phase 3 実行中...').prop('disabled', true);
+    
+    var threshold = parseFloat($('#auto_sea_threshold').val()) || 75;
+
+    for (let i = 0; i < autoSearchState.p2Passed.length; i++) {
+        if (autoSearchState.canceled) break;
+        let item = autoSearchState.p2Passed[i];
+        
+        var params = Object.assign({}, autoSearchState.runSettingsCache);
+        params.profile = 'standard_profile';
+        params.launch_datetime = item.launch_utc.clone().format();
+        params.launch_latitude = parseFloat(item.lat);
+        params.launch_longitude = parseFloat(item.lon);
+        if (params.launch_longitude < 0) params.launch_longitude += 360;
+        params.launch_altitude = parseFloat(item.alt);
+        
+        // 常に精密探索(13 variants)を実行する
+        let p3Result = await runPhase3Fine(params, threshold);
+        
+        var rs = autoSearchState.runSettingsCache;
+        var asc = rs.ascent_rate || 0;
+        var desc = rs.descent_rate || 0;
+        var burst = rs.burst_altitude || rs.float_altitude || 0;
+
+        if (p3Result.ok) {
+            if (!autoSearchState.matches[item.name]) autoSearchState.matches[item.name] = [];
+            autoSearchState.matches[item.name].push(item.launch_utc.clone());
+            renderAutoResultsPartial();
+            
+            var portName = "不明", portDist = 999;
+            if (autoSearchPorts.length > 0 && typeof LandSea !== 'undefined' && typeof LandSea.haversineDistKm === 'function') {
+                for (var pi=0; pi<autoSearchPorts.length; pi++) {
+                    var p = autoSearchPorts[pi];
+                    var d = LandSea.haversineDistKm(p3Result.centroidLat, p3Result.centroidLon, p.lat, p.lon);
+                    if (d < portDist) { portDist = d; portName = p.name; }
+                }
+            }
+            
+            autoSearchState.results.push({
+                time: item.launch_utc.clone().utcOffset(9*60).format('YYYY-MM-DD HH:mm'),
+                site: item.name,
+                asc: asc, desc: desc, burst: burst,
+                seaPct: p3Result.seaPct,
+                maxOffshore: p3Result.maxOffshore,
+                portName: portName,
+                portDistance: portDist
+            });
+        }
+        
+        autoSearchState.done++;
+        var resultText = p3Result.ok 
+            ? `<span style="color:var(--color-primary);">[条件クリア]</span> 海落ち ${p3Result.seaPct}% / 沖合 ${p3Result.maxOffshore.toFixed(1)}km`
+            : `<span style="color:var(--text-secondary);">[足切り]</span> 海落ち ${p3Result.seaPct}%`;
+            
+        updateAutoUI(
+            `Phase 3 実行中: ${item.name} (${autoSearchState.done}/${autoSearchState.total})<br>直前の結果: ${resultText}`, 
+            autoSearchState.done, autoSearchState.total, 3
+        );
+        // 結果を見るための待機時間（ユーザーリクエストでゆっくり）
+        await new Promise(r => setTimeout(r, 2000));
+    }
+    
+    autoSearchState.running = false;
+    if (autoSearchState.canceled) return;
+    
+    autoSearchState.phase = 4; // Complete
+    updateAutoUI(
+        `<b>全フェーズ完了！</b><br>条件を満たした候補: ${autoSearchState.results.length} 件<br>CSVをダウンロードします。`,
+        autoSearchState.total, autoSearchState.total, 4
+    );
+    $('#auto_action_btn').text('完了').prop('disabled', true);
+    
+    if (autoSearchState.results.length > 0) {
+        downloadAutoResultsCSV();
+    }
+}
+
+function downloadAutoResultsCSV() {
+    if (autoSearchState.results.length === 0) return;
+    
+    // add BOM to handle UTF-8 in Excel
+    var csvContent = "\uFEFF"; 
+    csvContent += "日時(JST),地点,上昇速度(m/s),下降速度(m/s),破裂高度(m),海落ち確率(%),最大沖合距離(km),最寄り漁港,漁港からの距離(km)\n";
+    
+    function escapeCsvCell(value) {
+        var text = String(value == null ? '' : value);
+        return /[",\r\n]/.test(text) ? '"' + text.replace(/"/g, '""') + '"' : text;
+    }
+
+    autoSearchState.results.forEach(function(row) {
+        var maxOff = row.maxOffshore != null ? row.maxOffshore.toFixed(1) : "0.0";
+        var pDist = row.portDistance != null ? row.portDistance.toFixed(1) : "0.0";
+        var asc = row.asc != null ? row.asc : "";
+        var desc = row.desc != null ? row.desc : "";
+        var burst = row.burst != null ? row.burst : "";
+        csvContent += [row.time, row.site, asc, desc, burst, row.seaPct,
+            maxOff, row.portName, pDist
+        ].map(escapeCsvCell).join(',') + '\n';
+    });
+
+    var blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    var url = URL.createObjectURL(blob);
+    
+    var link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", "auto_search_results.csv");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    setTimeout(function () { URL.revokeObjectURL(url); }, 0);
+}
+
+function renderAutoResultsPartial() {
+    $('#auto_results').show();
+    var container = $('#auto_results_list');
+    container.empty();
+    var keys = Object.keys(autoSearchState.matches || {});
+    if (keys.length === 0) { container.html('<div style="color:var(--text-secondary);">一致する結果はまだありません</div>'); return; }
+    keys.forEach(function (k) {
+        var arr = (autoSearchState.matches[k] || []).slice();
+        arr.sort(function(a,b){ return a.isBefore(b) ? -1 : (a.isAfter(b)?1:0); });
+        var interval = parseInt($('#auto_interval_min').val(),10) || 15;
+        var ranges = collapseMomentsToRanges(arr, interval);
+        var html = '<div style="border-bottom:1px solid var(--border-color); padding:6px 0;">';
+        html += '<b>' + k + '</b> : 合致 ' + arr.length + ' 件<br/>';
+        html += ranges.map(function(r){ return '<div style="font-size:12px; color:var(--text-secondary);">' + r.start + ' ～ ' + r.end + '</div>'; }).join('');
+        html += '</div>';
+        container.append(html);
+    });
+}
+
+function collapseMomentsToRanges(arr, intervalMin) {
+    if (!Array.isArray(arr) || arr.length===0) return [];
+    var tolSec = (intervalMin * 60) + 90;
+    var ranges = [];
+    var curStart = arr[0].clone();
+    var curEnd = arr[0].clone();
+    for (var i=1;i<arr.length;i++) {
+        var diff = arr[i].diff(curEnd, 'seconds');
+        if (diff <= tolSec) {
+            curEnd = arr[i].clone();
+        } else {
+            ranges.push({ start: curStart.clone().utcOffset(9*60).format('YYYY-MM-DD HH:mm'), end: curEnd.clone().utcOffset(9*60).format('YYYY-MM-DD HH:mm') });
+            curStart = arr[i].clone(); curEnd = arr[i].clone();
+        }
+    }
+    ranges.push({ start: curStart.clone().utcOffset(9*60).format('YYYY-MM-DD HH:mm'), end: curEnd.clone().utcOffset(9*60).format('YYYY-MM-DD HH:mm') });
+    return ranges;
+}
+
+function finalizeAutoResults() {
+    renderAutoResultsPartial();
+}
+
+// Bind modal buttons
+$(function () {
+    $(document).on('click', '#auto_action_btn', function () { autoActionClicked(); });
+    $(document).on('click', '#auto_cancel_btn', function () { if (autoSearchState.running) { if (confirm('実行中です。中断しますか？')) cancelAutoSearch(); } else { cancelAutoSearch(); } });
+    $(document).on('click', '#auto_close_btn, #auto_close_x', function () { if (autoSearchState.running) { if (!confirm('実行中です。中断して閉じますか？')) return; cancelAutoSearch(); } hideAutoSearchModal(); });
+    $(document).on('click', '#auto_select_all', function () { $('#auto_sites_container input[type=checkbox]').prop('checked', true); estimateAutoSearch(); });
+    $(document).on('click', '#auto_select_none', function () { $('#auto_sites_container input[type=checkbox]').prop('checked', false); estimateAutoSearch(); });
+    $(document).on('change input', '#auto_start_date, #auto_start_time, #auto_end_date, #auto_end_time, #auto_interval_min, #auto_sites_container input[type=checkbox], #prediction_type, #api_source', estimateAutoSearch);
+});
 
 // Listen for completion of Ehime prediction to continue batch
 $(document).on('ehime_run_complete', function() {

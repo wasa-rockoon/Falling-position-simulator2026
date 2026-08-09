@@ -257,9 +257,10 @@
                             </div>
 
                             <!-- 実行ボタン -->
-                            <div class="form-actions">
+                                <div class="form-actions">
                                 <input name="submit" id="run_pred_btn" onclick="runPrediction();" value="予測を実行">
                                 <input type="button" id="run_batch_btn" value="全地点一括計算" onclick="runBatchSimulation();">
+                                <input type="button" id="run_auto_search_btn" value="放球自動探索" onclick="showAutoSearchModal();">
                             </div>
                         </div>
                     </form>
@@ -404,6 +405,15 @@
     <div id="chart_container" class="box ui-corner-all">
         <canvas id="altitude_chart"></canvas>
     </div>
+    <style>
+        /* Auto-search modal fixes */
+        #auto_search_modal { max-width: calc(100% - 32px); }
+        #auto_search_modal input, #auto_search_modal select { box-sizing: border-box; padding-left:6px; }
+        #auto_sites_container label { color: var(--text-primary); display:block; padding:6px 8px; border-radius:6px; cursor:pointer; }
+        #auto_sites_container label:hover { background: var(--bg-hover); }
+        #auto_sites_container input[type=checkbox] { margin-right:8px; vertical-align:middle; transform:scale(1.02); }
+        #auto_search_modal { z-index: 10020 !important; }
+    </style>
 
     <!-- Wind Chart Container -->
     <div id="wind_chart_container" class="box ui-corner-all">
@@ -626,6 +636,89 @@
             });
         });
     </script>
+
+    <!-- 自動探索モーダル -->
+    <div id="auto_search_modal" style="display:none; position:fixed; left:50%; top:50%; transform:translate(-50%,-50%); background:var(--bg-panel); border:1px solid var(--border-color); padding:20px; z-index:10010; width:720px; max-width:95vw; box-shadow:0 8px 32px rgba(0,0,0,0.4); border-radius:10px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--border-color); padding-bottom:12px; margin-bottom:12px;">
+            <h3 style="margin:0; font-size:18px;">放球自動探索 (多段フィルタリング)</h3>
+            <button id="auto_close_x" style="background:transparent; border:none; font-size:20px; cursor:pointer;">&times;</button>
+        </div>
+
+        <!-- ステップインジケーター -->
+        <div style="display:flex; justify-content:space-between; margin-bottom:16px; padding:0 20px;">
+            <div id="step_indicator_1" style="flex:1; text-align:center; padding:6px; font-weight:bold; color:var(--color-primary); border-bottom:3px solid var(--color-primary);">1. 天候判定</div>
+            <div id="step_indicator_2" style="flex:1; text-align:center; padding:6px; font-weight:bold; color:var(--text-secondary); border-bottom:3px solid var(--border-color);">2. 粗探索 (1パターン)</div>
+            <div id="step_indicator_3" style="flex:1; text-align:center; padding:6px; font-weight:bold; color:var(--text-secondary); border-bottom:3px solid var(--border-color);">3. 精密探索 (13バリアント)</div>
+        </div>
+
+        <div style="display:grid; grid-template-columns:1fr 1fr 1.2fr; gap:16px; font-size:13px; background:var(--bg-panel); padding:16px; border:1px solid var(--border-color); border-radius:8px;">
+            <!-- 左カラム：期間 -->
+            <div style="min-width:0;">
+                <label style="font-weight:bold; color:var(--color-primary); border-bottom:1px solid var(--border-color); padding-bottom:4px; margin-bottom:8px; display:block;">期間 (JST)</label>
+                <div class="form-group" style="margin-bottom:8px;">
+                    <label>開始:</label>
+                    <input id="auto_start_date" type="date" class="form-control" style="margin-bottom:4px;"> 
+                    <input id="auto_start_time" type="time" class="form-control">
+                </div>
+                <div style="text-align:center; margin:4px 0; color:var(--text-secondary);">〜</div>
+                <div class="form-group">
+                    <label>終了:</label>
+                    <input id="auto_end_date" type="date" class="form-control" style="margin-bottom:4px;">
+                    <input id="auto_end_time" type="time" class="form-control">
+                </div>
+            </div>
+
+            <!-- 中央カラム：条件設定 -->
+            <div style="min-width:0;">
+                <label style="font-weight:bold; color:var(--color-primary); border-bottom:1px solid var(--border-color); padding-bottom:4px; margin-bottom:8px; display:block;">条件設定</label>
+                <div class="form-group">
+                    <label for="auto_interval_min">間隔 (分):</label>
+                    <input id="auto_interval_min" type="number" value="15" class="form-control">
+                </div>
+                <div class="form-group">
+                    <label for="auto_sea_threshold">海率下限 (%):</label>
+                    <input id="auto_sea_threshold" type="number" value="75" class="form-control">
+                </div>
+                <div class="form-group">
+                    <label for="auto_rain_threshold">雨量上限 (mm):</label>
+                    <input id="auto_rain_threshold" type="number" value="1.0" step="0.1" class="form-control">
+                </div>
+                <div class="form-group">
+                    <label for="auto_wind_threshold">風速上限 (m/s):</label>
+                    <input id="auto_wind_threshold" type="number" value="10.0" step="0.1" class="form-control">
+                </div>
+            </div>
+
+            <!-- 右カラム：対象地点 -->
+            <div style="min-width:0;">
+                <label style="font-weight:bold; color:var(--color-primary); border-bottom:1px solid var(--border-color); padding-bottom:4px; margin-bottom:8px; display:block;">対象地点</label>
+                <div style="border:1px solid var(--border-color); padding:6px; height:200px; overflow-y:auto; overflow-x:hidden; background:var(--bg-input); border-radius:4px;" id="auto_sites_container">
+                    <!-- Javascript populates this -->
+                </div>
+                <div style="margin-top:6px; display:flex; gap:4px;">
+                    <button id="auto_select_all" class="btn-preset" style="flex:1; height:26px; font-size:12px;">全選択</button>
+                    <button id="auto_select_none" class="btn-preset" style="flex:1; height:26px; font-size:12px;">解除</button>
+                </div>
+            </div>
+        </div>
+
+        <div style="margin-top:16px; background:var(--bg-input); padding:12px; border-radius:8px; border:1px solid var(--border-color);">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <label style="font-weight:bold; font-size:14px; color:var(--color-primary);">レポート・ステータス</label>
+                <div id="auto_progress_text" style="font-weight:bold; font-size:14px;">0 / 0</div>
+            </div>
+            <div style="height:14px; background:#ddd; border-radius:8px; overflow:hidden; margin-top:8px;">
+                <div id="auto_progress_bar" style="height:100%; width:0%; background:var(--color-primary); transition:width 0.2s;"></div>
+            </div>
+            <div id="auto_estimate_text" style="margin-top:8px; font-size:13px; color:#333; min-height:40px;">待機中...</div>
+        </div>
+
+        <div style="display:flex; gap:12px; justify-content:flex-end; margin-top:16px;">
+            <button id="auto_cancel_btn" class="btn-preset" style="font-size:14px; padding:6px 16px;">中断</button>
+            <button id="auto_close_btn" class="btn-preset" style="font-size:14px; padding:6px 16px;">閉じる</button>
+            <button id="auto_action_btn" class="btn-preset" style="background:var(--color-primary); color:#fff; font-size:14px; padding:6px 20px; font-weight:bold;">探索開始 (Phase 1)</button>
+        </div>
+    </div>
 
     <!-- フローティングアンサンブル統計パネル（body直下） -->
     <div id="ensemble_stats_panel">

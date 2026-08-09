@@ -141,7 +141,36 @@ var LandSea = (function () {
         return false;
     }
 
-    return { load: load, onReady: onReady, isLand: isLand, isNearCoast: isNearCoast };
+    function haversineDistKm(lat1, lon1, lat2, lon2) {
+        var R = 6371; // Radius of the earth in km
+        var dLat = (lat2 - lat1) * Math.PI / 180;
+        var dLon = (lon2 - lon1) * Math.PI / 180;
+        var a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                Math.sin(dLon/2) * Math.sin(dLon/2);
+        var c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+        return R * c;
+    }
+
+    function distanceToCoastKm(lat, lon) {
+        if (!loaded || landFeatures.length === 0) return 999;
+        var x = lon, y = lat;
+        var minDistDeg = 999;
+        for (var fi = 0; fi < landFeatures.length; fi++) {
+            var geom = landFeatures[fi].geometry;
+            if (geom.type === 'Polygon') {
+                minDistDeg = Math.min(minDistDeg, distanceToRing(x, y, geom.coordinates[0]));
+            } else if (geom.type === 'MultiPolygon') {
+                for (var pi = 0; pi < geom.coordinates.length; pi++) {
+                    minDistDeg = Math.min(minDistDeg, distanceToRing(x, y, geom.coordinates[pi][0]));
+                }
+            }
+        }
+        // Degree distance to km approx (1 deg ~ 111km)
+        return minDistDeg * 111.0;
+    }
+
+    return { load: load, onReady: onReady, isLand: isLand, isNearCoast: isNearCoast, distanceToCoastKm: distanceToCoastKm, haversineDistKm: haversineDistKm };
 })();
 
 // Auto-load on script include
