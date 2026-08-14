@@ -341,7 +341,9 @@ function calc_update() {
             var r2 = L * (M + N) + P;
             var r3 = L * (M - N) + P;
 
-            alert("Three possible solutions found: "
+            if (typeof showToast === 'function') showToast("Three possible solutions found: "
+                + r1 + ", " + r2 + ", " + r3, 'warning', 5000);
+            else console.warn("Three possible solutions found: "
                 + r1 + ", " + r2 + ", " + r3);
             
             if(r1 > 0) {

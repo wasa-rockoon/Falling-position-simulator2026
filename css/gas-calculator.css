@@ -1,0 +1,250 @@
+.gas-calculator-modal[hidden] {
+    display: none;
+}
+
+.gas-calculator-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 10020;
+    display: grid;
+    place-items: center;
+    padding: 20px;
+}
+
+.gas-calculator-backdrop {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    padding: 0;
+    border: 0;
+    background: rgba(8, 15, 28, 0.72);
+    cursor: default;
+}
+
+.gas-calculator-dialog {
+    position: relative;
+    width: min(1080px, 96vw);
+    max-height: 92vh;
+    overflow: auto;
+    color: var(--text-primary, #162033);
+    background: var(--bg-panel, #fff);
+    border: 1px solid var(--border-color, #d8dee8);
+    border-radius: 14px;
+    box-shadow: 0 22px 70px rgba(0, 0, 0, 0.35);
+}
+
+.gas-calculator-header {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 18px;
+    padding: 18px 22px;
+    background: var(--bg-panel, #fff);
+    border-bottom: 1px solid var(--border-color, #d8dee8);
+}
+
+.gas-calculator-header h2 {
+    margin: 0;
+    font-size: 20px;
+}
+
+.gas-calculator-header p {
+    margin: 5px 0 0;
+    color: var(--text-secondary, #596579);
+    font-size: 12px;
+}
+
+#gas_calculator_close {
+    flex: 0 0 auto;
+    width: 34px;
+    height: 34px;
+    padding: 0;
+    color: inherit;
+    background: transparent;
+    border: 1px solid var(--border-color, #d8dee8);
+    border-radius: 8px;
+    font-size: 25px;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.gas-calculator-content {
+    display: grid;
+    grid-template-columns: minmax(300px, 0.9fr) minmax(430px, 1.35fr);
+    gap: 18px;
+    padding: 20px 22px 24px;
+}
+
+.gas-calculator-inputs {
+    display: grid;
+    gap: 14px;
+    align-content: start;
+}
+
+.gas-calculator-inputs fieldset {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 11px;
+    margin: 0;
+    padding: 14px;
+    border: 1px solid var(--border-color, #d8dee8);
+    border-radius: 10px;
+}
+
+.gas-calculator-inputs legend {
+    padding: 0 6px;
+    font-weight: 700;
+}
+
+.gas-calculator-inputs label {
+    display: grid;
+    gap: 4px;
+    color: var(--text-secondary, #596579);
+    font-size: 11px;
+}
+
+.gas-calculator-inputs input,
+.gas-calculator-inputs select {
+    box-sizing: border-box;
+    width: 100%;
+    min-height: 34px;
+    padding: 6px 8px;
+    color: var(--text-primary, #162033);
+    background: var(--bg-input, #fff);
+    border: 1px solid var(--border-color, #cdd5e0);
+    border-radius: 6px;
+}
+
+.gas-calculator-inputs input:focus,
+.gas-calculator-inputs select:focus,
+#gas_calculator_close:focus-visible,
+#gas_apply_to_prediction:focus-visible {
+    outline: 2px solid var(--color-primary, #1976d2);
+    outline-offset: 2px;
+}
+
+.gas-calculator-results {
+    min-width: 0;
+}
+
+.gas-result-summary {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+    margin-bottom: 14px;
+}
+
+.gas-result-summary > div {
+    display: grid;
+    gap: 5px;
+    min-height: 58px;
+    padding: 11px 12px;
+    background: var(--bg-panel-header, #f3f6fa);
+    border: 1px solid var(--border-color, #d8dee8);
+    border-radius: 9px;
+}
+
+.gas-result-summary span {
+    color: var(--text-secondary, #596579);
+    font-size: 11px;
+}
+
+.gas-result-summary strong {
+    align-self: end;
+    font-size: 15px;
+}
+
+.gas-calculator-results details {
+    margin-top: 10px;
+    padding: 10px 12px;
+    border: 1px solid var(--border-color, #d8dee8);
+    border-radius: 9px;
+}
+
+.gas-calculator-results summary {
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.gas-table-scroll {
+    overflow-x: auto;
+    margin-top: 9px;
+}
+
+.gas-calculator-results table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+}
+
+.gas-calculator-results th,
+.gas-calculator-results td {
+    padding: 7px 8px;
+    text-align: left;
+    border-bottom: 1px solid var(--border-color, #d8dee8);
+}
+
+.gas-calculator-results tr.is-recommended td {
+    color: var(--color-primary, #1769aa);
+    background: color-mix(in srgb, var(--color-primary, #1976d2) 9%, transparent);
+    font-weight: 700;
+}
+
+.gas-calculator-note {
+    margin: 9px 0 0;
+    color: var(--text-secondary, #596579);
+    font-size: 11px;
+    line-height: 1.55;
+}
+
+.gas-calculator-error,
+.gas-calculator-warning {
+    padding: 10px 12px;
+    color: #8b1e18;
+    background: #fff1f0;
+    border: 1px solid #ffccc7;
+    border-radius: 8px;
+    font-weight: 700;
+}
+
+#gas_apply_to_prediction {
+    width: 100%;
+    margin-top: 14px;
+    padding: 10px 14px;
+    color: #fff;
+    background: var(--color-primary, #1976d2);
+    border: 0;
+    border-radius: 8px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+#gas_apply_to_prediction:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+@media (max-width: 800px) {
+    .gas-calculator-modal {
+        padding: 8px;
+    }
+
+    .gas-calculator-dialog {
+        width: 100%;
+        max-height: 96vh;
+    }
+
+    .gas-calculator-content {
+        grid-template-columns: 1fr;
+        padding: 14px;
+    }
+
+    .gas-calculator-inputs fieldset,
+    .gas-result-summary {
+        grid-template-columns: 1fr;
+    }
+}

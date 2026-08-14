@@ -183,9 +183,9 @@ function processLogCSV(csvText) {
     if (path.length > 0) {
         drawLogOverlay(path);
         $("#clear_log_overlay").show();
-        alert("実測ログを読み込みました (" + path.length + " points)\nLatCol=" + latIdx + ", LonCol=" + lonIdx + "\n外れ値除外: " + skippedOutlier);
+        showToast("実測ログを読み込みました (" + path.length + " points)\nLatCol=" + latIdx + ", LonCol=" + lonIdx + "\n外れ値除外: " + skippedOutlier, 'success', 5000);
     } else {
-        alert("有効な座標データが見つかりませんでした。\n解析モード: Sep='" + separator + "', LatCol=" + latIdx + ", LonCol=" + lonIdx + "\nヘッダー: " + JSON.stringify(header) + "\nスキップ: NaN=" + skippedNaN + ", Range=" + skippedRange);
+        showToast("有効な座標データが見つかりませんでした。\n解析モード: Sep='" + separator + "', LatCol=" + latIdx + ", LonCol=" + lonIdx + "\nヘッダー: " + JSON.stringify(header) + "\nスキップ: NaN=" + skippedNaN + ", Range=" + skippedRange, 'error', 7000);
     }
 }
 

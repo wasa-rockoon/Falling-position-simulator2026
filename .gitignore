@@ -1,0 +1,24 @@
+# Local dependencies and inspection tools
+node_modules/
+
+# Generated exports
+auto_search_results*.csv
+uncertainty_results*.csv
+ensemble_results_*.csv
+Ehime_*.csv
+FallOnly_*.csv
+落下位置一覧_*.csv
+
+# Local runtime files
+*.log
+npm-debug.log*
+coverage/
+.DS_Store
+Thumbs.db
+~$*
+
+# One-off inspection artifacts
+assignment-info.md
+check.js
+parse.py
+pred_new.patch

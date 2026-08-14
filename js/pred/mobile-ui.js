@@ -90,10 +90,8 @@
     _rebind: function(){ buildPanels(); }
   };
 
-  // Init now (even on desktop so that later resize works)
-  document.addEventListener('DOMContentLoaded', init);
-  // Fallback if script loads after DOM
-  if(document.readyState === 'complete' || document.readyState === 'interactive') init();
+  // Initialise once through the central application registry.
+  window.AppShell.registerInitializer('mobile-ui', init, 70);
   // Initial compact application if already in mobile viewport
   if(mm.matches){
     var lf = document.getElementById('input_form'); if(lf) lf.classList.add(COMPACT_CLASS);

@@ -4,7 +4,10 @@
  * - Export Image (html2canvas)
  */
 
-$(document).ready(function () {
+var collaborationInitialized = false;
+function initCollaborationUi() {
+    if (collaborationInitialized) return;
+    collaborationInitialized = true;
     $('#share_url').click(function () {
         copyLinkToClipboard();
     });
@@ -12,7 +15,8 @@ $(document).ready(function () {
     $('#export_img').click(function () {
         exportResultImage();
     });
-});
+}
+window.AppShell.registerInitializer('collaboration', initCollaborationUi, 40);
 
 function copyLinkToClipboard() {
     // Ensure the URL is up-to-date with current settings
@@ -27,10 +31,10 @@ function copyLinkToClipboard() {
     // Copy to clipboard
     navigator.clipboard.writeText(url).then(function () {
         // Show success message (Tipsy or simple alert)
-        alert("URLをクリップボードにコピーしました！\n\n" + url);
+        showToast("URLをクリップボードにコピーしました！\n\n" + url, 'success', 4500);
     }, function (err) {
         console.error('Could not copy text: ', err);
-        alert("コピーに失敗しました。");
+        showToast("コピーに失敗しました。", 'error', 6000);
     });
 }
 
@@ -64,6 +68,6 @@ function exportResultImage() {
         link.click();
     }).catch(function (err) {
         console.error("Export failed:", err);
-        alert("画像の保存に失敗しました。");
+        showToast("画像の保存に失敗しました。", 'error', 6000);
     });
 }

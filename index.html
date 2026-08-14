@@ -1,36 +1,40 @@
 <!DOCTYPE HTML>
-<html>
+<html lang="ja">
 <head>
+    <meta charset="utf-8">
+    <meta name="theme-color" content="#0b5fa5">
+    <meta name="description" content="WASA balloon flight, landing, gas, automatic search and uncertainty planning tool">
     <title>WASA / 気球実験用 予測ツール</title>
 
-    <!-- Google Fonts -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&display=swap" rel="stylesheet">
 
     <!-- Favicon -->
     <link rel="icon" type="image/x-icon" href="favicon.ico">
     <link rel="shortcut icon" href="favicon.ico">
     <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="images/app-icon-192.png">
 
     <!-- Stylesheets -->
     <link href="css/leaflet.css" rel="stylesheet">
     <link href="css/jquery-ui.css" rel="stylesheet">
     <link href="css/predictor.css" rel="stylesheet">
     <link href="css/predictor-mobile.css" rel="stylesheet" media="(max-width: 768px)">
+    <link href="css/gas-calculator.css" rel="stylesheet">
+    <link href="css/uncertainty.css" rel="stylesheet">
 
     <!-- Core Libraries -->
     <script src="js/jquery-3.3.1.min.js"></script>
     <script src="js/jquery-ui.min.js"></script>
     <script src="js/jquery.tipsy.js"></script>
-    <script src="js/jquery.form.js" type="text/javascript"></script>
     <script src="js/jquery.jookie.js" type="text/javascript"></script>
     <script src="js/leaflet.js"></script>
     <script src="js/moment.js"></script>
+    <script src="js/core/app-storage.js"></script>
+    <script src="js/core/app-notifications.js"></script>
+    <script src="js/core/app-shell.js"></script>
+    <script src="js/pred/pred-api-client.js"></script>
+    <script src="js/pred/pred-job-store.js"></script>
     <script src="js/chart.min.js"></script>
     <script src="js/html2canvas.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@turf/turf@7/turf.min.js"></script>
-    <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
 
     <!-- Application Scripts -->
     <script src="js/pred/pred-config.js" type="text/javascript"></script>
@@ -41,12 +45,20 @@
     <script src="js/pred/landsea.js" type="text/javascript"></script>
     <script src="js/pred/pred-common.js" type="text/javascript"></script>
     <script src="js/pred/pred-new.js" type="text/javascript"></script>
+    <script src="js/pred/auto-search-core.js" type="text/javascript"></script>
+    <script src="js/pred/auto-search.js" type="text/javascript"></script>
     <script src="js/pred/pred.js" type="text/javascript"></script>
     <script src="js/pred/log-overlay.js" type="text/javascript"></script>
     <script src="js/pred/pred-collaborate.js" type="text/javascript"></script>
     <script src="js/pred/pred-chart.js" type="text/javascript"></script>
     <script src="js/pred/ehime-enhancements.js" type="text/javascript"></script>
     <script src="js/pred/launch-window.js" type="text/javascript"></script>
+    <script src="js/calc/balloon-gas.js" type="text/javascript"></script>
+    <script src="js/calc/gas-calculator-template.js" type="text/javascript"></script>
+    <script src="js/calc/gas-calculator-ui.js" type="text/javascript"></script>
+    <script src="js/pred/uncertainty-core.js" type="text/javascript"></script>
+    <script src="js/pred/uncertainty-template.js" type="text/javascript"></script>
+    <script src="js/pred/uncertainty-analysis.js" type="text/javascript"></script>
     <script src="js/calc/calc.js" type="text/javascript"></script>
     <script src="js/colour-map.js" type="text/javascript"></script>
 
@@ -237,6 +249,8 @@
                                 <select id="preset_select" class="form-control">
                                     <option value="">-- プリセット選択 --</option>
                                 </select>
+                                <label for="preset_name" class="sr-only">新しいプリセット名</label>
+                                <input id="preset_name" class="form-control" type="text" maxlength="40" placeholder="保存名">
                                 <div class="preset-buttons">
                                     <button type="button" id="preset_load_btn" class="btn-preset" title="選択したプリセットを読み込み">読込</button>
                                     <button type="button" id="preset_save_btn" class="btn-preset" title="現在の設定を保存">保存</button>
@@ -258,9 +272,9 @@
 
                             <!-- 実行ボタン -->
                                 <div class="form-actions">
-                                <input name="submit" id="run_pred_btn" onclick="runPrediction();" value="予測を実行">
+                                <input type="button" name="submit" id="run_pred_btn" onclick="runPrediction();" value="予測を実行">
                                 <input type="button" id="run_batch_btn" value="全地点一括計算" onclick="runBatchSimulation();">
-                                <input type="button" id="run_auto_search_btn" value="放球自動探索" onclick="showAutoSearchModal();">
+                                <input type="button" id="run_auto_search_btn" class="feature-action-btn" value="放球自動探索" onclick="showAutoSearchModal();">
                             </div>
                         </div>
                     </form>
@@ -273,10 +287,10 @@
             <div id="panel-results" class="sidebar-panel">
                 <div id="scenario_info" class="box ui-corner-all">
                     <img src="images/drag_handle.png" class="handle" />
-                    <h1 style="display:flex; justify-content:space-between; align-items:center;">
+                    <h1 class="panel-title-row">
                         <span>シナリオ情報</span>
-                        <button type="button" id="popout_metrics_btn" class="btn-preset" style="padding:0px 2px; font-size:9px; height:18px; width:18px; display:inline-flex; align-items:center; justify-content:center; box-shadow:none; border-radius:2px; background:transparent; border:1px solid var(--border-color); color:var(--text-primary);" title="INFOを抽出">
-                            <svg viewBox="0 0 24 24" style="width:10px; height:10px; fill:currentColor;">
+                        <button type="button" id="popout_metrics_btn" class="panel-icon-button" title="シナリオ情報を地図上に表示" aria-label="シナリオ情報を地図上に表示">
+                            <svg viewBox="0 0 24 24" aria-hidden="true">
                                 <path d="M19 19H5V5h7V3H5a2 2 0 00-2 2v14a2 2 0 002 2h14c1.1 0 2-.9 2-2v-7h-2v7zM14 3v2h3.59l-9.83 9.83 1.41 1.41L19 6.41V10h2V3h-7z" />
                             </svg>
                         </button>
@@ -590,55 +604,10 @@
         </div>
     </div>
 
-    <script>
-        function toggleCustomApiInput() {
-            var val = document.getElementById('api_source').value;
-            var input = document.getElementById('api_custom_url');
-            input.style.display = (val === 'custom') ? 'block' : 'none';
-        }
 
-        // Service Worker Registration
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', function () {
-                navigator.serviceWorker.register('./sw.js').then(function (registration) {
-                    console.log('ServiceWorker registration successful with scope: ', registration.scope);
-                }, function (err) {
-                    console.log('ServiceWorker registration failed: ', err);
-                });
-            });
-        }
-
-        // サイドバートグル
-        document.getElementById('sidebar-toggle').addEventListener('click', function () {
-            document.body.classList.toggle('sidebar-open');
-            this.textContent = document.body.classList.contains('sidebar-open') ? '≪' : '≫';
-            setTimeout(function () { if (window.map) map.invalidateSize(); }, 300);
-        });
-
-        // サイドバータブ切替
-        window.switchTab = function(tabName) {
-            document.querySelectorAll('.sidebar-tab').forEach(function (t) { t.classList.remove('active'); });
-            document.querySelectorAll('.sidebar-panel').forEach(function (p) { p.classList.remove('active'); });
-            var tab = document.querySelector('.sidebar-tab[data-panel="panel-' + tabName + '"]');
-            var panel = document.getElementById('panel-' + tabName);
-            if (tab) tab.classList.add('active');
-            if (panel) panel.classList.add('active');
-        };
-        document.querySelectorAll('.sidebar-tab').forEach(function (tab) {
-            tab.addEventListener('click', function () {
-                if (this.getAttribute('data-theme-toggle')) return; // ダークモードボタンは除外
-                document.querySelectorAll('.sidebar-tab').forEach(function (t) { t.classList.remove('active'); });
-                tab.classList.add('active');
-                document.querySelectorAll('.sidebar-panel').forEach(function (p) { p.classList.remove('active'); });
-                var panelId = tab.getAttribute('data-panel');
-                var panel = document.getElementById(panelId);
-                if (panel) panel.classList.add('active');
-            });
-        });
-    </script>
 
     <!-- 自動探索モーダル -->
-    <div id="auto_search_modal" style="display:none; position:fixed; left:50%; top:50%; transform:translate(-50%,-50%); background:var(--bg-panel); border:1px solid var(--border-color); padding:20px; z-index:10010; width:720px; max-width:95vw; box-shadow:0 8px 32px rgba(0,0,0,0.4); border-radius:10px;">
+    <div id="auto_search_modal" class="auto-search-modal" style="display:none; position:fixed; left:50%; top:50%; transform:translate(-50%,-50%); background:var(--bg-panel); border:1px solid var(--border-color); padding:20px; z-index:10010; width:720px; max-width:95vw; box-shadow:0 8px 32px rgba(0,0,0,0.4); border-radius:10px;">
         <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--border-color); padding-bottom:12px; margin-bottom:12px;">
             <h3 style="margin:0; font-size:18px;">放球自動探索 (多段フィルタリング)</h3>
             <button id="auto_close_x" style="background:transparent; border:none; font-size:20px; cursor:pointer;">&times;</button>
@@ -672,8 +641,20 @@
             <div style="min-width:0;">
                 <label style="font-weight:bold; color:var(--color-primary); border-bottom:1px solid var(--border-color); padding-bottom:4px; margin-bottom:8px; display:block;">条件設定</label>
                 <div class="form-group">
+                    <label for="auto_search_mode">探索モード:</label>
+                    <select id="auto_search_mode" class="form-control">
+                        <option value="fast">高速（粗探索で除外）</option>
+                        <option value="full">全候補精密（粗探索で除外しない）</option>
+                        <option value="ranked">段階的（良い候補から）</option>
+                    </select>
+                </div>
+                <div class="form-group">
                     <label for="auto_interval_min">間隔 (分):</label>
                     <input id="auto_interval_min" type="number" value="15" class="form-control">
+                </div>
+                <div class="form-group">
+                    <label for="auto_max_calls">API呼び出し上限:</label>
+                    <input id="auto_max_calls" type="number" value="500" min="1" step="1" class="form-control">
                 </div>
                 <div class="form-group">
                     <label for="auto_sea_threshold">海率下限 (%):</label>
@@ -711,9 +692,20 @@
                 <div id="auto_progress_bar" style="height:100%; width:0%; background:var(--color-primary); transition:width 0.2s;"></div>
             </div>
             <div id="auto_estimate_text" style="margin-top:8px; font-size:13px; color:#333; min-height:40px;">待機中...</div>
+            <div id="auto_results" class="auto-results-panel" style="display:none;">
+                <div class="auto-results-header">
+                    <div class="auto-results-title">
+                        <b>条件を満たした候補</b>
+                        <span id="auto_results_count" class="auto-results-count">0件</span>
+                    </div>
+                    <button id="auto_download_btn" class="btn-export auto-results-export" type="button">CSV出力</button>
+                </div>
+                <div id="auto_results_list" class="auto-results-list"></div>
+            </div>
         </div>
 
         <div style="display:flex; gap:12px; justify-content:flex-end; margin-top:16px;">
+            <button id="auto_new_search_btn" class="btn-preset" type="button">新規探索</button>
             <button id="auto_cancel_btn" class="btn-preset" style="font-size:14px; padding:6px 16px;">中断</button>
             <button id="auto_close_btn" class="btn-preset" style="font-size:14px; padding:6px 16px;">閉じる</button>
             <button id="auto_action_btn" class="btn-preset" style="background:var(--color-primary); color:#fff; font-size:14px; padding:6px 20px; font-weight:bold;">探索開始 (Phase 1)</button>
@@ -810,122 +802,7 @@
     </div>
 
     <!-- インラインスクリプト: パネルドラッグ、リサイズ、メトリクスフローティング -->
-    <script>
-        // 放球ウィンドウパネルのドラッグ
-        (function () {
-            var panel = document.getElementById('launch_window_panel');
-            var header = panel.querySelector('.ensemble-stats-header');
-            var isDragging = false; var startX, startY;
-            header.style.cursor = 'grab';
-            header.addEventListener('mousedown', function (e) {
-                if (e.target.tagName === 'BUTTON') return;
-                isDragging = true; header.style.cursor = 'grabbing';
-                startX = e.clientX - panel.offsetLeft;
-                startY = e.clientY - panel.offsetTop;
-                document.addEventListener('mousemove', onMouseMove);
-                document.addEventListener('mouseup', onMouseUp);
-            });
-            function onMouseMove(e) {
-                if (!isDragging) return;
-                panel.style.left = (e.clientX - startX) + 'px';
-                panel.style.top = (e.clientY - startY) + 'px';
-                panel.style.right = 'auto'; panel.style.bottom = 'auto';
-            }
-            function onMouseUp() {
-                isDragging = false; header.style.cursor = 'grab';
-                document.removeEventListener('mousemove', onMouseMove);
-                document.removeEventListener('mouseup', onMouseUp);
-            }
-        })();
 
-        // サイドバーリサイズ
-        (function () {
-            var handle = document.getElementById('sidebar-resize-handle');
-            var sidebar = document.getElementById('app-sidebar');
-            if (!handle || !sidebar) return;
-            var isResizing = false, startX = 0, startWidth = 0, minWidth = 280, maxWidth = 700;
-            handle.addEventListener('mousedown', function (e) {
-                isResizing = true; startX = e.clientX; startWidth = sidebar.offsetWidth;
-                document.body.style.cursor = 'col-resize'; document.body.style.userSelect = 'none'; e.preventDefault();
-            });
-            document.addEventListener('mousemove', function (e) {
-                if (!isResizing) return;
-                var delta = startX - e.clientX;
-                var newWidth = Math.max(minWidth, Math.min(maxWidth, startWidth + delta));
-                document.documentElement.style.setProperty('--sidebar-width', newWidth + 'px');
-                if (typeof map !== 'undefined' && map.invalidateSize) map.invalidateSize();
-            });
-            document.addEventListener('mouseup', function () {
-                if (isResizing) { isResizing = false; document.body.style.cursor = ''; document.body.style.userSelect = '';
-                    if (typeof map !== 'undefined' && map.invalidateSize) map.invalidateSize(); }
-            });
-            handle.addEventListener('touchstart', function (e) { isResizing = true; startX = e.touches[0].clientX; startWidth = sidebar.offsetWidth; e.preventDefault(); });
-            document.addEventListener('touchmove', function (e) { if (!isResizing) return; var delta = startX - e.touches[0].clientX; var newWidth = Math.max(minWidth, Math.min(maxWidth, startWidth + delta)); document.documentElement.style.setProperty('--sidebar-width', newWidth + 'px'); });
-            document.addEventListener('touchend', function () { if (isResizing) { isResizing = false; if (typeof map !== 'undefined' && map.invalidateSize) map.invalidateSize(); } });
-        })();
-
-        // アンサンブル統計の最小化・展開
-        var ehimeToggle = document.getElementById('ensemble_stats_toggle');
-        if (ehimeToggle) {
-            ehimeToggle.addEventListener('click', function () {
-                var body = document.querySelector('.ensemble-stats-body');
-                var panel = document.getElementById('ensemble_stats_panel');
-                if (body.style.display === 'none') {
-                    body.style.display = 'block'; this.innerHTML = '&minus;'; panel.style.maxHeight = '90vh';
-                    // Restore default floating position (remove minimize anchoring)
-                    panel.style.left = ''; panel.style.bottom = ''; panel.style.top = ''; panel.style.right = '';
-                } else {
-                    // Minimize: keep panel anchored to bottom-left on desktop
-                    body.style.display = 'none'; this.innerHTML = '&#43;'; panel.style.maxHeight = 'none';
-                    if (window.innerWidth > 768) {
-                        panel.style.left = '8px'; panel.style.bottom = '8px'; panel.style.top = 'auto'; panel.style.right = 'auto';
-                    }
-                }
-            });
-        }
-
-        // INFOウィンドウ(メトリクス)位置トグル・フローティング独立機能
-        var toggleMetricsBtn = document.getElementById('toggle_metrics_pos');
-        var popoutMetricsBtn = document.getElementById('popout_metrics_btn');
-        var metricsContainer = document.getElementById('scenario_info_floating_container');
-        var originalParent = document.getElementById('scenario_info');
-        var restoreAnchor = document.getElementById('metrics_restore_anchor');
-        function moveMetricsToFloating() { if (window.innerWidth <= 768) return; if (metricsContainer.parentNode !== document.body) document.body.appendChild(metricsContainer); metricsContainer.classList.add('floating-metrics-mode'); if (popoutMetricsBtn) popoutMetricsBtn.style.display = 'none'; }
-        function restoreMetricsToSidebar() { if (metricsContainer.parentNode !== originalParent) { if (restoreAnchor) originalParent.insertBefore(metricsContainer, restoreAnchor); else originalParent.appendChild(metricsContainer); } metricsContainer.classList.remove('floating-metrics-mode'); if (popoutMetricsBtn && window.innerWidth > 768) popoutMetricsBtn.style.display = 'inline-block'; metricsContainer.style.left = ''; metricsContainer.style.top = ''; }
-        if (toggleMetricsBtn) toggleMetricsBtn.addEventListener('click', function (e) { e.preventDefault(); restoreMetricsToSidebar(); });
-        if (popoutMetricsBtn) popoutMetricsBtn.addEventListener('click', moveMetricsToFloating);
-        if (window.innerWidth > 768) {
-            moveMetricsToFloating();
-        }
-
-        // パネルドラッグヘルパー
-        function enablePanelDrag(panelEl, handleEl, guardFn) {
-            if (!panelEl || !handleEl) return;
-            var dragging = false, offsetX = 0, offsetY = 0;
-            handleEl.style.cursor = 'grab';
-            handleEl.addEventListener('mousedown', function (e) {
-                if (guardFn && !guardFn()) return; if (e.target.tagName === 'BUTTON') return;
-                dragging = true; handleEl.style.cursor = 'grabbing';
-                var rect = panelEl.getBoundingClientRect();
-                panelEl.style.left = rect.left + 'px'; panelEl.style.top = rect.top + 'px';
-                panelEl.style.right = 'auto'; panelEl.style.bottom = 'auto';
-                offsetX = e.clientX - rect.left; offsetY = e.clientY - rect.top;
-                document.addEventListener('mousemove', onMouseMove); document.addEventListener('mouseup', onMouseUp);
-            });
-            function onMouseMove(e) { if (!dragging) return; panelEl.style.left = (e.clientX - offsetX) + 'px'; panelEl.style.top = (e.clientY - offsetY) + 'px'; }
-            function onMouseUp() { dragging = false; handleEl.style.cursor = 'grab'; document.removeEventListener('mousemove', onMouseMove); document.removeEventListener('mouseup', onMouseUp); }
-        }
-        var ensemblePanel = document.getElementById('ensemble_stats_panel');
-        var ensembleHeader = ensemblePanel ? ensemblePanel.querySelector('.ensemble-stats-header') : null;
-        enablePanelDrag(ensemblePanel, ensembleHeader, function () { return window.innerWidth > 768; });
-        var metricsHeader = metricsContainer ? metricsContainer.querySelector('.always-on-header') : null;
-        enablePanelDrag(metricsContainer, metricsHeader, function () { return window.innerWidth > 768 && metricsContainer.classList.contains('floating-metrics-mode'); });
-        window.addEventListener('resize', function () {
-            if (window.innerWidth <= 768 && metricsContainer.classList.contains('floating-metrics-mode')) restoreMetricsToSidebar();
-            else if (window.innerWidth <= 768 && popoutMetricsBtn) popoutMetricsBtn.style.display = 'none';
-            else if (window.innerWidth > 768 && popoutMetricsBtn && !metricsContainer.classList.contains('floating-metrics-mode')) popoutMetricsBtn.style.display = 'inline-block';
-        });
-    </script>
 
     <!-- Mobile Bottom Navigation Bar -->
     <nav id="mobile_nav" style="display:none;">
@@ -939,66 +816,7 @@
     <div id="toast-container"></div>
 
     <!-- ダークモード切替 + トースト通知API -->
-    <script>
-        (function () {
-            var root = document.documentElement;
-            var toggles = Array.prototype.slice.call(document.querySelectorAll('[data-theme-toggle]'));
-            var darkTileLayer = null; var lightTileLayer = null;
-            var DARK_TILE = 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png';
-            var DARK_TILE_ATTR = '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/">CARTO</a>';
-            var saved = localStorage.getItem('dark-mode');
-            if (saved === 'true') root.classList.add('dark-mode');
-            else if (saved === 'false') root.classList.add('light-mode');
-            function isDark() { return root.classList.contains('dark-mode') || (!root.classList.contains('light-mode') && window.matchMedia('(prefers-color-scheme: dark)').matches); }
-            function applyMapTile() {
-                if (typeof map === 'undefined') return;
-                if (isDark()) {
-                    if (!darkTileLayer) darkTileLayer = L.tileLayer(DARK_TILE, { attribution: DARK_TILE_ATTR, maxZoom: 19 });
-                    map.eachLayer(function (layer) { if (layer instanceof L.TileLayer && layer !== darkTileLayer) { lightTileLayer = layer; map.removeLayer(layer); } });
-                    darkTileLayer.addTo(map);
-                } else { if (darkTileLayer) map.removeLayer(darkTileLayer); if (lightTileLayer) lightTileLayer.addTo(map); }
-            }
-            function updateThemeToggleLabels() {
-                var dark = isDark();
-                toggles.forEach(function (btn) { if (!btn) return; btn.setAttribute('aria-pressed', dark ? 'true' : 'false'); if (btn.id === 'mobile_dark_mode_toggle') btn.textContent = dark ? 'ライト' : 'ダーク'; });
-            }
-            function handleThemeToggleClick() {
-                var isCurrentlyDark = isDark();
-                if (isCurrentlyDark) { root.classList.remove('dark-mode'); root.classList.add('light-mode'); localStorage.setItem('dark-mode', 'false'); }
-                else { root.classList.remove('light-mode'); root.classList.add('dark-mode'); localStorage.setItem('dark-mode', 'true'); }
-                applyMapTile(); updateThemeToggleLabels();
-                showToast(isCurrentlyDark ? 'ライトモードに切替' : 'ダークモードに切替', 'info', 2000);
-            }
-            toggles.forEach(function (btn) { btn.addEventListener('click', handleThemeToggleClick); });
-            setTimeout(applyMapTile, 1500); updateThemeToggleLabels();
-        })();
 
-        // トースト通知API
-        var TOAST_ICONS = {
-            success: '<svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z"></path></svg>',
-            warning: '<svg viewBox="0 0 24 24"><path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"></path></svg>',
-            error: '<svg viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12 19 6.41z"></path></svg>',
-            info: '<svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"></path></svg>'
-        };
-        function showToast(message, type, duration) {
-            type = type || 'info'; duration = duration || 4000;
-            var container = document.getElementById('toast-container');
-            if (!container) return;
-            var toast = document.createElement('div'); toast.className = 'toast toast-' + type;
-            var icon = document.createElement('span'); icon.className = 'toast-icon'; icon.innerHTML = TOAST_ICONS[type] || TOAST_ICONS.info;
-            var msg = document.createElement('span'); msg.className = 'toast-message'; msg.textContent = message;
-            var closeBtn = document.createElement('button'); closeBtn.className = 'toast-close'; closeBtn.innerHTML = '&times;';
-            closeBtn.onclick = function () { dismissToast(toast); };
-            toast.appendChild(icon); toast.appendChild(msg); toast.appendChild(closeBtn);
-            container.appendChild(toast);
-            var timer = setTimeout(function () { dismissToast(toast); }, duration); toast._timer = timer;
-        }
-        function dismissToast(toast) {
-            if (toast._dismissed) return; toast._dismissed = true;
-            clearTimeout(toast._timer); toast.classList.add('toast-exit');
-            setTimeout(function () { if (toast.parentNode) toast.parentNode.removeChild(toast); }, 300);
-        }
-    </script>
 
     <script src="js/pred/mobile-ui.js"></script>
 </body>

@@ -58,6 +58,36 @@ function resolveTawhiriApiUrl() {
     return "https://api.v2.sondehub.org/tawhiri";
 }
 
+function createPredictionRequestContext(options) {
+    options = options || {};
+    var source = options.source || ($('#api_source').val() || 'sondehub');
+    var customUrl = options.customUrl;
+    if (customUrl === undefined) customUrl = ($('#api_custom_url').val() || '').trim();
+    var baseUrl = options.baseUrl || resolveTawhiriApiUrl();
+    if (!baseUrl) return null;
+    var context = { source: source, baseUrl: baseUrl, client: null };
+    if (typeof PredictionApi !== 'undefined') {
+        context.client = PredictionApi.getClient({ source: source, baseUrl: baseUrl, customUrl: customUrl });
+    }
+    return context;
+}
+
+function requestTawhiriData(settings, requestContext, options) {
+    var context = requestContext || createPredictionRequestContext();
+    if (!context) return Promise.reject(new Error('Prediction API is not configured'));
+    if (context.client) {
+        return context.client.request(settings, options || {}).then(function (result) { return result.data; });
+    }
+    return new Promise(function (resolve, reject) {
+        $.get(context.baseUrl, settings).done(resolve).fail(reject);
+    });
+}
+
+function getPredictionRequestBaseUrl(requestContext) {
+    if (requestContext && requestContext.baseUrl) return requestContext.baseUrl;
+    return resolveTawhiriApiUrl() || 'https://api.v2.sondehub.org/tawhiri';
+}
+
 function toggleCustomApiInput() {
     var source = $('#api_source').val();
     var input = $('#api_custom_url');
@@ -71,47 +101,47 @@ function toggleCustomApiInput() {
     }
 }
 
-function requestPredictionWithApiValidation(run_settings, extra_settings, requestedSource) {
+function requestPredictionWithApiValidation(run_settings, extra_settings, requestedSource, requestContext) {
     // local選択時のみ、2026用プロキシ配信かを確認してから実行する。
     // 条件を満たさない場合はSondeHubへ自動フォールバックする。
     if (requestedSource !== 'local') {
-        tawhiriRequest(run_settings, extra_settings);
+        tawhiriRequest(run_settings, extra_settings, requestContext);
         return;
     }
 
     $.getJSON('/__server-info')
         .done(function (info) {
             if (info && info.app === 'Falling-position-simulator2026') {
-                tawhiriRequest(run_settings, extra_settings);
+                tawhiriRequest(run_settings, extra_settings, requestContext);
                 return;
             }
 
             $('#api_source').val('sondehub');
             toggleCustomApiInput();
-            tawhiri_api = 'https://api.v2.sondehub.org/tawhiri';
+            requestContext = createPredictionRequestContext({ source: 'sondehub', baseUrl: 'https://api.v2.sondehub.org/tawhiri' });
             try {
                 var u1 = new URL(window.location.href);
                 u1.searchParams.set('api_source', 'sondehub');
                 u1.searchParams.delete('api_custom_url');
                 history.replaceState({}, 'CUSF / SondeHub Predictor', u1.href);
-            } catch (_e1) { }
+            } catch (_e1) { if (typeof reportNonFatalError === 'function') reportNonFatalError(_e1, 'non-fatal fallback'); }
             appendDebug('Localhost接続を検証できなかったためSondeHubへ切替');
             throwError('Localhost接続には2026のcors-proxy経由が必要です。SondeHubへ自動切替しました。');
-            tawhiriRequest(run_settings, extra_settings);
+            tawhiriRequest(run_settings, extra_settings, requestContext);
         })
         .fail(function () {
             $('#api_source').val('sondehub');
             toggleCustomApiInput();
-            tawhiri_api = 'https://api.v2.sondehub.org/tawhiri';
+            requestContext = createPredictionRequestContext({ source: 'sondehub', baseUrl: 'https://api.v2.sondehub.org/tawhiri' });
             try {
                 var u2 = new URL(window.location.href);
                 u2.searchParams.set('api_source', 'sondehub');
                 u2.searchParams.delete('api_custom_url');
                 history.replaceState({}, 'CUSF / SondeHub Predictor', u2.href);
-            } catch (_e2) { }
+            } catch (_e2) { if (typeof reportNonFatalError === 'function') reportNonFatalError(_e2, 'non-fatal fallback'); }
             appendDebug('Localhost接続検証に失敗したためSondeHubへ切替');
             throwError('Localhost接続には2026のcors-proxy経由が必要です。SondeHubへ自動切替しました。');
-            tawhiriRequest(run_settings, extra_settings);
+            tawhiriRequest(run_settings, extra_settings, requestContext);
         });
 }
 
@@ -278,12 +308,12 @@ function runPrediction() {
     if (!selectedApiUrl) {
         return;
     }
-    tawhiri_api = selectedApiUrl;
-    appendDebug('Using API: ' + tawhiri_api);
+    var requestContext = createPredictionRequestContext({ source: requestedApiSource, baseUrl: selectedApiUrl });
+    appendDebug('Using API: ' + selectedApiUrl);
 
 
     // Run the request
-    requestPredictionWithApiValidation(run_settings, extra_settings, requestedApiSource);
+    requestPredictionWithApiValidation(run_settings, extra_settings, requestedApiSource, requestContext);
 
 }
 
@@ -328,9 +358,6 @@ $(document).on('change', '#prediction_type', function () {
 
 // Tawhiri API URL. Refer to API docs here: https://tawhiri.readthedocs.io/en/latest/api.html
 // Habitat Tawhiri Instance
-//var tawhiri_api = "https://predict.cusf.co.uk/api/v1/";
-// Sondehub Tawhiri Instance
-var tawhiri_api = "https://api.v2.sondehub.org/tawhiri";
 // Approximately how many hours into the future the model covers.
 var MAX_PRED_HOURS = 169;
 // Ehime mode storage
@@ -596,7 +623,7 @@ function loadEhimeHistoryCache() {
 function saveEhimeHistoryCache(items) {
     try {
         localStorage.setItem(EHIME_HISTORY_KEY, JSON.stringify(items || []));
-    } catch (_e) { }
+    } catch (_e) { if (typeof reportNonFatalError === 'function') reportNonFatalError(_e, 'non-fatal fallback'); }
 }
 
 function buildEhimeHistorySnapshot() {
@@ -1094,10 +1121,9 @@ function finalizeEhimeRunIfCompleted() {
         renderEhimeHistoryPanel();
     }
     ehime_history_saved_for_run = true;
-    $(document).trigger('ehime_run_complete');
+    $(document).trigger('ehime_run_complete', [{ runId: ehime_current && ehime_current.runId, success: anySuccess }]);
 }
 
-$(function () { renderEhimeHistoryPanel(); });
 $(document).on('click', '#ehime_history_prev_btn', function () {
     var index = getEhimeHistoryActiveIndex();
     if (index < 0) return;
@@ -1131,26 +1157,6 @@ function ensureEhimePanelVisible() {
         $('#ehime_panel').show();
     }
 }
-
-function updateFallModeUI() {
-    var fall = ($('#prediction_type').val() === 'fall');
-    var disableIds = ['#ascent', '#burst', '#flight_profile'];
-    disableIds.forEach(function (id) {
-        var el = $(id);
-        if (fall) {
-            el.prop('disabled', true);
-            el.css({ opacity: 0.5, cursor: 'not-allowed' });
-        } else {
-            el.prop('disabled', false);
-            el.css({ opacity: 1, cursor: 'text' });
-        }
-    });
-}
-
-$(function () {
-    $('#prediction_type').on('change', updateFallModeUI);
-    updateFallModeUI();
-});
 
 // --- 南レク一括計算 (Nanreku Batch Simulation) ---
 var batchNanrekuSitesData = [];
@@ -1219,575 +1225,6 @@ function runNextBatchSite() {
     }
 }
 
-// --- 放球自動探索機能 ---
-function showAutoSearchModal() {
-    // Populate defaults: start = now, end = now + 12h
-    var nowJst = moment.utc().utcOffset(9 * 60);
-    $('#auto_start_date').val(nowJst.format('YYYY-MM-DD'));
-    $('#auto_start_time').val(nowJst.format('HH:mm'));
-    var later = nowJst.clone().add(12, 'hours');
-    $('#auto_end_date').val(later.format('YYYY-MM-DD'));
-    $('#auto_end_time').val(later.format('HH:mm'));
-    $('#auto_interval_min').val(15);
-    $('#auto_sea_threshold').val(75);
-    $('#auto_results').hide(); $('#auto_results_body').empty();
-    populateAutoSitesSelect();
-    
-    // Reset state and UI
-    autoSearchState.phase = 0;
-    autoSearchState.running = false;
-    updateAutoUI('条件を設定すると、探索前にAPI呼び出し回数と所要時間の概算を表示します。', 0, 0, 0);
-    $('#auto_action_btn').text('条件確定・見積り').prop('disabled', false);
-    
-    $('#auto_search_modal').show();
-}
-
-function hideAutoSearchModal() {
-    $('#auto_search_modal').hide();
-}
-
-function populateAutoSitesSelect() {
-    var $container = $('#auto_sites_container');
-    $container.empty();
-    $container.append('<div style="color:var(--text-secondary);">読み込み中...</div>');
-    $.getJSON('sites.json')
-        .done(function (sites) {
-            $container.empty();
-            var count = 0;
-            $.each(sites, function (name, s) {
-                var id = 'auto_site_' + name.replace(/[^a-z0-9_-]/ig, '_');
-                var cb = $('<input>').attr({type:'checkbox', id:id, 'data-name':name, 'data-lat':s.latitude, 'data-lon':s.longitude, style:'margin-right:4px;'});
-                var label = $('<label>').attr('for', id).css({display:'block', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis', marginBottom:'4px'}).append(cb).append(document.createTextNode(' ' + name + ' (' + s.latitude.toFixed(3) + ',' + s.longitude.toFixed(3) + ')'));
-                $container.append(label);
-                count += 1;
-            });
-            if (count === 0) {
-                $container.append('<div style="color:var(--text-secondary);">地点が見つかりません</div>');
-                // fallback: copy from existing #site select if available
-                $('#site option').each(function () {
-                    var name = $(this).val();
-                    if (!name) return;
-                    var id = 'auto_site_' + name.replace(/[^a-z0-9_-]/ig, '_');
-                    var cb = $('<input>').attr({type:'checkbox', id:id, 'data-name':name, style:'margin-right:4px;'});
-                    var label = $('<label>').attr('for', id).css({display:'block', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis', marginBottom:'4px'}).append(cb).append(document.createTextNode(' ' + $(this).text()));
-                    $container.append(label);
-                });
-            }
-        })
-        .fail(function () {
-            $container.empty();
-            $container.append('<div style="color:var(--text-secondary);">読み込みに失敗しました。既存サイトから復元します。</div>');
-            $('#site option').each(function () {
-                var name = $(this).val();
-                if (!name) return;
-                var id = 'auto_site_' + name.replace(/[^a-z0-9_-]/ig, '_');
-                var cb = $('<input>').attr({type:'checkbox', id:id, 'data-name':name, style:'margin-right:4px;'});
-                var label = $('<label>').attr('for', id).css({display:'block', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis', marginBottom:'4px'}).append(cb).append(document.createTextNode(' ' + $(this).text()));
-                $container.append(label);
-            });
-        });
-}
-
-function jstToUtcMoment(dateStr, timeStr) {
-    // dateStr: YYYY-MM-DD, timeStr: HH:mm
-    if (typeof moment === 'undefined') return null;
-    try {
-        var parts = dateStr.split('-');
-        var tparts = timeStr.split(':');
-        var m = moment.tz ? moment.tz([parts[0], parseInt(parts[1],10)-1, parts[2], tparts[0], tparts[1], 0], 'Asia/Tokyo') : moment([parts[0], parseInt(parts[1],10)-1, parts[2], tparts[0], tparts[1], 0]).utcOffset(9*60);
-        return m.clone().utc();
-    } catch (e) { return null; }
-}
-
-function estimateAutoSearch() {
-    var startUtc = jstToUtcMoment($('#auto_start_date').val(), $('#auto_start_time').val());
-    var endUtc = jstToUtcMoment($('#auto_end_date').val(), $('#auto_end_time').val());
-    if (!startUtc || !endUtc || endUtc.isBefore(startUtc)) {
-        $('#auto_estimate_text').text('時間範囲が不正です');
-        return;
-    }
-    var interval = parseInt($('#auto_interval_min').val(), 10) || 15;
-    // count checked sites
-    var sites = [];
-    $('#auto_sites_container input[type=checkbox]:checked').each(function () { sites.push($(this).data('name')); });
-    var candidateCount = (Math.floor(endUtc.diff(startUtc, 'minutes') / interval) + 1) * sites.length;
-    var weatherCalls = candidateCount;
-    var coarseCalls = candidateCount;
-    var fineCallsMax = candidateCount * 13;
-    var totalCalls = weatherCalls + coarseCalls + fineCallsMax;
-    var estSec = Math.ceil((weatherCalls * AUTO_SEARCH_SECONDS_PER_WEATHER_CALL) +
-        ((coarseCalls + fineCallsMax) * AUTO_SEARCH_SECONDS_PER_PREDICTION_CALL));
-    var estText = '最大API呼び出し: ' + totalCalls + '回（天候 ' + weatherCalls +
-        ' / 粗探索 ' + coarseCalls + ' / 精密探索 ' + fineCallsMax +
-        '）、所要時間概算: 約' + Math.max(1, Math.ceil(estSec / 60)) + '分';
-    if ($('#api_source').val() === 'sondehub') {
-        estText += ' — SondeHub 公開APIへは負荷がかかります。';
-    }
-    $('#auto_estimate_text').text(estText);
-}
-
-var autoSearchState = {
-    running: false, canceled: false, phase: 0,
-    queue: [], p1Passed: [], p2Passed: [], results: [], matches: {},
-    total: 0, done: 0, currentXhr: null, runSettingsCache: {}
-};
-
-var AUTO_SEARCH_MAX_OFFSHORE_KM = 22.2;
-var AUTO_SEARCH_SECONDS_PER_WEATHER_CALL = 1.2;
-var AUTO_SEARCH_SECONDS_PER_PREDICTION_CALL = 1.5;
-
-var autoSearchPorts = [];
-$.getJSON('ports.json', function(data) {
-    if(data && data.length) autoSearchPorts = data;
-}).fail(function() { console.warn('ports.json not loaded'); });
-
-function updateAutoUI(statusText, progressDone, progressTotal, phaseActive) {
-    $('#auto_progress_text').text(progressDone + ' / ' + progressTotal);
-    var pct = progressTotal > 0 ? Math.round((progressDone / progressTotal) * 100) : 0;
-    $('#auto_progress_bar').css('width', pct + '%');
-    if (statusText) {
-        $('#auto_estimate_text').html(statusText);
-    }
-    
-    // Update step indicators
-    [1, 2, 3].forEach(p => {
-        var el = document.getElementById('step_indicator_' + p);
-        if (el) {
-            if (p < phaseActive || (phaseActive === 4)) {
-                el.style.color = 'var(--text-secondary)';
-                el.style.borderBottom = '3px solid var(--color-accent)';
-            } else if (p === phaseActive) {
-                el.style.color = 'var(--color-primary)';
-                el.style.borderBottom = '3px solid var(--color-primary)';
-            } else {
-                el.style.color = 'var(--text-secondary)';
-                el.style.borderBottom = '3px solid var(--border-color)';
-            }
-        }
-    });
-}
-
-function startAutoSearch() {
-    var startUtc = jstToUtcMoment($('#auto_start_date').val(), $('#auto_start_time').val());
-    var endUtc = jstToUtcMoment($('#auto_end_date').val(), $('#auto_end_time').val());
-    if (!startUtc || !endUtc || endUtc.isBefore(startUtc)) {
-        alert('時間範囲が不正です'); return;
-    }
-    var interval = parseInt($('#auto_interval_min').val(), 10) || 15;
-    var selected = [];
-    $('#auto_sites_container input[type=checkbox]:checked').each(function () { selected.push($(this).data()); });
-    if (selected.length === 0) { alert('地点を1つ以上選択してください'); return; }
-    
-    $.getJSON('sites.json', function (sites) {
-        var queue = [];
-        selected.forEach(function (d) {
-            var name = d['name'];
-            var s = sites[name];
-            if (!s) return;
-            var cur = startUtc.clone();
-            while (cur.isSameOrBefore(endUtc)) {
-                queue.push({ name: name, lat: s.latitude, lon: s.longitude, alt: s.altitude, launch_utc: cur.clone() });
-                cur.add(interval, 'minutes');
-            }
-        });
-        if (queue.length === 0) { alert('実行する項目がありません'); return; }
-
-        autoSearchState = {
-            running: false, canceled: false, phase: 1,
-            queue: queue, p1Passed: [], p2Passed: [], results: [], matches: {},
-            total: queue.length, done: 0, currentXhr: null, runSettingsCache: {}
-        };
-
-        // Cache run settings
-        var rs = {};
-        rs.profile = $('#flight_profile').val();
-        rs.pred_type = $('#prediction_type').val();
-        rs.ascent_rate = parseFloat($('#ascent').val());
-        if (rs.profile === 'standard_profile') {
-            rs.burst_altitude = parseFloat($('#burst').val());
-            rs.descent_rate = parseFloat($('#drag').val());
-        } else {
-            rs.float_altitude = parseFloat($('#burst').val());
-        }
-        autoSearchState.runSettingsCache = rs;
-
-        var weatherCalls = queue.length;
-        var coarseCalls = queue.length;
-        var fineCallsMax = queue.length * 13;
-        var estimatedSeconds = (weatherCalls * AUTO_SEARCH_SECONDS_PER_WEATHER_CALL) +
-            ((coarseCalls + fineCallsMax) * AUTO_SEARCH_SECONDS_PER_PREDICTION_CALL);
-        var estimatedMinutes = Math.max(1, Math.ceil(estimatedSeconds / 60));
-        updateAutoUI(
-            `<b>探索条件を確定しました</b><br>` +
-            `Phase 1 天候API: ${weatherCalls}回<br>` +
-            `Phase 2 予測API（最大）: ${coarseCalls}回<br>` +
-            `Phase 3 予測API（最大）: ${fineCallsMax}回（13バリアント）<br>` +
-            `<b>最大合計: ${weatherCalls + coarseCalls + fineCallsMax}回 / 推定所要時間: 約${estimatedMinutes}分</b><br>` +
-            `各Phaseのフィルタを通過した候補だけが次へ進むため、実際の回数と時間は少なくなる場合があります。`,
-            0, queue.length, 1
-        );
-        $('#auto_results_list').empty(); $('#auto_results').hide();
-        $('#auto_action_btn').text('Phase 1 開始').show().prop('disabled', false);
-    });
-}
-
-function autoActionClicked() {
-    if (autoSearchState.phase === 0) {
-        // 探索開始前にキューを確定し、API回数と所要時間の概算を表示する。
-        startAutoSearch();
-    } else if (autoSearchState.phase === 1 && !autoSearchState.running) {
-        runPhase1();
-    } else if (autoSearchState.phase === 2 && !autoSearchState.running) {
-        runPhase2();
-    } else if (autoSearchState.phase === 3 && !autoSearchState.running) {
-        runPhase3();
-    }
-}
-
-function cancelAutoSearch() {
-    // 実行中の1件は完了させ、その後のループを開始しない方式で中断する。
-    autoSearchState.canceled = true;
-    if (autoSearchState.currentXhr && typeof autoSearchState.currentXhr.abort === 'function') {
-        try { autoSearchState.currentXhr.abort(); } catch (e) { }
-    }
-    autoSearchState.running = false;
-    updateAutoUI('中断されました', autoSearchState.done, autoSearchState.total, autoSearchState.phase);
-    $('#auto_action_btn').text('中断済').prop('disabled', true);
-}
-
-async function checkWeatherOk(lat, lon, utcMoment) {
-    try {
-        var rainThresh = parseFloat($('#auto_rain_threshold').val()) || 1.0;
-        var windThresh = parseFloat($('#auto_wind_threshold').val()) || 10.0;
-        var dateStr = utcMoment.format('YYYY-MM-DD');
-        var hourStr = utcMoment.format('YYYY-MM-DDTHH:00'); 
-        var url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&hourly=precipitation,windspeed_10m&start_date=${dateStr}&end_date=${dateStr}`;
-        var res = await fetch(url);
-        var data = await res.json();
-        if (data && data.hourly && data.hourly.time) {
-            var idx = data.hourly.time.findIndex(t => t.startsWith(hourStr));
-            if (idx >= 0) {
-                var rain = data.hourly.precipitation[idx] || 0;
-                var wind = data.hourly.windspeed_10m[idx] || 0;
-                if (rain >= rainThresh || wind >= windThresh) {
-                    return false;
-                }
-            }
-        }
-        return true;
-    } catch (e) {
-        return true;
-    }
-}
-
-async function runPhase1() {
-    autoSearchState.running = true;
-    autoSearchState.phase = 1;
-    autoSearchState.done = 0;
-    autoSearchState.total = autoSearchState.queue.length;
-    $('#auto_action_btn').text('Phase 1 実行中...').prop('disabled', true);
-    
-    for (let i = 0; i < autoSearchState.queue.length; i++) {
-        if (autoSearchState.canceled) break;
-        let item = autoSearchState.queue[i];
-        let ok = await checkWeatherOk(item.lat, item.lon, item.launch_utc);
-        if (ok) {
-            autoSearchState.p1Passed.push(item);
-        }
-        autoSearchState.done++;
-        updateAutoUI(`Phase 1 実行中: ${item.name} (${autoSearchState.done}/${autoSearchState.total})`, autoSearchState.done, autoSearchState.total, 1);
-    }
-    
-    autoSearchState.running = false;
-    if (autoSearchState.canceled) return;
-    
-    autoSearchState.phase = 2;
-    var estMin = Math.ceil((autoSearchState.p1Passed.length * 1.5) / 60);
-    updateAutoUI(
-        `<b>Phase 1 完了</b><br>${autoSearchState.total}件中 ${autoSearchState.p1Passed.length}件 が天候条件をクリアしました。<br>次に Phase 2 (1バリアント粗探索) を実行しますか？<br>推定APIコール数: ${autoSearchState.p1Passed.length}回 / 推定所要時間: 約${estMin}分`,
-        0, autoSearchState.p1Passed.length, 2
-    );
-    $('#auto_action_btn').text('Phase 2 開始').prop('disabled', false);
-}
-
-async function runPhase2Coarse(params) {
-    return new Promise((resolve) => {
-        $.get({ url: tawhiri_api, data: params })
-            .done(function (data) {
-                try {
-                    if (data && data.prediction) {
-                        var parsed = parsePrediction(data.prediction);
-                        var ll = parsed.landing.latlng;
-                        var isLand = (typeof LandSea !== 'undefined') ? LandSea.isLand(ll.lat, ll.lng) : null;
-                        var distKm = (typeof LandSea !== 'undefined' && typeof LandSea.distanceToCoastKm === 'function') ? LandSea.distanceToCoastKm(ll.lat, ll.lng) : 0;
-                        if (isLand || distKm > AUTO_SEARCH_MAX_OFFSHORE_KM) {
-                            resolve({ok: false}); return;
-                        }
-                        resolve({ok: true});
-                    } else { resolve({ok: false}); }
-                } catch(e) { resolve({ok: false}); }
-            })
-            .fail(function() { resolve({ok: false}); });
-    });
-}
-
-async function runPhase2() {
-    autoSearchState.running = true;
-    autoSearchState.phase = 2;
-    autoSearchState.done = 0;
-    autoSearchState.total = autoSearchState.p1Passed.length;
-    $('#auto_action_btn').text('Phase 2 実行中...').prop('disabled', true);
-    
-    for (let i = 0; i < autoSearchState.p1Passed.length; i++) {
-        if (autoSearchState.canceled) break;
-        let item = autoSearchState.p1Passed[i];
-        
-        var params = Object.assign({}, autoSearchState.runSettingsCache);
-        params.profile = 'standard_profile';
-        params.launch_datetime = item.launch_utc.clone().format();
-        params.launch_latitude = parseFloat(item.lat);
-        params.launch_longitude = parseFloat(item.lon);
-        if (params.launch_longitude < 0) params.launch_longitude += 360;
-        params.launch_altitude = parseFloat(item.alt);
-        
-        let p2Result = await runPhase2Coarse(params);
-        if (p2Result.ok) {
-            autoSearchState.p2Passed.push(item);
-        }
-        autoSearchState.done++;
-        updateAutoUI(`Phase 2 実行中: ${item.name} (${autoSearchState.done}/${autoSearchState.total})`, autoSearchState.done, autoSearchState.total, 2);
-    }
-    
-    autoSearchState.running = false;
-    if (autoSearchState.canceled) return;
-    
-    autoSearchState.phase = 3;
-    var perRunCalls = 13;
-    var estMin = Math.ceil((autoSearchState.p2Passed.length * perRunCalls * AUTO_SEARCH_SECONDS_PER_PREDICTION_CALL) / 60);
-    
-    updateAutoUI(
-        `<b>Phase 2 完了</b><br>${autoSearchState.total}件中 ${autoSearchState.p2Passed.length}件 が海上かつ沖合${AUTO_SEARCH_MAX_OFFSHORE_KM}km以内の条件をクリアしました。<br>次に Phase 3 (精密探索) を実行しますか？<br>推定APIコール数: ${autoSearchState.p2Passed.length * perRunCalls}回 / 推定時間: 約${estMin}分`,
-        0, autoSearchState.p2Passed.length, 3
-    );
-    $('#auto_action_btn').text('Phase 3 開始').prop('disabled', false);
-}
-
-async function runPhase3Fine(baseParams, threshold) {
-    return new Promise((resolve) => {
-        var prevApi = tawhiri_api;
-        try {
-            var handler = function () {
-                // 完了した13バリアントの現在状態から直接集計し、別履歴との取り違えを防ぐ。
-                var snap = buildEhimeHistorySnapshot();
-                var result = {ok: false, seaPct: 0, maxOffshore: 0, centroidLat: 0, centroidLon: 0};
-                if (snap) {
-                    var l = snap.landCount || 0; var w = snap.waterCount || 0; var det = l + w; 
-                    result.seaPct = det > 0 ? Math.round((w / det) * 100) : 0;
-                    
-                    var latSum = 0, lonSum = 0, count = 0, maxDist = 0;
-                    if (snap.rows) {
-                        for(var i=0; i<snap.rows.length; i++) {
-                            var pt = snap.rows[i];
-                            if(pt && pt.lat && pt.lng) {
-                                latSum += pt.lat; lonSum += pt.lng; count++;
-                                if (typeof LandSea !== 'undefined' && typeof LandSea.distanceToCoastKm === 'function') {
-                                    var d = LandSea.distanceToCoastKm(pt.lat, pt.lng);
-                                    if(d > maxDist && d !== 999) maxDist = d;
-                                }
-                            }
-                        }
-                    }
-                    if(count > 0) {
-                        result.centroidLat = latSum / count;
-                        result.centroidLon = lonSum / count;
-                        result.maxOffshore = maxDist;
-                    }
-                    if (result.seaPct >= threshold) result.ok = true;
-                    // 設定値以上の海落ち率を合格とする。
-                }
-                $(document).off('ehime_run_complete', handler);
-                tawhiri_api = prevApi;
-                resolve(result);
-            };
-            $(document).on('ehime_run_complete', handler);
-            run13VariantEnsemble(baseParams);
-        } catch (e) {
-            $(document).off('ehime_run_complete');
-            tawhiri_api = prevApi;
-            resolve({ok: false});
-        }
-    });
-}
-
-async function runPhase3() {
-    autoSearchState.running = true;
-    autoSearchState.phase = 3;
-    autoSearchState.done = 0;
-    autoSearchState.total = autoSearchState.p2Passed.length;
-    $('#auto_action_btn').text('Phase 3 実行中...').prop('disabled', true);
-    
-    var threshold = parseFloat($('#auto_sea_threshold').val()) || 75;
-
-    for (let i = 0; i < autoSearchState.p2Passed.length; i++) {
-        if (autoSearchState.canceled) break;
-        let item = autoSearchState.p2Passed[i];
-        
-        var params = Object.assign({}, autoSearchState.runSettingsCache);
-        params.profile = 'standard_profile';
-        params.launch_datetime = item.launch_utc.clone().format();
-        params.launch_latitude = parseFloat(item.lat);
-        params.launch_longitude = parseFloat(item.lon);
-        if (params.launch_longitude < 0) params.launch_longitude += 360;
-        params.launch_altitude = parseFloat(item.alt);
-        
-        // 常に精密探索(13 variants)を実行する
-        let p3Result = await runPhase3Fine(params, threshold);
-        
-        var rs = autoSearchState.runSettingsCache;
-        var asc = rs.ascent_rate || 0;
-        var desc = rs.descent_rate || 0;
-        var burst = rs.burst_altitude || rs.float_altitude || 0;
-
-        if (p3Result.ok) {
-            if (!autoSearchState.matches[item.name]) autoSearchState.matches[item.name] = [];
-            autoSearchState.matches[item.name].push(item.launch_utc.clone());
-            renderAutoResultsPartial();
-            
-            var portName = "不明", portDist = 999;
-            if (autoSearchPorts.length > 0 && typeof LandSea !== 'undefined' && typeof LandSea.haversineDistKm === 'function') {
-                for (var pi=0; pi<autoSearchPorts.length; pi++) {
-                    var p = autoSearchPorts[pi];
-                    var d = LandSea.haversineDistKm(p3Result.centroidLat, p3Result.centroidLon, p.lat, p.lon);
-                    if (d < portDist) { portDist = d; portName = p.name; }
-                }
-            }
-            
-            autoSearchState.results.push({
-                time: item.launch_utc.clone().utcOffset(9*60).format('YYYY-MM-DD HH:mm'),
-                site: item.name,
-                asc: asc, desc: desc, burst: burst,
-                seaPct: p3Result.seaPct,
-                maxOffshore: p3Result.maxOffshore,
-                portName: portName,
-                portDistance: portDist
-            });
-        }
-        
-        autoSearchState.done++;
-        var resultText = p3Result.ok 
-            ? `<span style="color:var(--color-primary);">[条件クリア]</span> 海落ち ${p3Result.seaPct}% / 沖合 ${p3Result.maxOffshore.toFixed(1)}km`
-            : `<span style="color:var(--text-secondary);">[足切り]</span> 海落ち ${p3Result.seaPct}%`;
-            
-        updateAutoUI(
-            `Phase 3 実行中: ${item.name} (${autoSearchState.done}/${autoSearchState.total})<br>直前の結果: ${resultText}`, 
-            autoSearchState.done, autoSearchState.total, 3
-        );
-        // 結果を見るための待機時間（ユーザーリクエストでゆっくり）
-        await new Promise(r => setTimeout(r, 2000));
-    }
-    
-    autoSearchState.running = false;
-    if (autoSearchState.canceled) return;
-    
-    autoSearchState.phase = 4; // Complete
-    updateAutoUI(
-        `<b>全フェーズ完了！</b><br>条件を満たした候補: ${autoSearchState.results.length} 件<br>CSVをダウンロードします。`,
-        autoSearchState.total, autoSearchState.total, 4
-    );
-    $('#auto_action_btn').text('完了').prop('disabled', true);
-    
-    if (autoSearchState.results.length > 0) {
-        downloadAutoResultsCSV();
-    }
-}
-
-function downloadAutoResultsCSV() {
-    if (autoSearchState.results.length === 0) return;
-    
-    // add BOM to handle UTF-8 in Excel
-    var csvContent = "\uFEFF"; 
-    csvContent += "日時(JST),地点,上昇速度(m/s),下降速度(m/s),破裂高度(m),海落ち確率(%),最大沖合距離(km),最寄り漁港,漁港からの距離(km)\n";
-    
-    function escapeCsvCell(value) {
-        var text = String(value == null ? '' : value);
-        return /[",\r\n]/.test(text) ? '"' + text.replace(/"/g, '""') + '"' : text;
-    }
-
-    autoSearchState.results.forEach(function(row) {
-        var maxOff = row.maxOffshore != null ? row.maxOffshore.toFixed(1) : "0.0";
-        var pDist = row.portDistance != null ? row.portDistance.toFixed(1) : "0.0";
-        var asc = row.asc != null ? row.asc : "";
-        var desc = row.desc != null ? row.desc : "";
-        var burst = row.burst != null ? row.burst : "";
-        csvContent += [row.time, row.site, asc, desc, burst, row.seaPct,
-            maxOff, row.portName, pDist
-        ].map(escapeCsvCell).join(',') + '\n';
-    });
-
-    var blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    var url = URL.createObjectURL(blob);
-    
-    var link = document.createElement("a");
-    link.setAttribute("href", url);
-    link.setAttribute("download", "auto_search_results.csv");
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    setTimeout(function () { URL.revokeObjectURL(url); }, 0);
-}
-
-function renderAutoResultsPartial() {
-    $('#auto_results').show();
-    var container = $('#auto_results_list');
-    container.empty();
-    var keys = Object.keys(autoSearchState.matches || {});
-    if (keys.length === 0) { container.html('<div style="color:var(--text-secondary);">一致する結果はまだありません</div>'); return; }
-    keys.forEach(function (k) {
-        var arr = (autoSearchState.matches[k] || []).slice();
-        arr.sort(function(a,b){ return a.isBefore(b) ? -1 : (a.isAfter(b)?1:0); });
-        var interval = parseInt($('#auto_interval_min').val(),10) || 15;
-        var ranges = collapseMomentsToRanges(arr, interval);
-        var html = '<div style="border-bottom:1px solid var(--border-color); padding:6px 0;">';
-        html += '<b>' + k + '</b> : 合致 ' + arr.length + ' 件<br/>';
-        html += ranges.map(function(r){ return '<div style="font-size:12px; color:var(--text-secondary);">' + r.start + ' ～ ' + r.end + '</div>'; }).join('');
-        html += '</div>';
-        container.append(html);
-    });
-}
-
-function collapseMomentsToRanges(arr, intervalMin) {
-    if (!Array.isArray(arr) || arr.length===0) return [];
-    var tolSec = (intervalMin * 60) + 90;
-    var ranges = [];
-    var curStart = arr[0].clone();
-    var curEnd = arr[0].clone();
-    for (var i=1;i<arr.length;i++) {
-        var diff = arr[i].diff(curEnd, 'seconds');
-        if (diff <= tolSec) {
-            curEnd = arr[i].clone();
-        } else {
-            ranges.push({ start: curStart.clone().utcOffset(9*60).format('YYYY-MM-DD HH:mm'), end: curEnd.clone().utcOffset(9*60).format('YYYY-MM-DD HH:mm') });
-            curStart = arr[i].clone(); curEnd = arr[i].clone();
-        }
-    }
-    ranges.push({ start: curStart.clone().utcOffset(9*60).format('YYYY-MM-DD HH:mm'), end: curEnd.clone().utcOffset(9*60).format('YYYY-MM-DD HH:mm') });
-    return ranges;
-}
-
-function finalizeAutoResults() {
-    renderAutoResultsPartial();
-}
-
-// Bind modal buttons
-$(function () {
-    $(document).on('click', '#auto_action_btn', function () { autoActionClicked(); });
-    $(document).on('click', '#auto_cancel_btn', function () { if (autoSearchState.running) { if (confirm('実行中です。中断しますか？')) cancelAutoSearch(); } else { cancelAutoSearch(); } });
-    $(document).on('click', '#auto_close_btn, #auto_close_x', function () { if (autoSearchState.running) { if (!confirm('実行中です。中断して閉じますか？')) return; cancelAutoSearch(); } hideAutoSearchModal(); });
-    $(document).on('click', '#auto_select_all', function () { $('#auto_sites_container input[type=checkbox]').prop('checked', true); estimateAutoSearch(); });
-    $(document).on('click', '#auto_select_none', function () { $('#auto_sites_container input[type=checkbox]').prop('checked', false); estimateAutoSearch(); });
-    $(document).on('change input', '#auto_start_date, #auto_start_time, #auto_end_date, #auto_end_time, #auto_interval_min, #auto_sites_container input[type=checkbox], #prediction_type, #api_source', estimateAutoSearch);
-});
-
 // Listen for completion of Ehime prediction to continue batch
 $(document).on('ehime_run_complete', function() {
     if (batchNanrekuSitesData && batchNanrekuSitesData.length > 0 && currentBatchIndex < batchNanrekuSitesData.length) {
@@ -1852,13 +1289,6 @@ function updateFallModeUI() {
 }
 
 // 初期呼び出し (DOM ready タイミングで pred.js などから呼ばれない場合対策)
-$(function () { updateFallModeUI(); });
-$(function () {
-    toggleCustomApiInput();
-    $(document).on('change', '#api_source', function () {
-        toggleCustomApiInput();
-    });
-});
 
 function buildEhimeVariantRow(idx, variant_id, entry, variant_index) {
     var base = ehime_current && ehime_current.base ? ehime_current.base : null;
@@ -2147,14 +1577,14 @@ $(document).on('click', '#ehime_dlcsv', function (e) {
     var csv = buildEhimeLandingCSV();
     if (!csv) {
         e.preventDefault();
-        alert('まだ着地点データがありません。予測完了後に再度お試しください。');
+        showToast('まだ着地点データがありません。予測完了後に再度お試しください。', 'warning', 5000);
         return;
     }
     var blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     var url = URL.createObjectURL(blob);
     // Build filename (例: Ehime_着地点一覧_20250907_1530JST_34.123N_132.456E.csv)
     var baseEntry = null;
-    try { baseEntry = Object.values(ehime_predictions).find(p => p.label === 'BASE' && p.results && p.results.launch && p.results.launch.datetime); } catch (_e) { }
+    try { baseEntry = Object.values(ehime_predictions).find(p => p.label === 'BASE' && p.results && p.results.launch && p.results.launch.datetime); } catch (_e) { if (typeof reportNonFatalError === 'function') reportNonFatalError(_e, 'non-fatal fallback'); }
     var launchMoment = baseEntry ? baseEntry.results.launch.datetime.clone() : moment();
     launchMoment.utcOffset(9 * 60);
     var ts = launchMoment.format('YYYYMMDD_HHmm');
@@ -2168,7 +1598,7 @@ $(document).on('click', '#ehime_dlcsv', function (e) {
             var lonHem = ll.lng >= 0 ? 'E' : 'W';
             latlonPart = '_' + latAbs + latHem + '_' + lonAbs + lonHem;
         }
-    } catch (_e) { }
+    } catch (_e) { if (typeof reportNonFatalError === 'function') reportNonFatalError(_e, 'non-fatal fallback'); }
     var ascPart = '', descPart = '';
     try {
         if (baseEntry && baseEntry.settings) {
@@ -2177,7 +1607,7 @@ $(document).on('click', '#ehime_dlcsv', function (e) {
             if (!isNaN(ascVal)) ascPart = '_ASC' + ascVal.toFixed(2);
             if (!isNaN(descVal)) descPart = '_DES' + descVal.toFixed(2);
         }
-    } catch (_e) { }
+    } catch (_e) { if (typeof reportNonFatalError === 'function') reportNonFatalError(_e, 'non-fatal fallback'); }
     var filename = 'Ehime_着地点一覧_' + ts + 'JST' + ascPart + descPart + latlonPart + '.csv';
     // Set attributes on the actual clicked link and allow default navigation
     try {
@@ -2186,9 +1616,9 @@ $(document).on('click', '#ehime_dlcsv', function (e) {
         // Cleanup later to avoid revoking before the browser starts the download
         var linkEl = this;
         setTimeout(function () {
-            try { URL.revokeObjectURL(url); } catch (_e) { }
+            try { URL.revokeObjectURL(url); } catch (_e) { if (typeof reportNonFatalError === 'function') reportNonFatalError(_e, 'non-fatal fallback'); }
             // Remove attributes to keep DOM clean and avoid stale href on next click
-            try { linkEl.removeAttribute('href'); linkEl.removeAttribute('download'); } catch (__e) { }
+            try { linkEl.removeAttribute('href'); linkEl.removeAttribute('download'); } catch (__e) { if (typeof reportNonFatalError === 'function') reportNonFatalError(__e, 'non-fatal fallback'); }
         }, 10000);
     } catch (err) {
         // Fallback: prevent default and open a temporary link
@@ -2202,156 +1632,70 @@ $(document).on('click', '#ehime_dlcsv', function (e) {
     }
 });
 
-function tawhiriRequest(settings, extra_settings) {
-    // Request a prediction via the Tawhiri API.
-    // Settings must be as per the API docs above.
-
-    if (settings.pred_type == 'single') {
+function tawhiriRequest(settings, extra_settings, requestContext) {
+    var context = requestContext || createPredictionRequestContext();
+    if (!context) return;
+    function requestFailure(error, fallbackMessage) {
+        var detail = error && error.message ? ' ' + error.message : '';
+        throwError(fallbackMessage + detail);
+    }
+    if (settings.pred_type === 'single' || settings.pred_type === 'fall') {
         hourly_mode = false;
-        $.get(tawhiri_api, settings)
-            .done(function (data) {
-                processTawhiriResults(data, settings);
-            })
-            .fail(function (data) {
-                var prediction_error = "Prediction failed. Tawhiri may be under heavy load, please try again. ";
-                if (data.hasOwnProperty("responseJSON")) {
-                    prediction_error += data.responseJSON.error.description;
-                }
-
-                throwError(prediction_error);
-            })
-            .always(function (data) {
-                //throwError("test.");
-                //console.log(data);
-            });
-    } else if (settings.pred_type == 'fall') {
-        // シングルだが後処理で下降部分のみ抽出
-        hourly_mode = false;
-        $.get(tawhiri_api, settings)
-            .done(function (data) {
-                processTawhiriResults(data, settings, true); // fall flag
-            })
-            .fail(function (data) {
-                var prediction_error = '落下モード予測失敗。再試行してください。';
-                if (data.hasOwnProperty('responseJSON')) {
-                    prediction_error += data.responseJSON.error.description;
-                }
-                throwError(prediction_error);
-            });
-    } else if (settings.pred_type == 'ehime') {
-        // Custom multi-variant prediction set for Ehime mode
-        if (settings.profile != 'standard_profile') {
+        var fallOnly = settings.pred_type === 'fall';
+        requestTawhiriData(settings, context, { label: fallOnly ? 'fall' : 'single' })
+            .then(function (data) { processTawhiriResults(data, settings, fallOnly, context); })
+            .catch(function (error) { requestFailure(error, fallOnly ? '落下モード予測失敗。' : 'Prediction failed.'); });
+        return;
+    }
+    if (settings.pred_type === 'ehime') {
+        if (settings.profile !== 'standard_profile') {
             throwError('愛媛モードは標準フライトプロファイルのみ対応');
             return;
         }
-        runEhimePredictions(settings, extra_settings);
-    } else {
-        // For Multiple predictions, we do things a bit differently.
-        hourly_mode = true;
-        // First up clear off anything on the map.
-        clearMapItems();
-
-        // Also clean up any hourly prediction data.
-        hourly_predictions = {};
-
-        var current_hour = 0;
-        var time_step = 24;
-
-        if (settings.pred_type == 'daily') {
-            time_step = 24;
-        } else if (settings.pred_type == '1_hour') {
-            time_step = 1;
-        } else if (settings.pred_type == '3_hour') {
-            time_step = 3;
-        } else if (settings.pred_type == '6_hour') {
-            time_step = 6;
-        } else if (settings.pred_type == '12_hour') {
-            time_step = 12;
-        } else {
-            throwError("Invalid time step.");
-            return;
-        }
-
-        if (settings.profile != "standard_profile") {
-            throwError("Hourly/Daily predictions are only available for the standard flight profile.");
-            return;
-        }
-
-        // Loop to advance time until end of prediction window
-        while (current_hour < MAX_PRED_HOURS) {
-            // Update launch time
-            var current_moment = moment(extra_settings.launch_moment).add(current_hour, 'hours');
-
-            // Setup entries in the hourly prediction data store.
-            hourly_predictions[current_hour] = {};
-            hourly_predictions[current_hour]['layers'] = {};
-            hourly_predictions[current_hour]['settings'] = { ...settings };
-            hourly_predictions[current_hour]['settings']['launch_datetime'] = current_moment.format();
-
-            // Copy our current settings for passing into the requst.
-            var current_settings = { ...hourly_predictions[current_hour]['settings'] };
-
-            $.get({
-                url: tawhiri_api,
-                data: current_settings,
-                current_hour: current_hour
-            })
-                .done(function (data) {
-                    processHourlyTawhiriResults(data, current_settings, this.current_hour);
-                })
-                .fail(function (data) {
-                    var prediction_error = "Prediction failed. Tawhiri may be under heavy load, please try again. ";
-                    if (data.hasOwnProperty("responseJSON")) {
-                        prediction_error += data.responseJSON.error.description;
-                    }
-
-                    // Silently handle failed predictions, which are most likely
-                    // because the prediction time was too far into the future.
-                    delete hourly_predictions[this.current_hour]
-                    //throwError(prediction_error);
-                })
-                .always(function (data) {
-                    //throwError("test.");
-                    //console.log(data);
-                });
-
-            current_hour += time_step;
-
-        }
-
-        // Generate prediction number and information to pass onwards to plotting
-        // Run async get call, pass in prediction details.
-
-        // Need new processing functions to plot just the landing spot, and then somehow a line between them?
-
-
+        runEhimePredictions(settings, extra_settings, context);
+        return;
+    }
+    hourly_mode = true;
+    clearMapItems();
+    hourly_predictions = {};
+    var timeStepByType = { daily: 24, '1_hour': 1, '3_hour': 3, '6_hour': 6, '12_hour': 12 };
+    var timeStep = timeStepByType[settings.pred_type];
+    if (!timeStep) { throwError('Invalid time step.'); return; }
+    if (settings.profile !== 'standard_profile') {
+        throwError('Hourly/Daily predictions are only available for the standard flight profile.');
+        return;
+    }
+    for (let currentHour = 0; currentHour < MAX_PRED_HOURS; currentHour += timeStep) {
+        let currentMoment = moment(extra_settings.launch_moment).add(currentHour, 'hours');
+        let currentSettings = Object.assign({}, settings, { launch_datetime: currentMoment.format() });
+        hourly_predictions[currentHour] = { layers: {}, settings: currentSettings, apiUrl: context.baseUrl };
+        requestTawhiriData(currentSettings, context, { label: 'hourly-' + currentHour })
+            .then(function (data) { processHourlyTawhiriResults(data, currentSettings, currentHour, context); })
+            .catch(function (error) { hourly_predictions[currentHour].error = error && error.message ? error.message : String(error); });
     }
 }
 
 // Generate and run multiple variant predictions for Ehime mode
-function runEhimePredictions(base_settings, extra_settings) {
-    // Clear previous map items & state
+function runEhimePredictions(base_settings, extra_settings, requestContext) {
+    if (ehime_current && ehime_current.runId && Object.keys(ehime_predictions || {}).some(function (key) { return ehime_predictions[key].status === 'pending'; })) {
+        $(document).trigger('ehime_run_complete', [{ runId: ehime_current.runId, success: false, interrupted: true }]);
+    }
     clearMapItems();
     ehime_predictions = {};
     ehime_history_saved_for_run = false;
-    ehime_current = { base: base_settings };
-
+    var runId = 'ehime-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 8);
+    ehime_current = { base: base_settings, apiUrl: requestContext ? requestContext.baseUrl : null, runId: runId };
     var asc_base = base_settings.ascent_rate;
     var desc_base = base_settings.descent_rate;
-    var burst_base = base_settings.burst_altitude; // only standard_profile
-    // Calculate variant values
+    var burst_base = base_settings.burst_altitude;
     var asc_min = asc_base - 1.0;
     var asc_max = asc_base + 1.0;
     var desc_min = desc_base - 3.0;
     var desc_max = desc_base + 3.0;
     var burst_low = burst_base * 0.8;
     var burst_high = burst_base * 1.10;
-
-    // Build variant list (13 variants: base + singles + paired extremes)
     var variants = [];
-    function addVariant(a, d, b, label) {
-        variants.push({ ascent_rate: a, descent_rate: d, burst_altitude: b, label: label });
-    }
+    function addVariant(ascentRate, descentRate, burstAltitude, label) { variants.push({ ascent_rate: ascentRate, descent_rate: descentRate, burst_altitude: burstAltitude, label: label }); }
     addVariant(asc_base, desc_base, burst_base, 'BASE');
     addVariant(asc_min, desc_base, burst_base, 'ASC-');
     addVariant(asc_max, desc_base, burst_base, 'ASC+');
@@ -2365,60 +1709,45 @@ function runEhimePredictions(base_settings, extra_settings) {
     addVariant(asc_max, desc_base, burst_high, 'A+B+');
     addVariant(asc_base, desc_min, burst_low, 'D-B-');
     addVariant(asc_base, desc_max, burst_high, 'D+B+');
-
     ehime_variant_total = variants.length;
     $('#ehime_total').text(ehime_variant_total);
     $('#ehime_completed').text(0);
     $('#ehime_mean').text('-');
     $('#ehime_max_dev').text('-');
-
-    // Launch all requests
-    variants.forEach(function (v, idx) {
-        var v_settings = { ...base_settings };
-        v_settings.ascent_rate = v.ascent_rate;
-        v_settings.descent_rate = v.descent_rate;
-        v_settings.burst_altitude = v.burst_altitude;
-        // Unique label for marker & internal key
-        var variant_id = 'ehime_' + idx;
-        ehime_predictions[variant_id] = { settings: v_settings, status: 'pending', label: v.label };
-        $.get(tawhiri_api, v_settings)
-            .done(function (data) {
-                processEhimeResult(data, v_settings, variant_id, idx);
+    variants.forEach(function (variant, index) {
+        var variantSettings = Object.assign({}, base_settings, { ascent_rate: variant.ascent_rate, descent_rate: variant.descent_rate, burst_altitude: variant.burst_altitude });
+        var variantId = 'ehime_' + index;
+        ehime_predictions[variantId] = { settings: variantSettings, status: 'pending', label: variant.label };
+        requestTawhiriData(variantSettings, requestContext, { label: variantId })
+            .then(function (data) {
+                if (!ehime_current || ehime_current.runId !== runId) return;
+                processEhimeResult(data, variantSettings, variantId, index, requestContext, runId);
             })
-            .fail(function (data) {
-                ehime_predictions[variant_id].status = 'error';
-                // Continue; do not throw global error.
+            .catch(function (error) {
+                if (!ehime_current || ehime_current.runId !== runId) return;
+                ehime_predictions[variantId].status = 'error';
+                ehime_predictions[variantId].error = error && error.message ? error.message : String(error);
                 updateEhimeSummaryFromStore();
                 finalizeEhimeRunIfCompleted();
             });
     });
-    updateEhimeCSVLink(); // ensure link hidden until data arrives
+    updateEhimeCSVLink();
     expandEhimePanel();
     refreshEhimePanel();
+    return runId;
 }
-
 function run13VariantEnsemble(base_settings, api_url) {
     if (!base_settings) return;
-
-    var settings = Object.assign({}, base_settings);
-    settings.pred_type = 'ehime';
-
-    var previousApi = tawhiri_api;
-    if (api_url) {
-        tawhiri_api = api_url;
-    }
-
-    try {
-        if ($('#prediction_type').val() !== 'ehime') {
-            $('#prediction_type').val('ehime').trigger('change');
-        }
-        runEhimePredictions(settings, {});
-    } finally {
-        tawhiri_api = previousApi;
-    }
+    var settings = Object.assign({}, base_settings, { pred_type: 'ehime' });
+    var source = $('#api_source').val() || 'sondehub';
+    var context = createPredictionRequestContext({ source: source, baseUrl: api_url || resolveTawhiriApiUrl() });
+    if (!context) return;
+    if ($('#prediction_type').val() !== 'ehime') $('#prediction_type').val('ehime').trigger('change');
+    return runEhimePredictions(settings, {}, context);
 }
 
-function processEhimeResult(data, settings, variant_id, variant_index) {
+function processEhimeResult(data, settings, variant_id, variant_index, requestContext, runId) {
+    if (!ehime_current || ehime_current.runId !== runId) return;
     if (data.hasOwnProperty('error')) {
         ehime_predictions[variant_id].status = 'error';
         updateEhimeSummaryFromStore();
@@ -2440,15 +1769,15 @@ function processEhimeResult(data, settings, variant_id, variant_index) {
                 updateWindChart(data.prediction);
             }
             updatePredictionDerivedMetrics(data.prediction);
-        } catch (_e0) { }
+        } catch (_e0) { if (typeof reportNonFatalError === 'function') reportNonFatalError(_e0, 'non-fatal fallback'); }
         // Set standard CSV/KML links to BASE flight path (same as single mode)
         try {
-            var _base_url = tawhiri_api + "?" + $.param(settings);
+            var _base_url = getPredictionRequestBaseUrl(requestContext) + "?" + $.param(settings);
             var _csv_url = _base_url + "&format=csv";
             var _kml_url = _base_url + "&format=kml";
             $("#dlcsv").attr("href", _csv_url).removeAttr('download');
             $("#dlkml").attr("href", _kml_url).removeAttr('download');
-        } catch (_e) { }
+        } catch (_e) { if (typeof reportNonFatalError === 'function') reportNonFatalError(_e, 'non-fatal fallback'); }
         // Update run time/model if available
         try {
             if (data && data.metadata && data.request) {
@@ -2457,7 +1786,7 @@ function processEhimeResult(data, settings, variant_id, variant_index) {
                 $("#run_time").html(run_time);
                 $("#dataset").html(dataset);
             }
-        } catch (__e) { }
+        } catch (__e) { if (typeof reportNonFatalError === 'function') reportNonFatalError(__e, 'non-fatal fallback'); }
     }
 
     // Plot landing marker for each variant
@@ -2471,7 +1800,7 @@ function processEhimeResult(data, settings, variant_id, variant_index) {
         if (ehime_predictions[variant_id] && ehime_predictions[variant_id].label === 'BASE' && typeof updateAllPopups === 'function') {
             updateAllPopups();
         }
-    } catch (_e) { }
+    } catch (_e) { if (typeof reportNonFatalError === 'function') reportNonFatalError(_e, 'non-fatal fallback'); }
     finalizeEhimeRunIfCompleted();
 }
 
@@ -2515,7 +1844,7 @@ function plotEhimeLandingMarker(variant_id, variant_index) {
                 var ep = ehime_predictions[k];
                 if (ep && ep.label === 'BASE' && ep.results && ep.results.landing) { baseLL = ep.results.landing.latlng; break; }
             }
-        } catch (_e) { }
+        } catch (_e) { if (typeof reportNonFatalError === 'function') reportNonFatalError(_e, 'non-fatal fallback'); }
         if (baseLL) {
             base_line = 'BASE着地点: ' + (typeof formatCoord === 'function' ? (formatCoord(baseLL.lat, 'lat') + ', ' + formatCoord(baseLL.lng, 'lon')) : (baseLL.lat.toFixed(4) + ', ' + baseLL.lng.toFixed(4))) + '<br/>';
         } else {
@@ -2635,15 +1964,15 @@ function attachEhimeVariantClickHandlers(marker, variant_id) {
         if (clickTimer) { clearTimeout(clickTimer); clickTimer = null; }
         var entry = ehime_predictions[variant_id];
         if (entry && entry.layers && entry.layers.flight_path) {
-            try { if (entry.layers.flight_path.remove) entry.layers.flight_path.remove(); } catch (_e) { }
-            try { if (entry.layers.launch_marker && entry.layers.launch_marker.remove) entry.layers.launch_marker.remove(); } catch (_e) { }
-            try { if (entry.layers.burst_marker && entry.layers.burst_marker.remove) entry.layers.burst_marker.remove(); } catch (_e) { }
+            try { if (entry.layers.flight_path.remove) entry.layers.flight_path.remove(); } catch (_e) { if (typeof reportNonFatalError === 'function') reportNonFatalError(_e, 'non-fatal fallback'); }
+            try { if (entry.layers.launch_marker && entry.layers.launch_marker.remove) entry.layers.launch_marker.remove(); } catch (_e) { if (typeof reportNonFatalError === 'function') reportNonFatalError(_e, 'non-fatal fallback'); }
+            try { if (entry.layers.burst_marker && entry.layers.burst_marker.remove) entry.layers.burst_marker.remove(); } catch (_e) { if (typeof reportNonFatalError === 'function') reportNonFatalError(_e, 'non-fatal fallback'); }
             delete entry.layers.flight_path;
             delete entry.layers.launch_marker;
             delete entry.layers.burst_marker;
         }
         // ポップアップを開いたままにする (未開なら開く)
-        try { marker.openPopup(); } catch (_e) { }
+        try { marker.openPopup(); } catch (_e) { if (typeof reportNonFatalError === 'function') reportNonFatalError(_e, 'non-fatal fallback'); }
         // 地図のデフォルトダブルクリックズームを抑制 (Leaflet doubleClickZoom オプション有効時)
         if (e.originalEvent && e.originalEvent.preventDefault) { e.originalEvent.preventDefault(); }
         L.DomEvent.stopPropagation(e);
@@ -2697,7 +2026,7 @@ function updateEhimeSummaryFromStore() {
     updateEhimeCSVLink();
     refreshEhimePanel();
 }
-function processTawhiriResults(data, settings, fall_only) {
+function processTawhiriResults(data, settings, fall_only, requestContext) {
     // Process results from a Tawhiri run.
 
     if (data.hasOwnProperty('error')) {
@@ -2764,9 +2093,9 @@ function processTawhiriResults(data, settings, fall_only) {
                 updateWindChart(data.prediction);
             }
             updatePredictionDerivedMetrics(data.prediction);
-        } catch (_e) { }
+        } catch (_e) { if (typeof reportNonFatalError === 'function') reportNonFatalError(_e, 'non-fatal fallback'); }
 
-        writePredictionInfo(settings, data.metadata, data.request, fall_only ? extended_results : null);
+        writePredictionInfo(settings, data.metadata, data.request, fall_only ? extended_results : null, requestContext);
 
     }
 
@@ -3107,7 +2436,7 @@ function plotFallOnlyPrediction(prediction, settings) {
 
 // Populate and enable the download CSV, KML and Pan To links, and write the 
 // time the prediction was run and the model used to the Scenario Info window
-function writePredictionInfo(settings, metadata, request, fall_results) {
+function writePredictionInfo(settings, metadata, request, fall_results, requestContext) {
     // populate the download links
 
     // Create the API URLs based on the current prediction settings
@@ -3149,7 +2478,7 @@ function writePredictionInfo(settings, metadata, request, fall_results) {
         var kmlUrl = URL.createObjectURL(kmlBlob);
         $("#dlkml").attr("href", kmlUrl).attr('download', 'fall_only.kml');
     } else {
-        _base_url = tawhiri_api + "?" + $.param(settings)
+        _base_url = getPredictionRequestBaseUrl(requestContext) + "?" + $.param(settings)
         _csv_url = _base_url + "&format=csv";
         _kml_url = _base_url + "&format=kml";
         $("#dlcsv").attr("href", _csv_url).removeAttr('download');
@@ -3254,7 +2583,7 @@ function updatePredictionDerivedMetrics(tawhiriPrediction) {
 }
 
 
-function processHourlyTawhiriResults(data, settings, current_hour) {
+function processHourlyTawhiriResults(data, settings, current_hour, requestContext) {
     // Process results from a Tawhiri run.
 
     if (data.hasOwnProperty('error')) {
@@ -3318,7 +2647,7 @@ function plotMultiplePrediction(prediction, current_hour) {
         current_hour: current_hour // Added in so we can extract this when we get a click event.
     }).addTo(map);
 
-    var _base_url = tawhiri_api + "?" + $.param(hourly_predictions[current_hour]['settings'])
+    var _base_url = getPredictionRequestBaseUrl(requestContext) + "?" + $.param(hourly_predictions[current_hour]['settings'])
     var _csv_url = _base_url + "&format=csv";
     var _kml_url = _base_url + "&format=kml";
 
@@ -3460,7 +2789,6 @@ function writeHourlyPredictionInfo(settings, metadata, request) {
     // populate the download links
 
     // // Create the API URLs based on the current prediction settings
-    // _base_url = tawhiri_api + "?" + $.param(settings) 
     // _csv_url = _base_url + "&format=csv";
     // _kml_url = _base_url + "&format=kml";
 
@@ -3820,7 +3148,14 @@ function clearNearbyFishingPorts() {
     $("#nearest_fishing_ports_info").html("シミュレーション後に近い漁港と距離を表示します。");
 }
 
-$(function () {
+var _predNewExtensionsInitialized = false;
+function initPredNewExtensions() {
+    if (_predNewExtensionsInitialized) return;
+    _predNewExtensionsInitialized = true;
+    renderEhimeHistoryPanel();
+    $('#prediction_type').off('change.predNewFall').on('change.predNewFall', updateFallModeUI);
+    updateFallModeUI();
     bindPanToCenterLink();
     if (typeof loadFishingPortData === 'function') loadFishingPortData();
-});
+}
+window.AppShell.registerInitializer('prediction-extensions', initPredNewExtensions, 30);

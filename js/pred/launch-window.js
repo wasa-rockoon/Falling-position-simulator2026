@@ -19,6 +19,7 @@ var _launchWindowApiUrl      = '';   // API URL (実行時に記録)
 var _launchWindowSettings    = {};   // 実行時のフライト設定 (記録用)
 var _launchWindowUseEhimeProbability = false; // local実行時はtrue
 var _launchWindowLastSelectedIdx = 0;
+var _launchWindowUIInitialized = false;
 var _lwEnsembleRunning       = false;
 
 // ============================================================
@@ -222,6 +223,8 @@ function bindLaunchWindowVariantInteractions(variantIndex) {
 }
 
 function initLaunchWindowUI() {
+    if (_launchWindowUIInitialized) return;
+    _launchWindowUIInitialized = true;
     // 項目: スライダー (時刻選択)
     var slider = document.getElementById('launch_window_slider');
     if (slider) {
@@ -645,7 +648,7 @@ function plotLaunchWindowMarker(result, slotIdx) {
 
 function clearLaunchWindowMarkers() {
     for (var i = 0; i < _launchWindowMarkers.length; i++) {
-        try { _launchWindowMarkers[i].remove(); } catch (_e) {}
+        try { _launchWindowMarkers[i].remove(); } catch (_e) { if (typeof reportNonFatalError === 'function') reportNonFatalError(_e, 'non-fatal fallback'); }
     }
     _launchWindowMarkers = [];
     _launchWindowVariantMarkers.forEach(function(m) { map.removeLayer(m); });
@@ -831,6 +834,4 @@ function updateLaunchWindowNGLine() {
 // ============================================================
 // 初期化
 // ============================================================
-document.addEventListener('DOMContentLoaded', function () {
-    initLaunchWindowUI();
-});
+window.AppShell.registerInitializer('launch-window', initLaunchWindowUI, 50);

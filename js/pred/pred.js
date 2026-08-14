@@ -16,7 +16,10 @@ var urlLonFromParams = null;
 
 // This function runs when the document object model is fully populated
 // and the page is loaded
-$(document).ready(function() {
+var predictorInitialized = false;
+function initPredictor() {
+    if (predictorInitialized) return;
+    predictorInitialized = true;
     // Initialise the map canvas with parameters (lat, long, zoom-level)
     initMap(33.1333, 132.5052, 10);
 
@@ -48,7 +51,8 @@ $(document).ready(function() {
     if(params_provided) {
         runPrediction();
     }
-});
+}
+window.AppShell.registerInitializer('predictor-main', initPredictor, 10);
 
 
 function readURLParams() {

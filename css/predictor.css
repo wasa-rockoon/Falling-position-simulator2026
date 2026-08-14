@@ -62,7 +62,7 @@
   --space-xl:  32px;
 
   /* フォント */
-  --font-body:    'Noto Sans JP', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-body:    'Yu Gothic UI', 'Yu Gothic', Meiryo, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   --font-mono:    'SF Mono', 'Fira Code', 'Consolas', monospace;
   --weight-regular:   400;
   --weight-medium:    500;
@@ -613,16 +613,21 @@ body:not(.sidebar-open) #app-sidebar { transform: translateX(100%); }
   margin-bottom: 6px;
 }
 .form-actions {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
-  margin-top: 8px;
-  flex-wrap: wrap;
+  margin-top: 10px;
 }
-.form-actions input[type="button"],
-.form-actions input[name="submit"] {
-  flex: 1;
-  min-width: 120px;
+.form-actions > input[type="button"],
+.form-actions > input[name="submit"],
+.form-actions > button {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  min-height: 48px;
+  margin: 0;
 }
+#open_uncertainty_btn { grid-column: 1 / -1; }
 
 /* 入力欄のモダンスタイル */
 #launch-card input[type="text"],
@@ -643,6 +648,94 @@ body:not(.sidebar-open) #app-sidebar { transform: translateX(100%); }
   box-shadow: 0 0 0 3px rgba(0,122,255,0.15);
 }
 
+.panel-title-row {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  text-align: left !important;
+}
+.panel-title-row > span { min-width: 0; }
+.panel-icon-button {
+  display: inline-grid;
+  flex: 0 0 30px !important;
+  place-items: center;
+  box-sizing: border-box;
+  width: 30px;
+  min-width: 30px;
+  height: 30px;
+  min-height: 30px;
+  padding: 6px;
+  color: var(--text-secondary);
+  background: var(--bg-input);
+  border: 1px solid var(--border-color);
+  border-radius: 50%;
+  box-shadow: none;
+  cursor: pointer;
+  transition: color var(--transition-fast), background var(--transition-fast), border-color var(--transition-fast);
+}
+.panel-icon-button svg { width: 14px; height: 14px; fill: currentColor; }
+.panel-icon-button:hover,
+.panel-icon-button:focus-visible {
+  color: var(--color-primary);
+  background: var(--color-primary-light);
+  border-color: var(--color-primary);
+  outline: none;
+}
+
+.auto-search-modal {
+  box-sizing: border-box;
+  max-height: calc(100vh - 32px);
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.auto-results-panel {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  margin-top: 10px;
+  padding-top: 9px;
+  border-top: 1px solid var(--border-color);
+}
+.auto-results-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 7px;
+}
+.auto-results-title { display: flex; align-items: baseline; gap: 7px; min-width: 0; }
+.auto-results-count {
+  flex: 0 0 auto;
+  padding: 2px 7px;
+  color: var(--color-primary);
+  background: var(--color-primary-light);
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+}
+.auto-results-export { flex: 0 0 auto; min-height: 30px; }
+.auto-results-list {
+  box-sizing: border-box;
+  width: 100%;
+  max-height: clamp(140px, 25vh, 260px);
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding-right: 4px;
+  scrollbar-gutter: stable;
+}
+.auto-result-row {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 7px 8px;
+  line-height: 1.45;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  border-bottom: 1px solid var(--border-color);
+}
+.auto-result-row:nth-child(odd) { background: var(--bg-panel-header); }
+.auto-result-row:last-child { border-bottom: 0; }
 /* Run Prediction ボタン */
 #run_pred_btn {
   background: linear-gradient(135deg, var(--color-primary), var(--color-primary-dark)) !important;
@@ -660,21 +753,38 @@ body:not(.sidebar-open) #app-sidebar { transform: translateX(100%); }
 #run_pred_btn:hover { transform: translateY(-1px); box-shadow: var(--shadow-md); }
 #run_pred_btn:active { transform: translateY(0); box-shadow: var(--shadow-sm); }
 
-/* 南レク一括計算ボタン */
-#run_batch_btn {
+/* 計画・解析機能ボタン */
+#run_batch_btn,
+#run_auto_search_btn,
+#open_gas_calculator_btn,
+#open_uncertainty_btn {
+  appearance: none;
   background: var(--bg-panel-header) !important;
   color: var(--text-primary) !important;
   border: 1px solid var(--border-color) !important;
   border-radius: var(--border-radius) !important;
-  padding: 8px 16px !important;
+  padding: 9px 12px !important;
+  font-family: var(--font-family);
   font-size: var(--font-size-sm) !important;
+  font-weight: 600;
+  line-height: 1.25;
+  white-space: normal;
   cursor: pointer;
-  transition: background var(--transition-fast);
+  transition: background var(--transition-fast), border-color var(--transition-fast), transform var(--transition-fast), box-shadow var(--transition-fast);
 }
-#run_batch_btn:hover {
+#run_batch_btn:hover,
+#run_auto_search_btn:hover,
+#open_gas_calculator_btn:hover,
+#open_uncertainty_btn:hover {
   background: var(--color-primary-light) !important;
   border-color: var(--color-primary) !important;
+  box-shadow: var(--shadow-sm);
+  transform: translateY(-1px);
 }
+#run_batch_btn:active,
+#run_auto_search_btn:active,
+#open_gas_calculator_btn:active,
+#open_uncertainty_btn:active { transform: translateY(0); }
 
 /* =============================================
    プリセット機能
@@ -1237,3 +1347,18 @@ table#trails th { background-color: #6666ff; color: white; }
   #run_pred_btn { padding: 8px 16px !important; font-size: 14px !important; }
   #run_batch_btn { padding: 6px 12px !important; font-size: 12px !important; }
 }
+
+
+.toast-action {
+  border: 1px solid var(--color-primary);
+  border-radius: var(--radius-sm);
+  background: var(--color-primary);
+  color: var(--text-on-primary);
+  cursor: pointer;
+  flex: 0 0 auto;
+  font: inherit;
+  font-weight: 600;
+  padding: 5px 9px;
+}
+.toast-action:hover,
+.toast-action:focus-visible { filter: brightness(1.08); }

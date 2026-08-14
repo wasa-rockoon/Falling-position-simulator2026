@@ -46,7 +46,7 @@ function setupDraggablePanels() {
         if (!el.length) return;
 
         if (el.data('ui-draggable')) {
-            try { el.draggable('destroy'); } catch (_e) {}
+            try { el.draggable('destroy'); } catch (_e) { if (typeof reportNonFatalError === 'function') reportNonFatalError(_e, 'non-fatal fallback'); }
         }
         el.css({ left: '', top: '' });
     });
@@ -67,7 +67,7 @@ function setupDraggablePanels() {
         }
 
         if (el.data('ui-draggable')) {
-            try { el.draggable('destroy'); } catch (_e) {}
+            try { el.draggable('destroy'); } catch (_e) { if (typeof reportNonFatalError === 'function') reportNonFatalError(_e, 'non-fatal fallback'); }
         }
         // fixed シートとして使うため、ドラッグ座標をクリア
         el.css({ left: '', top: '' });

@@ -173,7 +173,7 @@ var LandSea = (function () {
     return { load: load, onReady: onReady, isLand: isLand, isNearCoast: isNearCoast, distanceToCoastKm: distanceToCoastKm, haversineDistKm: haversineDistKm };
 })();
 
-// Auto-load on script include
-$(function () {
+// Load through the central application initializer.
+window.AppShell.registerInitializer('landsea', function () {
     LandSea.load('data/land_japan_raw.geojson');
-});
+}, 20);

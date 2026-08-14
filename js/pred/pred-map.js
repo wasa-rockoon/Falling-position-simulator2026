@@ -37,7 +37,7 @@ function initMap(centre_lat, centre_lon, zoom_level) {
     var esriwholink = 
     'i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community';
     var esri_sat_map = L.tileLayer(
-    'http://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', 
+    'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
     {
         attribution: '&copy; '+esrimapLink+', '+esriwholink,
         maxZoom: 18,
@@ -45,7 +45,7 @@ function initMap(centre_lat, centre_lon, zoom_level) {
 
     var map_layers = {'OSM':osm_map, 'ESRI Satellite':esri_sat_map, 'OpenTopoMap':osm_topo_map};
 
-    map.addControl(new L.Control.Layers(map_layers, null, {position: 'topleft'}));
+    window.mapLayerControl = L.control.layers(map_layers, null, {position: 'topleft'}).addTo(map);
 
     // Map scale
     L.control.scale({imperial: false, metric: true}).addTo(map);
@@ -135,7 +135,7 @@ function updateCoordinateFormat(){
                 clickMarker.options.title = t;
                 if(clickMarker._tooltip){ clickMarker.setTooltipContent(t); }
             }
-        } catch(e){}
+        } catch (e) { if (typeof reportNonFatalError === 'function') reportNonFatalError(e, 'non-fatal fallback'); }
     }
     // Prediction markers stored in map_items
     if(typeof map_items !== 'undefined'){
@@ -175,7 +175,7 @@ function updateCoordinateFormat(){
                     if(mk.options){ mk.options.title = newTitle; }
                     if(mk._tooltip){ mk.setTooltipContent(newTitle); }
                 }
-            } catch(e){}
+            } catch (e) { if (typeof reportNonFatalError === 'function') reportNonFatalError(e, 'non-fatal fallback'); }
         });
     }
     // Ehime variant markers
@@ -190,7 +190,7 @@ function updateCoordinateFormat(){
                     ep.marker.options.title = title;
                     if(ep.marker._tooltip){ ep.marker.setTooltipContent(title); }
                 }
-            } catch(e){}
+            } catch (e) { if (typeof reportNonFatalError === 'function') reportNonFatalError(e, 'non-fatal fallback'); }
         }
     }
     // Update popup coordinate lines (landing, burst, etc.)
@@ -242,7 +242,7 @@ function updateAllPopups(){
                 } else { repB += '-'; }
                 html = html.substring(0, baseIdx) + repB + html.substring(endB);
             }
-        } catch(e){}
+        } catch (e) { if (typeof reportNonFatalError === 'function') reportNonFatalError(e, 'non-fatal fallback'); }
 
         if(isElem){
             content.innerHTML = html;
@@ -385,14 +385,14 @@ function clearMapItems() {
             var ep = ehime_predictions[k];
             if(ep){
                 // メイン着地マーカー
-                if(ep.marker){ try { ep.marker.remove(); } catch(e) {} }
+                if(ep.marker){ try { ep.marker.remove(); } catch (e) { if (typeof reportNonFatalError === 'function') reportNonFatalError(e, 'non-fatal fallback'); } }
                 // 経路/発射/破裂など一時レイヤ (toggleEhimeVariantPath で生成)
                 if(ep.layers){
                     try {
                         if(ep.layers.flight_path && ep.layers.flight_path.remove) ep.layers.flight_path.remove();
                         if(ep.layers.launch_marker && ep.layers.launch_marker.remove) ep.layers.launch_marker.remove();
                         if(ep.layers.burst_marker && ep.layers.burst_marker.remove) ep.layers.burst_marker.remove();
-                    } catch(_e){}
+                    } catch (_e) { if (typeof reportNonFatalError === 'function') reportNonFatalError(_e, 'non-fatal fallback'); }
                     // 参照クリア
                     delete ep.layers.flight_path;
                     delete ep.layers.launch_marker;

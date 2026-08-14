@@ -30,56 +30,6 @@
         min: { min: 0, max: 59, label: '分' }
     };
 
-    function ensureToastContainer() {
-        var c = document.getElementById('toast_container');
-        if (c) return c;
-
-        c = document.createElement('div');
-        c.id = 'toast_container';
-        c.style.position = 'fixed';
-        c.style.top = '12px';
-        c.style.right = '12px';
-        c.style.zIndex = '1200';
-        c.style.display = 'flex';
-        c.style.flexDirection = 'column';
-        c.style.gap = '8px';
-        document.body.appendChild(c);
-        return c;
-    }
-
-    window.showToast = function (message, type, durationMs) {
-        var container = ensureToastContainer();
-        var toast = document.createElement('div');
-        var bg = '#3b82f6';
-        if (type === 'success') bg = '#16a34a';
-        if (type === 'warning') bg = '#f59e0b';
-        if (type === 'error') bg = '#dc2626';
-
-        toast.textContent = message;
-        toast.style.background = bg;
-        toast.style.color = '#ffffff';
-        toast.style.padding = '8px 12px';
-        toast.style.borderRadius = '8px';
-        toast.style.boxShadow = '0 6px 18px rgba(0,0,0,0.2)';
-        toast.style.fontSize = '12px';
-        toast.style.maxWidth = '300px';
-        toast.style.opacity = '0';
-        toast.style.transition = 'opacity 150ms ease';
-
-        container.appendChild(toast);
-        requestAnimationFrame(function () {
-            toast.style.opacity = '1';
-        });
-
-        var duration = typeof durationMs === 'number' ? durationMs : 2200;
-        setTimeout(function () {
-            toast.style.opacity = '0';
-            setTimeout(function () {
-                if (toast.parentNode) toast.parentNode.removeChild(toast);
-            }, 180);
-        }, duration);
-    };
-
     window.formatJstDateTime = function (dateLike) {
         var m = moment.utc(dateLike).clone().utcOffset(9 * 60);
         return m.format('YYYY-MM-DD HH:mm');
@@ -222,6 +172,7 @@
             var raw = localStorage.getItem(PRESET_KEY);
             return raw ? JSON.parse(raw) : [];
         } catch (_e) {
+            if (typeof reportNonFatalError === 'function') reportNonFatalError(_e, 'presets.load');
             return [];
         }
     }
@@ -293,6 +244,7 @@
             applyFormValues(JSON.parse(raw));
             showToast('前回設定を復元しました', 'success', 1800);
         } catch (_e) {
+            if (typeof reportNonFatalError === 'function') reportNonFatalError(_e, 'presets.restore');
             showToast('前回設定の復元に失敗しました', 'error', 2200);
         }
     }
@@ -316,6 +268,15 @@
         var deleteBtn = document.getElementById('preset_delete_btn');
         var restoreBtn = document.getElementById('preset_restore_btn');
         var select = document.getElementById('preset_select');
+        var deleteConfirmationTimer = null;
+
+        function resetDeleteConfirmation() {
+            if (!deleteBtn) return;
+            if (deleteConfirmationTimer) window.clearTimeout(deleteConfirmationTimer);
+            deleteConfirmationTimer = null;
+            deleteBtn.removeAttribute('data-confirm-preset');
+            deleteBtn.textContent = '削除';
+        }
 
         if (!select) return;
 
@@ -362,12 +323,22 @@
             deleteBtn.addEventListener('click', function () {
                 var name = select.value;
                 if (!name) {
+                    resetDeleteConfirmation();
                     showToast('削除するプリセットを選択してください', 'warning', 1800);
                     return;
                 }
-                if (!window.confirm('プリセット「' + name + '」を削除しますか？')) return;
+                if (deleteBtn.getAttribute('data-confirm-preset') !== name) {
+                    resetDeleteConfirmation();
+                    deleteBtn.setAttribute('data-confirm-preset', name);
+                    deleteBtn.textContent = '再度押して削除';
+                    showToast('4秒以内にもう一度押すと「' + name + '」を削除します', 'warning', 4000);
+                    deleteConfirmationTimer = window.setTimeout(resetDeleteConfirmation, 4000);
+                    return;
+                }
+                resetDeleteConfirmation();
                 deletePreset(name);
             });
+            select.addEventListener('change', resetDeleteConfirmation);
         }
 
         if (restoreBtn) {
@@ -377,8 +348,8 @@
         }
     }
 
-    $(function () {
+    window.AppShell.registerInitializer('prediction-common', function () {
         bindValidationEvents();
         bindPresetEvents();
-    });
+    }, 20);
 })();
