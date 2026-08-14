@@ -164,7 +164,8 @@ function startPredictionRunRecord(settings, context, type, title, runId) {
         title: title || '予測',
         input: predictionRunInput(settings, context),
         provenance: {
-            predictorSource: context.endpointId || context.source || ''
+            predictorSource: context.endpointId || context.source || '',
+            landSeaClassifierVersion: typeof LandSea !== 'undefined' && typeof LandSea.getStatus === 'function' ? (LandSea.getStatus().dataVersion || '') : ''
         }
     });
     context.runRecordReady = RunRepository.save(record).catch(function (error) {
@@ -198,23 +199,39 @@ function plainTrajectorySeries(predictionResult, runId, variantId, label) {
     };
 }
 
+function localLandSeaResult(lat, lon) {
+    if (typeof LandSea !== 'undefined' && typeof LandSea.classify === 'function') return LandSea.classify(lat, lon);
+    return {
+        classification: 'unknown', confidence: 'unknown', source: 'unavailable',
+        coastDistanceKm: null, dataVersion: '', reason: 'classifier-unavailable'
+    };
+}
+
+function landSeaLabel(result) {
+    if (!result) return '不明';
+    if (result.classification === 'sea') return '海';
+    if (result.classification === 'land') return '陸';
+    if (result.classification === 'inland_water') return '内水面';
+    return '不明';
+}
+
+function legacyIsWaterFromLandSea(result) {
+    if (!result) return null;
+    if (result.classification === 'sea') return true;
+    if (result.classification === 'land') return false;
+    return null;
+}
 function plainLandingResult(predictionResult, seriesId) {
     if (!predictionResult || !predictionResult.landing || !predictionResult.landing.latlng) return null;
     var landing = predictionResult.landing;
+    var landSeaResult = localLandSeaResult(landing.latlng.lat, landing.latlng.lng);
     return {
         seriesId: seriesId,
         latitude: landing.latlng.lat,
         longitude: landing.latlng.lng,
         timeUtc: landing.datetime && typeof landing.datetime.toISOString === 'function' ? landing.datetime.toISOString() : null,
         nearestSupportPoint: null,
-        landSea: {
-            classification: 'unknown',
-            confidence: 'unknown',
-            source: 'unclassified',
-            coastDistanceKm: null,
-            dataVersion: '',
-            reason: ''
-        }
+        landSea: landSeaResult
     };
 }
 
@@ -906,6 +923,8 @@ function buildEhimeHistorySnapshot() {
                 launch_datetime: launchMoment ? launchMoment.clone().toISOString() : null
             };
         }
+        var rowLandSea = p.landSeaResult || localLandSeaResult(p.results.landing.latlng.lat, p.results.landing.latlng.lng);
+        p.landSeaResult = rowLandSea;
         rows.push({
             index: isNaN(idx) ? rows.length : idx,
             label: p.label || '-',
@@ -926,8 +945,10 @@ function buildEhimeHistorySnapshot() {
             burstLat: burstLat,
             burstLng: burstLng,
             burstAlt: burstAlt,
-            isWater: p.landsea === '海' ? true : (p.landsea === '陸' ? false : null),
-            landsea: p.landsea || '-',
+            isWater: legacyIsWaterFromLandSea(rowLandSea),
+            landSeaClassification: rowLandSea.classification,
+            landSea: rowLandSea,
+            landsea: landSeaLabel(rowLandSea),
             flightPath: Array.isArray(p.results.flight_path) ? p.results.flight_path : []
         });
     });
@@ -961,9 +982,14 @@ function buildEhimeHistorySnapshot() {
 
     var landCount = 0;
     var waterCount = 0;
+    var inlandWaterCount = 0;
+    var unknownCount = 0;
     rows.forEach(function (row) {
-        if (row.isWater === false) landCount += 1;
-        if (row.isWater === true) waterCount += 1;
+        var classification = row.landSeaClassification || (row.isWater === true ? 'sea' : (row.isWater === false ? 'land' : 'unknown'));
+        if (classification === 'land') landCount += 1;
+        else if (classification === 'sea') waterCount += 1;
+        else if (classification === 'inland_water') inlandWaterCount += 1;
+        else unknownCount += 1;
     });
 
     return {
@@ -976,6 +1002,8 @@ function buildEhimeHistorySnapshot() {
         maxDev: maxDev,
         landCount: landCount,
         waterCount: waterCount,
+        inlandWaterCount: inlandWaterCount,
+        unknownCount: unknownCount,
         baseSettings: baseSettings,
         rows: rows
     };
@@ -1081,7 +1109,9 @@ function renderEhimeHistoryToResultPanels(item) {
             lat: toEhimeFiniteNumber(row.lat),
             lng: toEhimeFiniteNumber(row.lng),
             label: row.label || '-',
-            isWater: row.isWater
+            isWater: row.isWater,
+            landSea: row.landSea || null,
+            landSeaClassification: row.landSeaClassification || null
         };
     }).filter(function (row) {
         return row.lat !== null && row.lng !== null;
@@ -1288,7 +1318,8 @@ function restoreEhimeHistoryAsCurrentRun(item) {
             status: 'ok',
             settings: buildEhimeReplaySettings(baseSettings, row),
             results: buildEhimeReplayResults(row),
-            landsea: row.landsea || '-',
+            landSeaResult: row.landSea || localLandSeaResult(toEhimeFiniteNumber(row.lat), toEhimeFiniteNumber(row.lng)),
+            landsea: row.landsea || landSeaLabel(row.landSea),
             marker: null
         };
     });
@@ -1564,11 +1595,13 @@ function buildEhimeVariantRow(idx, variant_id, entry, variant_index) {
         lon = entry.results.landing.latlng.lng.toFixed(4);
         try {
             var ll = entry.results.landing.latlng;
-            var flag = (typeof LandSea !== 'undefined') ? LandSea.isLand(ll.lat, ll.lng) : null;
-            if (flag === null) { landsea = '判定中'; }
-            else landsea = flag ? '陸' : '海';
+            entry.landSeaResult = localLandSeaResult(ll.lat, ll.lng);
+            landsea = landSeaLabel(entry.landSeaResult);
             entry.landsea = landsea;
-        } catch (e) { landsea = '?'; }
+        } catch (e) {
+            landsea = '不明';
+            if (typeof reportNonFatalError === 'function') reportNonFatalError(e, 'ehime.land-sea');
+        }
     }
     if (entry.settings) {
         if (entry.settings.ascent_rate != null) ascent = entry.settings.ascent_rate.toFixed(2);
@@ -1629,14 +1662,10 @@ function refreshEhimePanel() {
         completed.forEach(p => {
             sumLat += p.results.landing.latlng.lat;
             sumLon += p.results.landing.latlng.lng;
-            // 陸海判定
-            if (typeof LandSea !== 'undefined') {
-                if (LandSea.isLand(p.results.landing.latlng.lat, p.results.landing.latlng.lng)) {
-                    landCount++;
-                } else {
-                    waterCount++;
-                }
-            }
+            var summaryLandSea = p.landSeaResult || localLandSeaResult(p.results.landing.latlng.lat, p.results.landing.latlng.lng);
+            p.landSeaResult = summaryLandSea;
+            if (summaryLandSea.classification === 'land') landCount++;
+            else if (summaryLandSea.classification === 'sea') waterCount++;
         });
         var meanLat = (sumLat / completed.length).toFixed(4);
         var meanLon = (sumLon / completed.length).toFixed(4);
@@ -2262,10 +2291,10 @@ function updateEhimeSummaryFromStore() {
         if(p.results && p.results.landing && p.results.landing.latlng){
             var lat = p.results.landing.latlng.lat;
             var lng = p.results.landing.latlng.lng;
-            if(typeof LandSea !== 'undefined'){
-                if(LandSea.isLand(lat, lng)) landCount++;
-                else waterCount++;
-            }
+            var summaryLandSea = p.landSeaResult || localLandSeaResult(lat, lng);
+            p.landSeaResult = summaryLandSea;
+            if (summaryLandSea.classification === 'land') landCount++;
+            else if (summaryLandSea.classification === 'sea') waterCount++;
         }
     });
     var totalDet = landCount + waterCount;
@@ -2278,7 +2307,10 @@ function updateEhimeSummaryFromStore() {
         return {
             lat: p.results && p.results.landing && p.results.landing.latlng ? p.results.landing.latlng.lat : null,
             lng: p.results && p.results.landing && p.results.landing.latlng ? p.results.landing.latlng.lng : null,
-            label: p.label || ''
+            label: p.label || '',
+            landSea: p.landSeaResult || null,
+            landSeaClassification: p.landSeaResult && p.landSeaResult.classification || null,
+            isWater: legacyIsWaterFromLandSea(p.landSeaResult)
         };
     }).filter(function (point) {
         return isFinite(point.lat) && isFinite(point.lng);
@@ -3153,170 +3185,40 @@ function checkLandSea(lat, lon, rowId) {
         $("#land_sea_" + rowId).css("color", "red");
     }
 
-    classifyLandSeaAt(lat, lon, function (isWater) {
-        if (isWater === true) {
-            if (typeof updateLandSeaUI === 'function') updateLandSeaUI(true, rowId);
-            return;
-        }
-        if (isWater === false) {
-            if (typeof updateLandSeaUI === 'function') updateLandSeaUI(false, rowId);
-            return;
-        }
-        $("#landing_type").text("不明 (Unknown)").css("color", "gray");
-        if (rowId) {
-            $("#land_sea_" + rowId).text("不明 (Unknown)").css("color", "gray");
-        }
+    classifyLandSeaAt(lat, lon, function (isWater, landSeaResult) {
+        if (typeof updateLandSeaUI === 'function') updateLandSeaUI(isWater, rowId, landSeaResult);
     });
 }
 
-function updateLandSeaUI(isWater, rowId) {
-    if (isWater) {
-        $("#landing_type").text("海 (Sea)").css("color", "blue");
-        if (rowId) $("#land_sea_" + rowId).text("海").css("color", "blue");
-    } else {
-        $("#landing_type").text("陸 (Land)").css("color", "green");
-        if (rowId) $("#land_sea_" + rowId).text("陸").css("color", "green");
+function updateLandSeaUI(isWater, rowId, landSeaResult) {
+    var classification = landSeaResult && landSeaResult.classification;
+    var label = '不明 (Unknown)';
+    var shortLabel = '不明';
+    var color = 'gray';
+    if (classification === 'inland_water') {
+        label = '内水面 (Inland water)';
+        shortLabel = '内水面';
+        color = '#7b61a8';
+    } else if (isWater === true) {
+        label = '海 (Sea)';
+        shortLabel = '海';
+        color = 'blue';
+    } else if (isWater === false) {
+        label = '陸 (Land)';
+        shortLabel = '陸';
+        color = 'green';
     }
-}
-
-var _landSeaDecisionCache = {};
-var _landSeaDecisionCacheKeys = [];
-var LANDSEA_DECISION_CACHE_LIMIT = 400;
-
-function cacheLandSeaDecision(lat, lon, isWater) {
-    var key = lat.toFixed(4) + ',' + lon.toFixed(4);
-    _landSeaDecisionCache[key] = isWater;
-    _landSeaDecisionCacheKeys.push(key);
-    if (_landSeaDecisionCacheKeys.length > LANDSEA_DECISION_CACHE_LIMIT) {
-        var oldKey = _landSeaDecisionCacheKeys.shift();
-        delete _landSeaDecisionCache[oldKey];
-    }
-}
-
-function getCachedLandSeaDecision(lat, lon) {
-    var key = lat.toFixed(4) + ',' + lon.toFixed(4);
-    if (_landSeaDecisionCache.hasOwnProperty(key)) {
-        return _landSeaDecisionCache[key];
-    }
-    return undefined;
-}
-
-function monteCarloLandSeaAt(lat, lon) {
-    if (typeof LandSea === 'undefined' || !LandSea.isLand) return null;
-    var localResult = LandSea.isLand(lat, lon);
-    var nearCoast = LandSea.isNearCoast ? LandSea.isNearCoast(lat, lon) : true;
-    if (!nearCoast) {
-        if (localResult === true) return false;
-        if (localResult === false) return null;
-    }
-    if (localResult === null) return null;
-    var sampleCount = nearCoast ? 32 : 12;
-    var radiusDeg = nearCoast ? 0.010 : 0.006;
-    var landVotes = 0, seaVotes = 0;
-    for (var i = 0; i < sampleCount; i++) {
-        var theta = Math.random() * Math.PI * 2;
-        var r = radiusDeg * Math.sqrt(Math.random());
-        var sampleLat = lat + Math.sin(theta) * r;
-        var sampleLon = lon + Math.cos(theta) * r;
-        var sampleLand = LandSea.isLand(sampleLat, sampleLon);
-        if (sampleLand === true) landVotes++;
-        else if (sampleLand === false) seaVotes++;
-    }
-    var totalVotes = landVotes + seaVotes;
-    if (totalVotes === 0) return null;
-    var landRatio = landVotes / totalVotes;
-    var seaRatio = seaVotes / totalVotes;
-    if (landRatio >= 0.65) return false;
-    if (seaRatio >= 0.65) return true;
-    return null;
+    $("#landing_type").text(label).css("color", color);
+    if (rowId) $("#land_sea_" + rowId).text(shortLabel).css("color", color);
 }
 
 function classifyLandSeaAt(lat, lon, callback) {
-    var cached = getCachedLandSeaDecision(lat, lon);
-    if (typeof cached !== 'undefined') { callback(cached); return; }
-    var geoJsonResult = null;
-    var nearCoast = true;
-    if (typeof LandSea !== 'undefined') {
-        geoJsonResult = LandSea.isLand(lat, lon);
-        nearCoast = LandSea.isNearCoast ? LandSea.isNearCoast(lat, lon) : true;
-    }
-    if (geoJsonResult === true && !nearCoast) {
-        queryInlandWaterAt(lat, lon, function (inlandWater, err) {
-            if (err) { cacheLandSeaDecision(lat, lon, false); callback(false); return; }
-            var result = inlandWater === true ? true : false;
-            cacheLandSeaDecision(lat, lon, result);
-            callback(result);
-        });
-        return;
-    }
-    var monteCarloResult = monteCarloLandSeaAt(lat, lon);
-    if (monteCarloResult !== null) {
-        cacheLandSeaDecision(lat, lon, monteCarloResult);
-        callback(monteCarloResult);
-        return;
-    }
-    var api_url = "https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=" + lat + "&longitude=" + lon + "&localityLanguage=en";
-    $.getJSON(api_url, function (data) {
-        var isWater = true, seaEvidence = false, territorialEvidence = false, inlandLandEvidence = false;
-        if (data.countryCode && data.countryCode !== "") isWater = false;
-        if (data.localityInfo && data.localityInfo.informative) {
-            var seaKeywords = ["sea", "ocean", "bay", "gulf", "strait", "channel", "sound", "water", "湾", "海", "灘", "offshore"];
-            var territorialKeywords = ["territorial sea", "territorial water", "internal waters"];
-            for (var i = 0; i < data.localityInfo.informative.length; i++) {
-                var info = data.localityInfo.informative[i];
-                var name = (info.name || '').toLowerCase();
-                var desc = (info.description || '').toLowerCase();
-                for (var tk = 0; tk < territorialKeywords.length; tk++) {
-                    if (name.indexOf(territorialKeywords[tk]) !== -1 || desc.indexOf(territorialKeywords[tk]) !== -1) { territorialEvidence = true; break; }
-                }
-                if (info.order <= 6) {
-                    for (var sk = 0; sk < seaKeywords.length; sk++) {
-                        if (name.indexOf(seaKeywords[sk]) !== -1 || desc.indexOf(seaKeywords[sk]) !== -1) { seaEvidence = true; break; }
-                    }
-                }
-                if (name.indexOf('prefecture') !== -1 || name.indexOf('city') !== -1 || name.indexOf('municipality') !== -1) { inlandLandEvidence = true; }
-            }
-        }
-        if (territorialEvidence || seaEvidence) { cacheLandSeaDecision(lat, lon, true); callback(true); return; }
-        if (!isWater && geoJsonResult === false && nearCoast && !inlandLandEvidence) { cacheLandSeaDecision(lat, lon, true); callback(true); return; }
-        if (isWater) { cacheLandSeaDecision(lat, lon, true); callback(true); return; }
-        queryInlandWaterAt(lat, lon, function (inlandWater, err) {
-            if (err) { cacheLandSeaDecision(lat, lon, false); callback(false); return; }
-            var result = inlandWater === true ? true : false;
-            cacheLandSeaDecision(lat, lon, result); callback(result);
-        });
-    }).fail(function () {
-        if (geoJsonResult === true) {
-            queryInlandWaterAt(lat, lon, function (inlandWater, _err) {
-                var result = inlandWater === true ? true : false;
-                cacheLandSeaDecision(lat, lon, result); callback(result);
-            });
-            return;
-        }
-        if (geoJsonResult === false) { cacheLandSeaDecision(lat, lon, true); callback(true); return; }
-        callback(null);
-    });
+    var landSeaResult = localLandSeaResult(landing.latlng.lat, landing.latlng.lng);
+    var isWater = landSeaResult.classification === 'sea'
+        ? true
+        : (landSeaResult.classification === 'land' ? false : null);
+    callback(isWater, landSeaResult);
 }
-
-function queryInlandWaterAt(lat, lon, callback) {
-    var query = '[out:json][timeout:10];('
-        + 'way["natural"="water"](around:50,' + lat + ',' + lon + ');'
-        + 'relation["natural"="water"](around:50,' + lat + ',' + lon + ');'
-        + 'way["waterway"](around:30,' + lat + ',' + lon + ');'
-        + ');out count;';
-    $.ajax({
-        url: "https://overpass-api.de/api/interpreter", type: "POST", data: { data: query }, dataType: "json", timeout: 15000,
-        success: function (data) {
-            var count = 0;
-            if (data.elements && data.elements.length > 0) count = parseInt(data.elements[0].tags.total) || 0;
-            if (callback) callback((count > 0), null);
-        },
-        error: function (jqxhr, textStatus, error) {
-            if (callback) callback(null, textStatus || error || 'overpass error');
-        }
-    });
-}
-
 // 漁港機能
 var _fishingPorts = [];
 var _fishingPortsLoaded = false;

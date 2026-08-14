@@ -114,3 +114,18 @@ test('density contours wait for enough samples', () => {
     const observations = Array.from({ length: 7 }, (_, index) => ({ lat: 33, lng: 132 + index * 0.001, isWater: true }));
     assert.equal(core.summarizeObservations(observations).densityContours, null);
 });
+test('inland water is determined but never counted as sea, while unknown stays separate', () => {
+    const observations = [
+        { lat: 33, lng: 132, landSea: { classification: 'sea' } },
+        { lat: 33.1, lng: 132.1, landSea: { classification: 'land' } },
+        { lat: 33.2, lng: 132.2, landSea: { classification: 'inland_water' } },
+        { lat: 33.3, lng: 132.3, landSea: { classification: 'unknown' } }
+    ];
+    const summary = core.summarizeObservations(observations);
+    assert.equal(summary.classified, 3);
+    assert.equal(summary.sea, 1);
+    assert.equal(summary.land, 1);
+    assert.equal(summary.inlandWater, 1);
+    assert.equal(summary.unknown, 1);
+    assert.equal(summary.seaProbability, 1 / 3);
+});

@@ -31,3 +31,14 @@ test('thresholds are inclusive lower and upper bounds', () => {
     assert.equal(AutoSearchCore.passesSeaThreshold(75, 75), true);
     assert.equal(AutoSearchCore.passesWeather({ status: 'ok', precipitationMm: 1, windSpeedMs: 10 }, { rainThreshold: 1, windThreshold: 10 }), true);
 });
+test('sea threshold includes inland water in the known denominator and never auto-passes unknown', () => {
+    const clear = AutoSearchCore.evaluateSeaCondition({ sea: 9, land: 2, inlandWater: 1, unknown: 0 }, 75);
+    assert.equal(clear.seaPercent, 75);
+    assert.equal(clear.classified, 12);
+    assert.equal(clear.pass, true);
+
+    const review = AutoSearchCore.evaluateSeaCondition({ sea: 9, land: 2, inlandWater: 1, unknown: 1 }, 75);
+    assert.equal(review.thresholdPassed, true);
+    assert.equal(review.requiresReview, true);
+    assert.equal(review.pass, false);
+});

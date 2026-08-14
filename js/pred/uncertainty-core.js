@@ -458,10 +458,20 @@
             levels: levels
         };
     }
+    function observationClassification(item) {
+        var classification = item && item.landSea && item.landSea.classification;
+        if (classification === 'land' || classification === 'sea' || classification === 'inland_water' || classification === 'unknown') return classification;
+        if (item && item.isWater === true) return 'sea';
+        if (item && item.isWater === false) return 'land';
+        return 'unknown';
+    }
+
     function summarizeObservations(observations) {
         var valid = observations.filter(function (item) { return Number.isFinite(item.lat) && Number.isFinite(item.lng); });
-        var classified = valid.filter(function (item) { return item.isWater === true || item.isWater === false; });
-        var sea = classified.filter(function (item) { return item.isWater === true; }).length;
+        var classified = valid.filter(function (item) { return observationClassification(item) !== 'unknown'; });
+        var sea = classified.filter(function (item) { return observationClassification(item) === 'sea'; }).length;
+        var land = classified.filter(function (item) { return observationClassification(item) === 'land'; }).length;
+        var inlandWater = classified.filter(function (item) { return observationClassification(item) === 'inland_water'; }).length;
         var mean = valid.length ? {
             lat: valid.reduce(function (sum, item) { return sum + item.lat; }, 0) / valid.length,
             lng: valid.reduce(function (sum, item) { return sum + item.lng; }, 0) / valid.length
@@ -474,7 +484,9 @@
             valid: valid.length,
             classified: classified.length,
             sea: sea,
-            land: classified.length - sea,
+            land: land,
+            inlandWater: inlandWater,
+            unknown: valid.length - classified.length,
             seaProbability: classified.length ? sea / classified.length : null,
             seaInterval: interval,
             mean: mean,
@@ -483,7 +495,6 @@
             densityContours: kdeDensityContours(valid, mean, [0.5, 0.8, 0.95])
         };
     }
-
     function evaluateSequentialStop(observations, options, previous) {
         options = options || {};
         var summary = summarizeObservations(observations);

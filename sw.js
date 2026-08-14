@@ -2,7 +2,7 @@
 'use strict';
 
 var CACHE_PREFIX = 'wasa-predictor-';
-var CACHE_VERSION = 'd1b3541d1d86';
+var CACHE_VERSION = '025d03dbdcd4';
 var APP_CACHE_NAME = CACHE_PREFIX + 'app-' + CACHE_VERSION;
 var TILE_CACHE_NAME = CACHE_PREFIX + 'tiles-v1';
 var TILE_CACHE_LIMIT = 500;
@@ -25,6 +25,8 @@ var APP_SHELL = [
     "./css/predictor-mobile.css",
     "./css/predictor.css",
     "./css/uncertainty.css",
+    "./data/inland_water_japan_w09_05.geojson",
+    "./data/land-sea-datasets.json",
     "./data/land_japan_raw.geojson",
     "./favicon.ico",
     "./images/app-icon-192.png",
@@ -76,6 +78,7 @@ var APP_SHELL = [
     "./js/core/run-repository.js",
     "./js/core/settings-repository.js",
     "./js/domain/run-record.js",
+    "./js/geo/land-sea-classifier.js",
     "./js/html2canvas.min.js",
     "./js/jquery-3.3.1.min.js",
     "./js/jquery-ui.min.js",

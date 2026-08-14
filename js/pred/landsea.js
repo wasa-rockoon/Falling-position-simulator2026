@@ -1,179 +1,45 @@
-// Land/Sea classification helper
-// Loads clipped Japan land GeoJSON and offers point-in-polygon test.
-// Hybrid approach: instant local PIP first, API fallback for ambiguous/coastal points.
+// Compatibility facade for the deterministic local land/sea classifier.
+// New code should prefer LandSea.classify(), which returns a LandSeaResult.
 
-var LandSea = (function () {
-    var landFeatures = [];
-    var loaded = false;
-    var pendingCbs = [];
+var LandSea = (function (root) {
+    'use strict';
 
-    function load(url) {
-        if (loaded || landFeatures.length > 0) { return; }
-        try {
-            $.getJSON(url, function (geo) {
-                try {
-                    if (geo && geo.features) {
-                        landFeatures = geo.features.filter(function (f) {
-                            return f.geometry && (f.geometry.type === 'Polygon' || f.geometry.type === 'MultiPolygon');
-                        }).map(function (f) {
-                            // Precompute bboxes for quick reject
-                            var bbox = computeBBox(f.geometry);
-                            f.__bbox = bbox;
-                            return f;
-                        });
-                    }
-                    loaded = true;
-                    console.log('LandSea: loaded ' + landFeatures.length + ' features');
-                    pendingCbs.forEach(function (cb) { cb(); });
-                    pendingCbs = [];
-                } catch (e) { console.error('LandSea parse error', e); loaded = true; }
-            }).fail(function () { loaded = true; pendingCbs = []; console.warn('LandSea GeoJSON load failed'); });
-        } catch (e) { console.warn('LandSea load exception', e); }
+    var classifier = root.LandSeaClassifier.create();
+    var loadPromise = null;
+
+    function load() {
+        if (loadPromise) return loadPromise;
+        loadPromise = classifier.load({ manifestUrl: 'data/land-sea-datasets.json' }).catch(function (error) {
+            if (typeof reportNonFatalError === 'function') reportNonFatalError(error, 'land-sea.dataset-load');
+            else if (root.console && typeof root.console.warn === 'function') root.console.warn('Land/sea datasets could not be loaded', error);
+            return null;
+        });
+        return loadPromise;
     }
 
-    function onReady(cb) {
-        if (loaded) { cb(); } else { pendingCbs.push(cb); }
+    function classify(lat, lon) {
+        return classifier.classify(lat, lon);
     }
 
-    function computeBBox(geom) {
-        var minX = 999, minY = 999, maxX = -999, maxY = -999;
-        function addCoord(c) {
-            var x = c[0], y = c[1];
-            if (x < minX) minX = x; if (x > maxX) maxX = x; if (y < minY) minY = y; if (y > maxY) maxY = y;
-        }
-        if (geom.type === 'Polygon') {
-            geom.coordinates.forEach(function (ring) { ring.forEach(addCoord); });
-        } else if (geom.type === 'MultiPolygon') {
-            geom.coordinates.forEach(function (poly) { poly.forEach(function (ring) { ring.forEach(addCoord); }); });
-        }
-        return [minX, minY, maxX, maxY];
+    function classifyAsync(lat, lon) {
+        return load().then(function () { return classifier.classify(lat, lon); });
     }
 
-    function pointInPolygon(lon, lat, ring) {
-        // ray casting algorithm
-        var inside = false;
-        for (var i = 0, j = ring.length - 1; i < ring.length; j = i++) {
-            var xi = ring[i][0], yi = ring[i][1];
-            var xj = ring[j][0], yj = ring[j][1];
-            var intersect = ((yi > lat) != (yj > lat)) && (lon < (xj - xi) * (lat - yi) / (yj - yi + 1e-12) + xi);
-            if (intersect) inside = !inside;
-        }
-        return inside;
-    }
+    return {
+        load: load,
+        onReady: classifier.onReady,
+        classify: classify,
+        classifyAsync: classifyAsync,
+        classifyMany: classifier.classifyMany,
+        isLand: classifier.isLand,
+        legacyIsWater: classifier.legacyIsWater,
+        isNearCoast: classifier.isNearCoast,
+        distanceToCoastKm: classifier.distanceToCoastKm,
+        haversineDistKm: classifier.haversineDistKm,
+        getStatus: classifier.getStatus
+    };
+}(window));
 
-    function distancePointToSegment(px, py, x1, y1, x2, y2) {
-        var dx = x2 - x1;
-        var dy = y2 - y1;
-        if (dx === 0 && dy === 0) {
-            var ddx = px - x1;
-            var ddy = py - y1;
-            return Math.sqrt(ddx * ddx + ddy * ddy);
-        }
-        var t = ((px - x1) * dx + (py - y1) * dy) / (dx * dx + dy * dy);
-        if (t < 0) t = 0;
-        if (t > 1) t = 1;
-        var cx = x1 + t * dx;
-        var cy = y1 + t * dy;
-        var ex = px - cx;
-        var ey = py - cy;
-        return Math.sqrt(ex * ex + ey * ey);
-    }
-
-    function distanceToRing(lon, lat, ring) {
-        if (!ring || ring.length < 2) return 999;
-        var minDist = 999;
-        for (var i = 1; i < ring.length; i++) {
-            var a = ring[i - 1];
-            var b = ring[i];
-            var d = distancePointToSegment(lon, lat, a[0], a[1], b[0], b[1]);
-            if (d < minDist) minDist = d;
-        }
-        return minDist;
-    }
-
-    /**
-     * Synchronous check: is the point inside a known land polygon?
-     * @param {number} lat - Latitude
-     * @param {number} lon - Longitude
-     * @returns {boolean|null} true=land, false=not in any polygon (probably sea), null=data not loaded
-     */
-    function isLand(lat, lon) {
-        if (!loaded || landFeatures.length === 0) return null; // unknown yet
-        var x = lon, y = lat;
-        for (var fi = 0; fi < landFeatures.length; fi++) {
-            var f = landFeatures[fi];
-            var b = f.__bbox; if (x < b[0] || x > b[2] || y < b[1] || y > b[3]) continue;
-            var geom = f.geometry;
-            if (geom.type === 'Polygon') {
-                if (pointInPolygon(x, y, geom.coordinates[0])) return true;
-            } else if (geom.type === 'MultiPolygon') {
-                for (var pi = 0; pi < geom.coordinates.length; pi++) {
-                    if (pointInPolygon(x, y, geom.coordinates[pi][0])) return true;
-                }
-            }
-        }
-        return false; // not in any land polygon within Japan clip
-    }
-
-    /**
-     * Check if a point is near the edge of a land polygon (within ~0.05 deg ≈ 5km).
-     * Used to decide whether to fall back to API for more precise check.
-     */
-    function isNearCoast(lat, lon) {
-        if (!loaded || landFeatures.length === 0) return true; // can't tell, assume near coast
-        var x = lon, y = lat;
-        var bboxMargin = 0.08; // 粗フィルタ
-        var coastMargin = 0.025; // 約2-3km
-        for (var fi = 0; fi < landFeatures.length; fi++) {
-            var f = landFeatures[fi];
-            var b = f.__bbox;
-            if (x < b[0] - bboxMargin || x > b[2] + bboxMargin || y < b[1] - bboxMargin || y > b[3] + bboxMargin) continue;
-
-            var geom = f.geometry;
-            if (geom.type === 'Polygon') {
-                if (distanceToRing(x, y, geom.coordinates[0]) <= coastMargin) return true;
-            } else if (geom.type === 'MultiPolygon') {
-                for (var pi = 0; pi < geom.coordinates.length; pi++) {
-                    if (distanceToRing(x, y, geom.coordinates[pi][0]) <= coastMargin) return true;
-                }
-            }
-        }
-        return false;
-    }
-
-    function haversineDistKm(lat1, lon1, lat2, lon2) {
-        var R = 6371; // Radius of the earth in km
-        var dLat = (lat2 - lat1) * Math.PI / 180;
-        var dLon = (lon2 - lon1) * Math.PI / 180;
-        var a = Math.sin(dLat/2) * Math.sin(dLat/2) +
-                Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-                Math.sin(dLon/2) * Math.sin(dLon/2);
-        var c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-        return R * c;
-    }
-
-    function distanceToCoastKm(lat, lon) {
-        if (!loaded || landFeatures.length === 0) return 999;
-        var x = lon, y = lat;
-        var minDistDeg = 999;
-        for (var fi = 0; fi < landFeatures.length; fi++) {
-            var geom = landFeatures[fi].geometry;
-            if (geom.type === 'Polygon') {
-                minDistDeg = Math.min(minDistDeg, distanceToRing(x, y, geom.coordinates[0]));
-            } else if (geom.type === 'MultiPolygon') {
-                for (var pi = 0; pi < geom.coordinates.length; pi++) {
-                    minDistDeg = Math.min(minDistDeg, distanceToRing(x, y, geom.coordinates[pi][0]));
-                }
-            }
-        }
-        // Degree distance to km approx (1 deg ~ 111km)
-        return minDistDeg * 111.0;
-    }
-
-    return { load: load, onReady: onReady, isLand: isLand, isNearCoast: isNearCoast, distanceToCoastKm: distanceToCoastKm, haversineDistKm: haversineDistKm };
-})();
-
-// Load through the central application initializer.
 window.AppShell.registerInitializer('landsea', function () {
-    LandSea.load('data/land_japan_raw.geojson');
+    return LandSea.load();
 }, 20);

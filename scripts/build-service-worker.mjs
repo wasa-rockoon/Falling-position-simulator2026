@@ -35,6 +35,8 @@ const assets = new Set([
     './sites.json',
     './ports.json',
     './data/land_japan_raw.geojson',
+    './data/inland_water_japan_w09_05.geojson',
+    './data/land-sea-datasets.json',
     ...localPageAssets(html).map(normalizeAsset),
     ...(await directoryAssets('images')).map(normalizeAsset),
     ...(await directoryAssets(path.join('css', 'images'))).map(normalizeAsset)

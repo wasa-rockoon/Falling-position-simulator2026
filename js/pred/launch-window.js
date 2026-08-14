@@ -4,7 +4,7 @@
  * 動作：
  *  1. 「放球NG判定」ボタン押下 → フォーム時刻 から 15分間隔 × 6時間(25スロット) を
  *      BASE条件で順次予測 (3秒間隔でTawhiriに送信)
- *  2. 各スロットの着地点を海陸判定 (BigDataCloud API)
+ *  2. 各スロットの着地点を固定版ローカルデータで決定論的に海陸判定
  *  3. スライダー変更 → その時刻でフォームの時刻を更新し、愛媛13バリアントを新規実行
  *
  * API負荷配慮: 3秒間隔 (BASE条件のみ)
@@ -77,31 +77,24 @@ function formatLaunchWindowFlightTime(seconds) {
 
 function classifyLandingForLaunchWindow(lat, lon, callback) {
     if (typeof classifyLandSeaAt === 'function') {
-        classifyLandSeaAt(lat, lon, function (isWater) {
-            callback(isWater);
+        classifyLandSeaAt(lat, lon, function (isWater, landSeaResult) {
+            callback(isWater, landSeaResult);
         });
         return;
     }
-    if (typeof LandSea !== 'undefined') {
-        var local = LandSea.isLand(lat, lon);
-        if (local === true) {
-            callback(false);
-            return;
-        }
-        if (local === false) {
-            callback(true);
-            return;
-        }
-    }
-    callback(null);
+    var landSeaResult = (typeof LandSea !== 'undefined' && typeof LandSea.classify === 'function')
+        ? LandSea.classify(lat, lon)
+        : { classification: 'unknown', confidence: 'unknown', source: 'unavailable', coastDistanceKm: null, dataVersion: '', reason: 'classifier-unavailable' };
+    var isWater = landSeaResult.classification === 'sea' ? true : (landSeaResult.classification === 'land' ? false : null);
+    callback(isWater, landSeaResult);
 }
-
 function evaluateEhimeProbabilityForSlot(slotSettings, api_url, callback) {
     var variants = buildEhimeVariants(slotSettings);
     var total = variants.length;
     var completed = 0;
     var landCount = 0;
     var seaCount = 0;
+    var inlandWaterCount = 0;
     var unknownCount = 0;
     var baseLanding = null;
     var baseWindSpeed = 0;
@@ -125,10 +118,12 @@ function evaluateEhimeProbabilityForSlot(slotSettings, api_url, callback) {
                         baseFlightTimeSec = parsed.flight_time || 0;
                     }
 
-                    classifyLandingForLaunchWindow(lat, lng, function (isWater) {
-                        if (isWater === true) seaCount++;
-                        else if (isWater === false) landCount++;
+                    classifyLandingForLaunchWindow(lat, lng, function (isWater, landSeaResult) {
+                        if (landSeaResult && landSeaResult.classification === 'sea') seaCount++;
+                        else if (landSeaResult && landSeaResult.classification === 'land') landCount++;
+                        else if (landSeaResult && landSeaResult.classification === 'inland_water') inlandWaterCount++;
                         else unknownCount++;
+                        if (v.label === 'BASE' && baseLanding) baseLanding.landSea = landSeaResult;
                         
                         slotVariants[v.index] = {
                             index: v.index,
@@ -137,17 +132,19 @@ function evaluateEhimeProbabilityForSlot(slotSettings, api_url, callback) {
                             lat: lat,
                             lng: lng,
                             isWater: isWater,
+                            landSea: landSeaResult,
                             settings: req
                         };
 
                         completed++;
                         if (completed >= total) {
-                            var known = landCount + seaCount;
+                            var known = landCount + seaCount + inlandWaterCount;
                             var landPct = known > 0 ? (landCount / known) * 100 : 100;
                             var seaPct = known > 0 ? (seaCount / known) * 100 : 0;
                             callback({
                                 landProbPct: landPct,
                                 seaProbPct: seaPct,
+                                inlandWaterCount: inlandWaterCount,
                                 unknownCount: unknownCount,
                                 baseLanding: baseLanding,
                                 baseWindSpeed: baseWindSpeed,
@@ -197,7 +194,7 @@ function updateLaunchWindowVariantSummary(result) {
     if (!result || !Array.isArray(result.variants) || result.variants.length === 0) return;
 
     var landingPoints = result.variants.filter(function (v) { return v && typeof v.lat === 'number' && typeof v.lng === 'number'; }).map(function (v) {
-        return { lat: v.lat, lng: v.lng, label: v.label, isWater: v.isWater };
+        return { lat: v.lat, lng: v.lng, label: v.label, isWater: v.isWater, landSea: v.landSea };
     });
     if (landingPoints.length === 0) return;
 
@@ -304,6 +301,28 @@ function getLaunchWindowLandPct(result) {
     return 0;
 }
 
+function launchWindowClassification(result) {
+    if (result && result.landSea && result.landSea.classification) return result.landSea.classification;
+    if (result && result.isWater === true) return 'sea';
+    if (result && result.isWater === false) return 'land';
+    return 'unknown';
+}
+
+function launchWindowLandSeaLabel(result) {
+    var classification = launchWindowClassification(result);
+    if (classification === 'sea') return '海';
+    if (classification === 'land') return '陸';
+    if (classification === 'inland_water') return '内水面';
+    return '不明';
+}
+
+function launchWindowLandSeaColor(result) {
+    var classification = launchWindowClassification(result);
+    if (classification === 'sea') return '#1565C0';
+    if (classification === 'land') return '#C62828';
+    if (classification === 'inland_water') return '#7b61a8';
+    return '#9E9E9E';
+}
 function getLaunchWindowMarkerFillColor(result) {
     return getLaunchWindowLandPct(result) >= _launchWindowNGThreshold ? '#ff3b30' : '#34c759';
 }
@@ -445,7 +464,9 @@ function runLaunchWindowAnalysis() {
                     windSpeed: ehimeProb.baseWindSpeed || 0,
                     landProbPct: ehimeProb.landProbPct,
                     seaProbPct: ehimeProb.seaProbPct,
+                    inlandWaterCount: ehimeProb.inlandWaterCount || 0,
                     unknownCount: ehimeProb.unknownCount || 0,
+                    landSea: ehimeProb.baseLanding && ehimeProb.baseLanding.landSea || null,
                     variants: ehimeProb.variants || []
                 };
                 _launchWindowResults.push(result);
@@ -464,7 +485,7 @@ function runLaunchWindowAnalysis() {
                     var landLng = res.landing.latlng.lng;
                     var windSpeed = calcSurfaceWindFromPrediction(data.prediction);
 
-                    classifyLandingForLaunchWindow(landLat, landLng, function (isWater) {
+                    classifyLandingForLaunchWindow(landLat, landLng, function (isWater, landSeaResult) {
                         var result = {
                             offsetMin: offsetMin,
                             launchTimeJST: slotTimeJST,
@@ -472,6 +493,7 @@ function runLaunchWindowAnalysis() {
                             landingLat: landLat,
                             landingLng: landLng,
                             isWater: isWater,
+                            landSea: landSeaResult,
                             windSpeed: windSpeed,
                             landProbPct: (isWater === false ? 100 : (isWater === true ? 0 : 100)),
                             seaProbPct: (isWater === true ? 100 : (isWater === false ? 0 : 0))
@@ -608,10 +630,7 @@ function runEhimeAtSlot(slotIdx) {
 // ============================================================
 
 function plotLaunchWindowMarker(result, slotIdx) {
-    var color;
-    if (result.isWater === true)       color = '#1565C0'; // 海: 青
-    else if (result.isWater === false) color = '#C62828'; // 陸: 赤
-    else                               color = '#9E9E9E'; // 不明: グレー
+    var color = launchWindowLandSeaColor(result);
 
     var marker = L.circleMarker([result.landingLat, result.landingLng], {
         radius: 5,
@@ -623,10 +642,10 @@ function plotLaunchWindowMarker(result, slotIdx) {
 
     marker.setStyle({
         fillColor: getLaunchWindowMarkerFillColor(result),
-        color: result.isWater === true ? '#1565C0' : result.isWater === false ? '#C62828' : '#9E9E9E'
+        color: launchWindowLandSeaColor(result)
     });
 
-    var landSeaText = result.isWater === true ? '海' : result.isWater === false ? '陸' : '不明';
+    var landSeaText = launchWindowLandSeaLabel(result);
     var popupContent =
         '<b>+' + result.offsetMin + '分 (' + result.launchTimeJST + ' JST)</b><br>' +
         '着地: ' + result.landingLat.toFixed(4) + ', ' + result.landingLng.toFixed(4) + '<br>' +
@@ -682,8 +701,8 @@ function updateLaunchWindowSlider(slotIdx) {
     var result = _launchWindowResults[slotIdx];
     if (!result) return;
 
-    var landSea      = result.isWater === true ? '海' : result.isWater === false ? '陸' : '不明';
-    var landSeaColor = result.isWater === true ? 'blue' : result.isWater === false ? '#C62828' : 'gray';
+    var landSea      = launchWindowLandSeaLabel(result);
+    var landSeaColor = launchWindowLandSeaColor(result);
     var probText = '';
     if (typeof result.landProbPct === 'number' && typeof result.seaProbPct === 'number') {
         probText = '<br>海落ち確率: <b style="color:blue;">' + result.seaProbPct.toFixed(0) + '%</b> / 陸落ち確率: <b style="color:#C62828;">' + result.landProbPct.toFixed(0) + '%</b>';
@@ -728,7 +747,8 @@ function updateLaunchWindowSlider(slotIdx) {
                 weight: v.label === 'BASE' ? 2 : 1,
                 fillOpacity: 0.85
             }).addTo(map);
-            var landText = v.isWater === true ? '海 (Sea)' : (v.isWater === false ? '陸 (Land)' : '不明');
+            var variantClassification = launchWindowClassification(v);
+            var landText = variantClassification === 'sea' ? '海 (Sea)' : (variantClassification === 'land' ? '陸 (Land)' : (variantClassification === 'inland_water' ? '内水面' : '不明'));
             m.bindPopup('<b>' + v.label + '</b><br>判定: ' + landText);
             _launchWindowVariantMarkers[variantIndex] = m;
 

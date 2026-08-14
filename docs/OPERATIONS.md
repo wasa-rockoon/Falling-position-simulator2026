@@ -42,6 +42,14 @@ npm test
 
 これらの生成物はアプリの一部なのでコミット対象です。`node_modules/`、自動探索/不確実性解析のCSV、解析用の一時ファイルは `.gitignore` 対象です。
 
+海陸判定の固定版データと出典・SHA-256は `data/land-sea-datasets.json` で管理します。内水面データを更新する場合だけ、国土数値情報W09-05の配布ZIPのSHA-256を照合し、展開した `W09-05-g.xml` から次を実行します。通常の `npm run build` ではネットワーク取得や再生成を行いません。
+
+```powershell
+node scripts/build-inland-water.mjs C:\path\to\W09-05-g.xml data\inland_water_japan_w09_05.geojson
+```
+
+生成後はマニフェストのファイルSHA-256、地物数、データ版を更新し、固定検証点のテストを通します。
+
 ## コミットの境界
 
 - `git status --short` と `git diff --stat` で対象を確認する。
@@ -58,7 +66,7 @@ npm test
 - API URLや秘密情報をリポジトリへ保存しない。
 - Service Worker更新トーストの「今すぐ更新」で新バージョンへ切り替わることを確認する。
 
-外部通信先はTawhiri/SondeHub、Open-Meteo、BigDataCloud、Overpass、地図タイルです。仕様変更、利用制限、障害時の挙動は機能ごとに確認し、通信失敗を海または陸へ無条件に置き換えないでください。
+外部通信先はTawhiri/SondeHub、Open-Meteo、地図タイルです。海陸判定は固定版ローカルデータだけを使用し、BigDataCloud/Overpassへ通信しません。仕様変更、利用制限、障害時の挙動は機能ごとに確認し、取得や判定の失敗はunknownとして保持してください。
 
 ## 依存関係
 

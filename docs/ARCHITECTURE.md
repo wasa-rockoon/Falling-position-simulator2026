@@ -7,7 +7,7 @@
 ## 構成
 
 - `index.html`: 入力フォーム、地図、結果パネルの静的な骨格。インラインJavaScriptは置きません。
-- `js/core/`: IndexedDB/localStorage、通知、画面全体の初期化とPWA登録。`AppShell.registerInitializer()` が読み込み済み機能を優先度順に一度だけ初期化します。
+- `js/core/` と `js/domain/`: RunRecord、実行履歴、設定、IndexedDB/localStorage、通知、画面全体の初期化とPWA登録。`AppShell.registerInitializer()` が読み込み済み機能を優先度順に一度だけ初期化します。
 - `js/pred/pred-api-client.js`: API URLの解決、キュー、間隔制御、タイムアウト、再試行、3時間キャッシュ、同一リクエスト統合。
 - `js/pred/pred-job-store.js`: 自動探索と不確実性解析の再開用スナップショット。
 - `js/pred/pred-new.js`: 既存の通常予測・愛媛13条件比較・地図描画との接続。
@@ -15,8 +15,10 @@
 - `js/pred/uncertainty-*.js`: Sobol/LHS/モンテカルロ、分布変換、逐次停止、解析UI/実行制御。
 - `js/calc/balloon-gas.js`: 2025年版計算シートに合わせた純粋計算。
 - `js/calc/gas-calculator-*.js`: ガス計算画面とシミュレータ入力への反映。
-- `js/pred/landsea.js`: 日本域GeoJSONによる同期判定、海岸線距離の概算。
-- `js/pred/pred-new.js` の海陸判定接続: 沿岸・曖昧地点でBigDataCloudとOverpassを補助利用する既存互換層。
+- `js/geo/land-sea-classifier.js`: 固定版の陸域・湖沼GeoJSONを使い、Polygonの穴、MultiPolygon、測地距離、4値のLandSeaResultを返す純粋分類器。
+- `js/pred/landsea.js`: 既存機能向けの互換ファサード。大量実行を含めBigDataCloud/Overpassへ通信しません。
+- `data/land-sea-datasets.json`: 判定データの版、SHA-256、出典、利用条件、範囲、既知制約。
+
 - `js/pred/launch-window.js`: Open-Meteoを用いた放球ウィンドウ評価。
 - `ports.json`: KMLから生成した支援地点22件と実回収地点8件。探索距離には支援地点だけを使います。
 - `sw.js`: `npm run build:sw` がHTMLとローカル資産から生成するService Worker。
@@ -28,7 +30,8 @@
 | 通常フォーム前回値・プリセット | localStorage | 次回起動時の入力復元、名前付き設定 |
 | 保存した放球地点 | Cookie（既存Jookie） | 既存機能との互換維持 |
 | UIテーマ・サイドバー・ガス設定 | localStorage | 軽量な画面設定 |
-| 愛媛モード実行履歴 | localStorage | 直近10件の再表示 |
+| 全実行種別のRunRecord・履歴 | IndexedDB | 通常、愛媛、自動探索、不確実性解析の共通保存・再開・ピン留め |
+| 愛媛モード旧履歴 | localStorage | 既存データを削除せずRunRecordへ一度だけコピー |
 | API応答 | メモリ + IndexedDB | 3時間TTL、同じ条件の再通信を防止 |
 | 自動探索ジョブ | IndexedDB | 候補完了ごとに保存、中断・再読込後に再開 |
 | 不確実性解析ジョブ | IndexedDB | サンプル完了ごとに保存、中断・再読込後に再開 |
@@ -42,10 +45,10 @@ API URLは実行ごとの設定としてクライアントへ渡し、共有グ�
 
 - Tawhiri/SondeHub: 飛行予測。
 - Open-Meteo: 自動探索の降水・地上風と放球ウィンドウ。
-- BigDataCloud: 沿岸・曖昧地点の逆ジオコーディングによる補助判定。
-- Overpass: ローカルGeoJSONで陸と判断した地点の内水面確認。
+- 海陸判定: Natural Earth陸域と国土数値情報W09-05湖沼の固定版をローカル利用。外部判定APIへの通信なし。
+
 - 地図タイル: 表示済みタイルを最大500件までオフライン用に保存。
 
 Service WorkerはAPI応答をキャッシュしません。予測APIのTTL管理は `pred-api-client.js` に一本化しています。オフラインでは画面と保存済みジョブ・表示済み地図タイルを開けますが、新しい気象・飛行予測は取得できません。
 
-海陸判定は現在、機能ごとに同期ローカル判定と非同期補助判定の使い分けが残っています。沿岸部では確定値として扱わず、Phase 0以降で判定結果・根拠・信頼度を共通データ契約へ統合します。
+海陸判定は全機能で同じ決定論的分類器を使用します。結果は `land`、`sea`、`inland_water`、`unknown`、信頼度、判定元、海岸距離、データ版を保持します。内水面は海上率へ含めず、データ境界・範囲外・読込失敗はunknownのまま扱います。

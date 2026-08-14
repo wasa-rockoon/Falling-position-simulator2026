@@ -161,7 +161,9 @@ function normalizeEnsemblePoints(points) {
             lat: lat,
             lng: lng,
             label: point.label || '',
-            isWater: point.isWater
+            isWater: point.isWater,
+            landSea: point.landSea || null,
+            landSeaClassification: point.landSeaClassification || (point.landSea && point.landSea.classification) || null
         });
     });
     return list;
@@ -276,18 +278,24 @@ function updateEnsembleWaterStats(landingPoints, total) {
 
     var waterCount = 0;
     var landCount = 0;
+    var inlandWaterCount = 0;
+    var unknownCount = 0;
     points.forEach(function (point) {
-        if (point.isWater === true) waterCount += 1;
-        else if (point.isWater === false) landCount += 1;
+        var classification = point.landSeaClassification || (point.isWater === true ? 'sea' : (point.isWater === false ? 'land' : 'unknown'));
+        if (classification === 'sea') waterCount += 1;
+        else if (classification === 'land') landCount += 1;
+        else if (classification === 'inland_water') inlandWaterCount += 1;
+        else unknownCount += 1;
     });
 
-    var determined = waterCount + landCount;
+    var determined = waterCount + landCount + inlandWaterCount;
     var allTotal = typeof total === 'number' && total > 0 ? total : points.length;
     var landPct = determined > 0 ? Math.round((landCount / determined) * 100) : 0;
     var seaPct = determined > 0 ? Math.round((waterCount / determined) * 100) : 0;
 
     $('#ensemble_land_pct').text(determined > 0 ? landPct + '%' : '-');
-    $('#ensemble_sea_pct').text(determined > 0 ? seaPct + '%' : '-');
+    $('#ensemble_sea_pct').text(determined > 0 ? seaPct + '%' : '-').attr('title', '内水面 ' + inlandWaterCount + '件 / 不明 ' + unknownCount + '件');
+    $('#ensemble_land_pct').attr('title', '内水面 ' + inlandWaterCount + '件 / 不明 ' + unknownCount + '件');
     $('#ensemble_completed').text(points.length);
     $('#ensemble_total').text(allTotal);
 
@@ -391,21 +399,19 @@ function getEnsembleExportRows() {
         var flightMinutes = flightSec > 0 ? Math.round(flightSec / 60) : 0;
         var flightStr = flightMinutes + '分';
 
-        var isWater = null;
-        if (entry.landsea === '海') {
-            isWater = true;
-        } else if (entry.landsea === '陸') {
-            isWater = false;
-        } else {
+        var landSeaResult = entry.landSeaResult;
+        if (!landSeaResult || !landSeaResult.classification) {
             try {
-                if (typeof LandSea !== 'undefined') {
-                    var isLand = LandSea.isLand(landing.lat, landing.lng);
-                    if (isLand === true) isWater = false;
-                    else if (isLand === false) isWater = true;
-                }
-            } catch (_e) { if (typeof reportNonFatalError === 'function') reportNonFatalError(_e, 'non-fatal fallback'); }
+                landSeaResult = (typeof LandSea !== 'undefined' && typeof LandSea.classify === 'function')
+                    ? LandSea.classify(landing.lat, landing.lng)
+                    : { classification: 'unknown', confidence: 'unknown', source: 'unavailable', coastDistanceKm: null, dataVersion: '', reason: 'classifier-unavailable' };
+                entry.landSeaResult = landSeaResult;
+            } catch (_e) {
+                landSeaResult = { classification: 'unknown', confidence: 'unknown', source: 'unavailable', coastDistanceKm: null, dataVersion: '', reason: 'classification-error' };
+                if (typeof reportNonFatalError === 'function') reportNonFatalError(_e, 'ehime-export.land-sea');
+            }
         }
-
+        var isWater = landSeaResult.classification === 'sea' ? true : (landSeaResult.classification === 'land' ? false : null);
         rows.push({
             index: isNaN(idx) ? rows.length : idx,
             label: entry.label || '-',
@@ -421,7 +427,9 @@ function getEnsembleExportRows() {
             burst_lat: burst ? Number(burst.lat) || 0 : 0,
             burst_lng: burst ? Number(burst.lng) || 0 : 0,
             burst_alt: burst && burst.alt != null ? Number(burst.alt) || 0 : 0,
-            isWater: isWater
+            isWater: isWater,
+            landSea: landSeaResult,
+            landSeaClassification: landSeaResult.classification
         });
     });
 
@@ -443,7 +451,7 @@ function exportEnsembleCSV() {
         'ラベル', '変更内容', '着地緯度', '着地経度',
         '上昇速度(m/s)', '下降速度(m/s)', '破裂高度(m)',
         '飛行時間', '打上緯度', '打上経度',
-        '破裂緯度', '破裂経度', '破裂高度(実)', '海陸判定'
+        '破裂緯度', '破裂経度', '破裂高度(実)', '海陸判定', '判定信頼度', '判定元', '海岸距離(km)', '判定データ版'
     ];
 
     var rows = [header.join(',')];
@@ -452,7 +460,8 @@ function exportEnsembleCSV() {
 
     for (var i = 0; i < sorted.length; i++) {
         var r = sorted[i];
-        var landSea = r.isWater === true ? '海' : r.isWater === false ? '陸' : '不明';
+        var classification = r.landSeaClassification || (r.isWater === true ? 'sea' : (r.isWater === false ? 'land' : 'unknown'));
+        var landSea = classification === 'sea' ? '海' : (classification === 'land' ? '陸' : (classification === 'inland_water' ? '内水面' : '不明'));
         var row = [
             '"' + r.label + '"',
             '"' + r.description + '"',
@@ -467,7 +476,11 @@ function exportEnsembleCSV() {
             r.burst_lat.toFixed(6),
             r.burst_lng.toFixed(6),
             (r.burst_alt || 0).toFixed(0),
-            '"' + landSea + '"'
+            '"' + landSea + '"',
+            '"' + (r.landSea && r.landSea.confidence || 'unknown') + '"',
+            '"' + (r.landSea && r.landSea.source || 'unavailable') + '"',
+            r.landSea && r.landSea.coastDistanceKm != null ? Number(r.landSea.coastDistanceKm).toFixed(3) : '',
+            '"' + (r.landSea && r.landSea.dataVersion || '') + '"'
         ];
         rows.push(row.join(','));
     }

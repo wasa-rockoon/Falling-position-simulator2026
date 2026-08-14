@@ -269,13 +269,9 @@
                     longitude: observation.lng,
                     timeUtc: state.baseSettings && state.baseSettings.launch_datetime,
                     nearestSupportPoint: null,
-                    landSea: {
+                    landSea: observation.landSea || {
                         classification: observation.isWater === true ? 'sea' : (observation.isWater === false ? 'land' : 'unknown'),
-                        confidence: 'unknown',
-                        source: 'legacy-local',
-                        coastDistanceKm: null,
-                        dataVersion: '',
-                        reason: ''
+                        confidence: 'unknown', source: 'legacy-local', coastDistanceKm: null, dataVersion: '', reason: 'legacy-observation'
                     }
                 });
             });
@@ -287,8 +283,10 @@
         var landings = uncertaintyLandings();
         var seaCount = landings.filter(function (landing) { return landing.landSea.classification === 'sea'; }).length;
         var landCount = landings.filter(function (landing) { return landing.landSea.classification === 'land'; }).length;
-        var known = seaCount + landCount;
+        var inlandWaterCount = landings.filter(function (landing) { return landing.landSea.classification === 'inland_water'; }).length;
+        var known = seaCount + landCount + inlandWaterCount;
         var unknown = landings.length - known;
+        var landSeaStatus = root.LandSea && typeof root.LandSea.getStatus === 'function' ? root.LandSea.getStatus() : {};
         var firstSite = state.siteRuns[0] && state.siteRuns[0].site || {};
         return {
             id: state.runId,
@@ -335,6 +333,10 @@
                 metrics: {
                     seaRate: known ? seaCount / known * 100 : null,
                     unknownRate: landings.length ? unknown / landings.length * 100 : null,
+                    seaCount: seaCount,
+                    landCount: landCount,
+                    inlandWaterCount: inlandWaterCount,
+                    unknownCount: unknown,
                     attemptedCalls: state.attemptedCalls,
                     networkCalls: state.networkCalls
                 },
@@ -348,11 +350,12 @@
                         sequential: run.sequential
                     };
                 }),
-                warnings: state.status === 'error' ? ['consecutive-api-errors'] : [],
+                warnings: (state.status === 'error' ? ['consecutive-api-errors'] : []).concat(unknown > 0 ? [unknown + ' sample(s) have unknown land/sea results.'] : []),
                 resumeSnapshot: JSON.parse(JSON.stringify(state))
             },
             provenance: {
                 predictorSource: state.requestConfig && state.requestConfig.source,
+                landSeaClassifierVersion: landSeaStatus.dataVersion || '',
                 randomSeed: state.configuration && state.configuration.seed
             }
         };
@@ -447,14 +450,19 @@
         throw new Error('予測API応答に着地点がありません');
     }
 
-    function classifyWater(landing) {
-        if (!root.LandSea || typeof root.LandSea.isLand !== 'function') return null;
-        var land = root.LandSea.isLand(landing.lat, landing.lng);
-        if (land === true) return false;
-        if (land === false) return true;
-        return null;
+    function classifyLanding(landing) {
+        if (root.LandSea && typeof root.LandSea.classify === 'function') return root.LandSea.classify(landing.lat, landing.lng);
+        return {
+            classification: 'unknown', confidence: 'unknown', source: 'unavailable',
+            coastDistanceKm: null, dataVersion: '', reason: 'classifier-unavailable'
+        };
     }
 
+    function legacyIsWater(landSea) {
+        if (landSea.classification === 'sea') return true;
+        if (landSea.classification === 'land') return false;
+        return null;
+    }
     function evaluateRun(run) {
         run.sequential = core.evaluateSequentialStop(run.observations, {
             minSamples: state.configuration.minSamples,
@@ -502,7 +510,9 @@
         var heading = document.createElement('strong');
         heading.textContent = run.site.name + ' / サンプル ' + (observation.index + 1);
         content.appendChild(heading);
-        appendPopupLine(content, '判定', observation.isWater === true ? '海上' : (observation.isWater === false ? '陸上' : '未判定'));
+        var classification = observation.landSea && observation.landSea.classification;
+        var classificationLabel = classification === 'sea' ? '海上' : (classification === 'land' ? '陸上' : (classification === 'inland_water' ? '内水面' : '未判定'));
+        appendPopupLine(content, '判定', classificationLabel);
         appendPopupLine(content, '上昇', formatNumber(observation.ascentRate, 2) + ' m/s');
         appendPopupLine(content, '下降', formatNumber(observation.descentRate, 2) + ' m/s');
         appendPopupLine(content, '破裂高度', formatNumber(observation.burstAltitude, 0) + ' m');
@@ -521,6 +531,7 @@
             appendPopupLine(content, '海上率', formatNumber(summary.seaProbability * 100, 1) + '%（95% CI ' +
                 formatNumber(summary.seaInterval.low * 100, 1) + '–' + formatNumber(summary.seaInterval.high * 100, 1) + '%）');
         }
+        appendPopupLine(content, '分類内訳', '海 ' + summary.sea + ' / 陸 ' + summary.land + ' / 内水面 ' + summary.inlandWater + ' / 不明 ' + summary.unknown);
         appendPopupLine(content, '平均着地点', formatNumber(summary.mean.lat, 4) + ', ' + formatNumber(summary.mean.lng, 4));
         if (summary.ellipse95) {
             appendPopupLine(content, '95%確率楕円', formatNumber(summary.ellipse95.majorKm, 2) + ' × ' +
@@ -619,7 +630,8 @@
                 if (!validMapObservation(observation)) return;
                 var key = (state.id || 'restored') + '|' + run.site.id + '|' + observation.index;
                 if (renderedMapSamples.has(key)) return;
-                var outcomeColor = observation.isWater === true ? '#1687d9' : (observation.isWater === false ? '#f28c28' : '#7d8796');
+                var classification = observation.landSea && observation.landSea.classification;
+                var outcomeColor = classification === 'sea' ? '#1687d9' : (classification === 'land' ? '#f28c28' : (classification === 'inland_water' ? '#7b61a8' : '#7d8796'));
                 var markerOptions = {
                     radius: 3.5,
                     color: '#ffffff',
@@ -760,7 +772,8 @@
             row.dataset.status = run.status;
             row.dataset.hasMap = String(hasMapPoints);
             var probability = summary.seaProbability == null ? '-' :
-                formatNumber(summary.seaProbability * 100, 1) + '% (' + formatNumber(summary.seaInterval.low * 100, 1) + '–' + formatNumber(summary.seaInterval.high * 100, 1) + '%)';
+                formatNumber(summary.seaProbability * 100, 1) + '% (' + formatNumber(summary.seaInterval.low * 100, 1) + '–' + formatNumber(summary.seaInterval.high * 100, 1) + '%)' +
+                (summary.unknown > 0 ? ' / 不明 ' + summary.unknown : '') + (summary.inlandWater > 0 ? ' / 内水面 ' + summary.inlandWater : '');
             var mean = summary.mean ? formatNumber(summary.mean.lat, 4) + ', ' + formatNumber(summary.mean.lng, 4) : '-';
             var ellipseSize = summary.ellipse95 ? formatNumber(summary.ellipse95.majorKm, 2) + ' × ' + formatNumber(summary.ellipse95.minorKm, 2) + ' km' : '-';
             [run.site.name, run.cursor + ' / ' + run.cap, probability, mean, ellipseSize, statusLabel(run)].forEach(function (value) {
@@ -847,6 +860,7 @@
                         onAttempt: function () { state.networkCalls += 1; }
                     });
                     var landing = extractLanding(response.data);
+                    var landSea = classifyLanding(landing);
                     run.observations.push({
                         index: run.cursor,
                         ascentRate: sample.ascent_rate,
@@ -854,7 +868,8 @@
                         burstAltitude: sample.burst_altitude,
                         lat: landing.lat,
                         lng: landing.lng,
-                        isWater: classifyWater(landing),
+                        isWater: legacyIsWater(landSea),
+                        landSea: landSea,
                         cacheHit: response.cacheHit
                     });
                     if (response.cacheHit) state.cacheHits += 1;
@@ -993,12 +1008,18 @@
     }
 
     function downloadCsv() {
-        var rows = [['site', 'launch_datetime_utc', 'sample', 'ascent_rate_m_s', 'descent_rate_m_s', 'burst_altitude_m', 'landing_lat', 'landing_lon', 'is_water', 'cache_hit', 'error']];
+        var rows = [['site', 'launch_datetime_utc', 'sample', 'ascent_rate_m_s', 'descent_rate_m_s', 'burst_altitude_m', 'landing_lat', 'landing_lon', 'classification', 'confidence', 'source', 'coast_distance_km', 'data_version', 'is_water_legacy', 'cache_hit', 'error']];
         state.siteRuns.forEach(function (run) {
             run.observations.forEach(function (observation) {
                 rows.push([
                     run.site.name, state.baseSettings ? state.baseSettings.launch_datetime : '', observation.index + 1, observation.ascentRate, observation.descentRate, observation.burstAltitude,
-                    observation.lat, observation.lng, observation.isWater == null ? '' : observation.isWater, observation.cacheHit == null ? '' : observation.cacheHit,
+                    observation.lat, observation.lng,
+                    observation.landSea && observation.landSea.classification || 'unknown',
+                    observation.landSea && observation.landSea.confidence || 'unknown',
+                    observation.landSea && observation.landSea.source || 'unavailable',
+                    observation.landSea && observation.landSea.coastDistanceKm != null ? observation.landSea.coastDistanceKm : '',
+                    observation.landSea && observation.landSea.dataVersion || '',
+                    observation.isWater == null ? '' : observation.isWater, observation.cacheHit == null ? '' : observation.cacheHit,
                     observation.error || ''
                 ]);
             });

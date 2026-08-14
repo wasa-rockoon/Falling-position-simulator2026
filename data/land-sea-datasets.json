@@ -1,0 +1,42 @@
+{
+  "schemaVersion": 1,
+  "version": "jp-ne10m-d606b972-w09-05-07cdd494-v1",
+  "coverage": [122, 20.009711005000042, 153.98560631600003, 46],
+  "land": {
+    "file": "data/land_japan_raw.geojson",
+    "sha256": "d606b97268e312aeaa254169fb7aeb8898c772877957f6b5ac994d74b7a03b62",
+    "dataset": "Natural Earth ne_10m_land, Japan-region clip",
+    "sourceUrl": "https://www.naturalearthdata.com/downloads/10m-physical-vectors/10m-land/",
+    "license": "Public domain",
+    "licenseUrl": "https://www.naturalearthdata.com/about/terms-of-use/",
+    "coordinateReferenceSystem": "OGC CRS84"
+  },
+  "inlandWater": {
+    "file": "data/inland_water_japan_w09_05.geojson",
+    "sha256": "07cdd4943cf6be480248ffdd57cc387ff736d39aa204a136a00a27f98170983d",
+    "dataset": "国土数値情報 湖沼データ W09-05",
+    "sourceUrl": "https://nlftp.mlit.go.jp/ksj/gml/data/W09/W09-05/W09-05_GML.zip",
+    "sourceZipSha256": "e5d0f1bc77427c8c44a855ff361d3b9d94b76fe3c5e31a423ab9abc570950787",
+    "datasetPage": "https://nlftp.mlit.go.jp/ksj/gml/datalist/KsjTmplt-W09-2005.html",
+    "license": "国土数値情報利用約款（商用可）",
+    "licenseUrl": "https://nlftp.mlit.go.jp/ksj/other/agreement.html",
+    "attribution": "国土数値情報（湖沼データ、2005年）国土交通省を加工して作成",
+    "sourceDate": "2005-09-01",
+    "coordinateReferenceSystem": "JGD2000 / (B, L)",
+    "featureCount": 556,
+    "holeCount": 667,
+    "simplifyToleranceDegrees": 0.0001
+  },
+  "classifier": {
+    "boundaryPolicy": "unknown",
+    "confidenceDistanceKm": {
+      "high": 2,
+      "medium": 0.25
+    },
+    "knownLimitations": [
+      "Natural Earth 1:10m coastline may omit very small islands and fine harbour structures.",
+      "W09-05 represents named lakes and reservoirs as of 2005 and does not provide river surface polygons.",
+      "Coordinates outside the declared coverage are classified as unknown."
+    ]
+  }
+}

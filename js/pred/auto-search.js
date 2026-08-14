@@ -100,6 +100,8 @@
 
     function autoRunOptions(status) {
         var first = state.queue && state.queue[0] || {};
+        var landSeaStatus = root.LandSea && typeof root.LandSea.getStatus === 'function' ? root.LandSea.getStatus() : {};
+        var reviewCandidates = (state.fineCandidates || []).filter(function (candidate) { return candidate.fine && candidate.fine.requiresReview; }).length;
         return {
             id: state.runId,
             type: 'auto_search',
@@ -148,14 +150,16 @@
                     matchedCandidates: state.results.length,
                     coarseCandidates: state.coarseCandidates.length,
                     fineCandidates: state.fineCandidates.length,
-                    seaThreshold: state.configuration && state.configuration.seaThreshold
+                    seaThreshold: state.configuration && state.configuration.seaThreshold,
+                    reviewCandidates: reviewCandidates
                 },
                 candidates: state.results,
-                warnings: [],
+                warnings: reviewCandidates > 0 ? [reviewCandidates + ' candidate(s) contain unknown land/sea results.'] : [],
                 resumeSnapshot: serializeState()
             },
             provenance: {
-                predictorSource: state.requestConfig && state.requestConfig.source
+                predictorSource: state.requestConfig && state.requestConfig.source,
+                landSeaClassifierVersion: landSeaStatus.dataVersion || ''
             }
         };
     }
@@ -526,21 +530,29 @@
             if (!data || !data.prediction) return { ok: false, reason: 'empty_prediction' };
             var parsed = root.parsePrediction(data.prediction);
             var landing = parsed.landing.latlng;
-            var isLand = root.LandSea ? root.LandSea.isLand(landing.lat, landing.lng) : null;
-            var distanceKm = root.LandSea && typeof root.LandSea.distanceToCoastKm === 'function'
-                ? root.LandSea.distanceToCoastKm(landing.lat, landing.lng) : 0;
+            var landSea = root.LandSea && typeof root.LandSea.classify === 'function'
+                ? root.LandSea.classify(landing.lat, landing.lng)
+                : { classification: 'unknown', coastDistanceKm: null, reason: 'classifier-unavailable' };
+            var distanceKm = Number(landSea.coastDistanceKm);
+            var hasDistance = Number.isFinite(distanceKm);
+            var isSea = landSea.classification === 'sea';
+            var reason = 'pass';
+            if (landSea.classification === 'land') reason = 'land';
+            else if (landSea.classification === 'inland_water') reason = 'inland_water';
+            else if (landSea.classification === 'unknown' || !hasDistance) reason = 'unknown';
+            else if (distanceKm > MAX_OFFSHORE_KM) reason = 'too_far_offshore';
             return {
-                ok: isLand === false && distanceKm <= MAX_OFFSHORE_KM,
-                reason: isLand === true ? 'land' : (distanceKm > MAX_OFFSHORE_KM ? 'too_far_offshore' : 'pass'),
+                ok: isSea && hasDistance && distanceKm <= MAX_OFFSHORE_KM,
+                reason: reason,
                 landingLat: landing.lat,
                 landingLon: landing.lng,
-                distanceKm: distanceKm
+                distanceKm: hasDistance ? distanceKm : null,
+                landSea: landSea
             };
         } catch (error) {
             return { ok: false, reason: 'request_error', error: error && error.message ? error.message : String(error) };
         }
     }
-
     function rankedCandidates(candidates) {
         return root.AutoSearchCore.selectFineCandidates(candidates, 'ranked');
     }
@@ -579,13 +591,12 @@
 
     function summarizeFineResult(threshold) {
         var snapshot = root.buildEhimeHistorySnapshot();
-        var result = { ok: false, seaPct: 0, maxOffshore: 0, centroidLat: null, centroidLon: null, detected: 0 };
+        var result = {
+            ok: false, thresholdPassed: false, requiresReview: false, reason: 'no-results',
+            seaPct: 0, maxOffshore: 0, centroidLat: null, centroidLon: null,
+            detected: 0, seaCount: 0, landCount: 0, inlandWaterCount: 0, unknownCount: 0
+        };
         if (!snapshot) return result;
-        var landCount = snapshot.landCount || 0;
-        var waterCount = snapshot.waterCount || 0;
-        var detected = landCount + waterCount;
-        result.detected = detected;
-        result.seaPct = detected > 0 ? Math.round((waterCount / detected) * 100) : 0;
         var latSum = 0;
         var lonSum = 0;
         var pointCount = 0;
@@ -596,19 +607,36 @@
             latSum += lat;
             lonSum += lon;
             pointCount += 1;
-            if (root.LandSea && root.LandSea.isLand(lat, lon) === false && typeof root.LandSea.distanceToCoastKm === 'function') {
-                var distance = root.LandSea.distanceToCoastKm(lat, lon);
-                if (Number.isFinite(distance) && distance !== 999) result.maxOffshore = Math.max(result.maxOffshore, distance);
+            var landSea = point.landSea;
+            if (!landSea || !landSea.classification) {
+                landSea = root.LandSea && typeof root.LandSea.classify === 'function'
+                    ? root.LandSea.classify(lat, lon)
+                    : { classification: point.isWater === true ? 'sea' : (point.isWater === false ? 'land' : 'unknown') };
             }
+            if (landSea.classification === 'sea') {
+                result.seaCount += 1;
+                var distance = Number(landSea.coastDistanceKm);
+                if (Number.isFinite(distance)) result.maxOffshore = Math.max(result.maxOffshore, distance);
+            } else if (landSea.classification === 'land') result.landCount += 1;
+            else if (landSea.classification === 'inland_water') result.inlandWaterCount += 1;
+            else result.unknownCount += 1;
         });
+        var seaCondition = root.AutoSearchCore.evaluateSeaCondition({
+            sea: result.seaCount, land: result.landCount,
+            inlandWater: result.inlandWaterCount, unknown: result.unknownCount
+        }, threshold);
+        result.detected = seaCondition.classified;
+        result.seaPct = Math.round(seaCondition.seaPercent);
+        result.requiresReview = seaCondition.requiresReview;
         if (pointCount > 0) {
             result.centroidLat = latSum / pointCount;
             result.centroidLon = lonSum / pointCount;
         }
-        result.ok = root.AutoSearchCore.passesSeaThreshold(result.seaPct, threshold);
+        result.thresholdPassed = seaCondition.thresholdPassed;
+        result.ok = seaCondition.pass;
+        result.reason = result.requiresReview ? 'unknown_land_sea' : (result.thresholdPassed ? 'pass' : 'below_threshold');
         return result;
     }
-
     function runFine(candidate, threshold) {
         return new Promise(function (resolve) {
             var expectedRunId = null;
@@ -671,6 +699,11 @@
                     descentRate: state.runSettings.descent_rate,
                     burstAltitude: state.runSettings.burst_altitude || state.runSettings.float_altitude,
                     seaPct: fine.seaPct,
+                    seaCount: fine.seaCount,
+                    landCount: fine.landCount,
+                    inlandWaterCount: fine.inlandWaterCount,
+                    unknownCount: fine.unknownCount,
+                    requiresReview: fine.requiresReview,
                     maxOffshoreKm: fine.maxOffshore,
                     supportName: support.name,
                     supportDistanceKm: support.distanceKm,
@@ -686,7 +719,8 @@
             }
             state.done = state.phaseIndex + 1;
             await persistState();
-            updateProgress('Phase 3: ' + candidate.name + '<br>海落ち率 ' + fine.seaPct + '% ' + (fine.ok ? '— 条件クリア' : '— 下限未満'), state.done, state.total, 3);
+            var fineStatusText = fine.requiresReview ? '— 海陸不明を含むため要確認' : (fine.ok ? '— 条件クリア' : '— 下限未満');
+            updateProgress('Phase 3: ' + candidate.name + '<br>海落ち率 ' + fine.seaPct + '% ' + fineStatusText, state.done, state.total, 3);
             if (state.pauseRequested) {
                 state.phaseIndex += 1;
                 await pauseAtBoundary();

@@ -38,7 +38,7 @@ test('HTML executable and stylesheet dependencies are all same-origin local file
 test('generated service worker includes every page asset and required local data', () => {
     const cached = new Set(appShellAssets());
     for (const asset of htmlAssets()) assert.ok(cached.has(`./${asset}`), asset);
-    for (const asset of ['./sites.json', './ports.json', './data/land_japan_raw.geojson']) {
+    for (const asset of ['./sites.json', './ports.json', './data/land_japan_raw.geojson', './data/inland_water_japan_w09_05.geojson', './data/land-sea-datasets.json']) {
         assert.ok(cached.has(asset), asset);
     }
     assert.match(serviceWorker, /if \(isApiRequest\(requestUrl\)\) return;/);
