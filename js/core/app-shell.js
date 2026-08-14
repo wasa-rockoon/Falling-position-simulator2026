@@ -293,39 +293,7 @@
         }
         enablePanelDrag(ensemblePanel, ensemblePanel && ensemblePanel.querySelector('.ensemble-stats-header'), function () { return root.innerWidth > 768; });
 
-        var metrics = document.getElementById('scenario_info_floating_container');
-        var originalParent = document.getElementById('scenario_info');
-        var anchor = document.getElementById('metrics_restore_anchor');
-        var popout = document.getElementById('popout_metrics_btn');
-        var restore = document.getElementById('toggle_metrics_pos');
-        function floatMetrics() {
-            if (!metrics || root.innerWidth <= 768) return;
-            if (metrics.parentNode !== document.body) document.body.appendChild(metrics);
-            metrics.classList.add('floating-metrics-mode');
-            if (popout) popout.hidden = true;
-        }
-        function restoreMetrics() {
-            if (!metrics || !originalParent) return;
-            if (metrics.parentNode !== originalParent) {
-                if (anchor) originalParent.insertBefore(metrics, anchor);
-                else originalParent.appendChild(metrics);
-            }
-            metrics.classList.remove('floating-metrics-mode');
-            metrics.style.left = '';
-            metrics.style.top = '';
-            if (popout) popout.hidden = root.innerWidth <= 768;
-        }
-        if (restore) restore.addEventListener('click', function (event) { event.preventDefault(); restoreMetrics(); });
-        if (popout) popout.addEventListener('click', floatMetrics);
-        enablePanelDrag(metrics, metrics && metrics.querySelector('.always-on-header'), function () {
-            return root.innerWidth > 768 && metrics.classList.contains('floating-metrics-mode');
-        });
-        if (root.innerWidth > 768) floatMetrics();
-        root.addEventListener('resize', function () {
-            if (!metrics) return;
-            if (root.innerWidth <= 768 && metrics.classList.contains('floating-metrics-mode')) restoreMetrics();
-            else if (popout) popout.hidden = root.innerWidth <= 768 || metrics.classList.contains('floating-metrics-mode');
-        });
+
     }
 
     function registerServiceWorker() {

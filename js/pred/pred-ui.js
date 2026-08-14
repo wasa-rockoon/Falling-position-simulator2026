@@ -126,7 +126,7 @@ function cursorPredShow() {
     }
     $("#cursor_pred").show();
     $("#cursor_pred_lastrun").show();
-    $("#cursor_pred_links").show();
+    $("#cursor_pred_links").css("display", "grid");
 }
 
 // Append a line to the debug window and scroll the window to the bottom

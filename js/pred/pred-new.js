@@ -2050,20 +2050,25 @@ function processEhimeResult(data, settings, variant_id, variant_index, requestCo
     var prediction_results = parsePrediction(data.prediction);
     ehime_predictions[variant_id].status = 'ok';
     ehime_predictions[variant_id].results = prediction_results;
-
+    try {
+        if (typeof updatePredictionCharts === 'function') {
+            updatePredictionCharts(data.prediction, {
+                id: variant_id,
+                label: ehime_predictions[variant_id].label || variant_id,
+                color: ConvertRGBtoHex(evaluate_cmap((variant_index + 1) / (ehime_variant_total + 1), 'turbo')),
+                groupId: runId
+            });
+        }
+    } catch (_chartError) {
+        if (typeof reportNonFatalError === 'function') reportNonFatalError(_chartError, 'ehime.charts');
+    }
     // Plot base path for BASE only once
     if (ehime_predictions[variant_id].label === 'BASE') {
         // Pass settings so popups can show conditions
         plotStandardPrediction(prediction_results, settings);
         try {
-            if (typeof updateAltitudeChart === 'function') {
-                updateAltitudeChart(data.prediction);
-            }
-            if (typeof updateWindChart === 'function') {
-                updateWindChart(data.prediction);
-            }
             updatePredictionDerivedMetrics(data.prediction);
-        } catch (_e0) { if (typeof reportNonFatalError === 'function') reportNonFatalError(_e0, 'non-fatal fallback'); }
+        } catch (_e0) { if (typeof reportNonFatalError === 'function') reportNonFatalError(_e0, 'prediction.metrics'); }
         // Set standard CSV/KML links to BASE flight path (same as single mode)
         try {
             var _base_url = getPredictionRequestBaseUrl(requestContext) + "?" + $.param(settings);
@@ -2385,14 +2390,15 @@ function processTawhiriResults(data, settings, fall_only, requestContext) {
         }
 
         try {
-            if (typeof updateAltitudeChart === 'function') {
-                updateAltitudeChart(data.prediction);
-            }
-            if (typeof updateWindChart === 'function') {
-                updateWindChart(data.prediction);
+            if (typeof updatePredictionCharts === 'function') {
+                updatePredictionCharts(data.prediction, {
+                    id: 'single',
+                    label: settings.launch_site_name || settings.launchsite || '単発予測',
+                    groupId: requestContext && requestContext.runId ? requestContext.runId : 'single'
+                });
             }
             updatePredictionDerivedMetrics(data.prediction);
-        } catch (_e) { if (typeof reportNonFatalError === 'function') reportNonFatalError(_e, 'non-fatal fallback'); }
+        } catch (_e) { if (typeof reportNonFatalError === 'function') reportNonFatalError(_e, 'prediction.charts'); }
 
         writePredictionInfo(settings, data.metadata, data.request, fall_only ? extended_results : null, requestContext);
         saveSinglePredictionResult(requestContext, extended_results);

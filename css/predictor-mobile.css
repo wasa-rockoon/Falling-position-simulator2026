@@ -324,17 +324,6 @@ img.handle {
   }
 }
 
-/* Chart containers for mobile */
-#chart_container,
-#wind_chart_container {
-  width: 95% !important;
-  left: 2.5% !important;
-  bottom: 55px !important;
-  top: auto !important;
-  height: 200px;
-  background: var(--bg-panel);
-  z-index: 999;
-}
 
 #mobile_dark_mode_toggle {
   min-width: 64px;

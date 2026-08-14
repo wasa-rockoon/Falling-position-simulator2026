@@ -35,6 +35,7 @@
     <script src="js/core/run-repository.js"></script>
     <script src="js/core/settings-repository.js"></script>
     <script src="js/core/app-shell.js"></script>
+    <script src="js/core/results-workspace.js"></script>
     <script src="js/pred/pred-api-client.js"></script>
     <script src="js/pred/request-context.js"></script>
     <script src="js/pred/pred-job-store.js"></script>
@@ -56,6 +57,7 @@
     <script src="js/pred/pred.js" type="text/javascript"></script>
     <script src="js/pred/log-overlay.js" type="text/javascript"></script>
     <script src="js/pred/pred-collaborate.js" type="text/javascript"></script>
+    <script src="js/pred/pred-chart-core.js" type="text/javascript"></script>
     <script src="js/pred/pred-chart.js" type="text/javascript"></script>
     <script src="js/pred/ehime-enhancements.js" type="text/javascript"></script>
     <script src="js/pred/launch-window.js" type="text/javascript"></script>
@@ -83,6 +85,7 @@
         <div class="sidebar-tabs">
             <button class="sidebar-tab active" data-panel="panel-settings">SETTINGS</button>
             <button class="sidebar-tab" data-panel="panel-results">RESULTS</button>
+            <button type="button" id="diagnostics_toggle" class="sidebar-utility-button" aria-controls="scenario_template" aria-expanded="false">診断</button>
             <button id="dark-mode-toggle" data-theme-toggle="true" title="ダークモード切替">
                 <svg class="theme-icon-sun" viewBox="0 0 24 24">
                     <path d="M12 7a5 5 0 100 10 5 5 0 000-10zM2 13h2a1 1 0 100-2H2a1 1 0 100 2zm18 0h2a1 1 0 100-2h-2a1 1 0 100 2zM11 2v2a1 1 0 102 0V2a1 1 0 10-2 0zm0 18v2a1 1 0 102 0v-2a1 1 0 10-2 0zM5.99 4.58a1 1 0 111.41 1.41L6.05 7.34a1 1 0 11-1.41-1.41l1.35-1.35zm11.41 11.41a1 1 0 111.41 1.41l-1.35 1.35a1 1 0 11-1.41-1.41l1.35-1.35zM5.99 19.41a1 1 0 11-1.41-1.41l1.35-1.35a1 1 0 111.41 1.41l-1.35 1.35zm11.41-13.42a1 1 0 111.41-1.41l1.35 1.35a1 1 0 11-1.41 1.41l-1.35-1.35z"></path>
@@ -95,27 +98,6 @@
         <div class="sidebar-content">
             <!-- ========== SETTINGS タブ ========== -->
             <div id="panel-settings" class="sidebar-panel active">
-
-                <!-- Debug window -->
-                <div id="scenario_template" class="box ui-corner-all">
-                    <div id="scenario_template_scroller">
-                        <h1>デバッグウィンドウ</h1>
-                        <span id="debuginfo">メッセージはありません</span>
-                    </div>
-                </div>
-
-                <!-- Prediction progress window -->
-                <div id="status_message" class="box ui-corner-all">
-                    <span id="prediction_status"></span><br>
-                    <a><span id="showHideDebug_status">デバッグ切替</span></a>
-                </div>
-
-                <!-- Error window -->
-                <div id="error_window" class="box ui-corner-all">
-                    <span id="error_message">ここには何もありません！</span>
-                    <br /><br />
-                    <a id="closeErrorWindow">閉じる</a>
-                </div>
 
                 <!-- 打ち上げ設定カード -->
                 <div id="input_form" class="box ui-corner-all">
@@ -276,11 +258,13 @@
                                 最大偏差距離: <span id="ehime_max_dev">-</span> km
                             </div>
 
-                            <!-- 実行ボタン -->
-                                <div class="form-actions">
-                                <input type="button" name="submit" id="run_pred_btn" onclick="runPrediction();" value="予測を実行">
-                                <input type="button" id="run_batch_btn" value="全地点一括計算" onclick="runBatchSimulation();">
-                                <input type="button" id="run_auto_search_btn" class="feature-action-btn" value="放球自動探索" onclick="showAutoSearchModal();">
+                            <!-- 実行・計画機能 -->
+                            <div class="form-actions" aria-label="予測・計画機能">
+                                <button type="button" name="submit" id="run_pred_btn" class="app-action-btn app-action-primary" onclick="runPrediction();">予測を実行</button>
+                                <button type="button" id="run_batch_btn" class="app-action-btn" onclick="runBatchSimulation();">全地点一括計算</button>
+                                <button type="button" id="run_auto_search_btn" class="app-action-btn" onclick="showAutoSearchModal();">放球自動探索</button>
+                                <button type="button" id="open_gas_calculator_btn" class="app-action-btn">ガス・破裂高度計算</button>
+                                <button type="button" id="open_uncertainty_btn" class="app-action-btn">不確実性解析</button>
                             </div>
                         </div>
                     </form>
@@ -291,128 +275,161 @@
 
             <!-- ========== RESULTS タブ ========== -->
             <div id="panel-results" class="sidebar-panel">
-                <div id="scenario_info" class="box ui-corner-all">
-                    <img src="images/drag_handle.png" class="handle" />
-                    <h1 class="panel-title-row">
-                        <span>シナリオ情報</span>
-                        <button type="button" id="popout_metrics_btn" class="panel-icon-button" title="シナリオ情報を地図上に表示" aria-label="シナリオ情報を地図上に表示">
-                            <svg viewBox="0 0 24 24" aria-hidden="true">
-                                <path d="M19 19H5V5h7V3H5a2 2 0 00-2 2v14a2 2 0 002 2h14c1.1 0 2-.9 2-2v-7h-2v7zM14 3v2h3.59l-9.83 9.83 1.41 1.41L19 6.41V10h2V3h-7z" />
-                            </svg>
-                        </button>
-                    </h1>
+                <div id="scenario_info" class="box ui-corner-all results-workspace">
+                    <header class="results-workspace-header">
+                        <div>
+                            <span class="results-eyebrow">RESULTS</span>
+                            <h1>予測結果</h1>
+                        </div>
+                        <span id="results_status_badge" class="run-status-badge status-draft">未実行</span>
+                    </header>
+                    <nav class="results-view-tabs" role="tablist" aria-label="結果表示">
+                        <button type="button" class="results-view-tab active" data-results-view="overview" role="tab" aria-selected="true" aria-controls="results_view_overview">概要</button>
+                        <button type="button" class="results-view-tab" data-results-view="charts" role="tab" aria-selected="false" aria-controls="results_view_charts">グラフ</button>
+                        <button type="button" class="results-view-tab" data-results-view="history" role="tab" aria-selected="false" aria-controls="results_view_history">履歴・出力</button>
+                    </nav>
 
-                    <!-- INFO Box Toggle Wrapper -->
-                    <div id="scenario_info_floating_container">
-                        <div class="always-on-header" style="display:none; align-items:center; justify-content:space-between; font-weight:bold; color:var(--color-primary); margin-bottom:6px; border-bottom: 1px solid var(--border-color); padding-bottom: 4px;">
-                            <span>INFO</span>
-                            <button type="button" id="toggle_metrics_pos" style="background:transparent; border:1px solid var(--border-color); color:var(--text-primary); padding:3px 8px; font-size:11px; border-radius:4px; cursor:pointer;" title="元の位置にドッキングする">戻す</button>
-                        </div>
-                        <span id="cursor_info">現在のマウス位置:
-                            緯度: <span id="cursor_lat">?</span>
-                            経度: <span id="cursor_lon">?</span>
-                        </span><br />
-                        <span id="cursor_pred" class="initially-hidden">
-                            到達距離: <span id="cursor_pred_range"></span> km,
-                            飛行時間: <span id="cursor_pred_time"></span><br />
-                            発射点からカーソル距離: <span id="cursor_pred_launchrange">?</span> km,
-                            <br />
-                        </span>
-                        <hr style="border:0.5px solid var(--border-color); margin:8px 0;">
-                        <div id="launch_site_info">
-                            <b style="color:var(--color-primary);">放球場所の状態 (予報)</b><br>
-                            地表風速 (0-500m): <b id="launch_surface_wind">-</b> m/s<br>
-                            最大風速 (全高度): <b id="launch_max_wind">-</b> m/s
-                        </div>
-                        <hr style="border:0.5px solid var(--border-color); margin:8px 0;">
-                        <div id="cursor_pred_metrics">
-                            着地点: <span id="cursor_pred_landrange">?</span> km
-                            <br />
-                        </div>
-                        <span id="cursor_pred_lastrun" class="initially-hidden">
-                            最終実行(JST): <span id="run_time">?</span> / 使用モデル: <span id="dataset">?</span>
-                            <br />
-                        </span>
-                        <details id="scenario_actions_panel" open>
-                            <summary>操作メニュー</summary>
-                            <span id="cursor_pred_links" class="initially-hidden">
-                                <span class="ui-corner-all control_buttons">
-                                    <a class="control_button" id="panto">中心へ移動</a> |
-                                    <a class="control_button" id="dlcsv">CSV</a> |
-                                    <a class="control_button" id="dlkml">KML</a> |
-                                    <a class="control_button" id="ehime_dlcsv" style="display:none" href="#" title="愛媛モード: 13バリエーション着地点一覧CSVを保存">愛媛CSV</a> |
-                                    <a class="control_button" id="share_url" title="URLをクリップボードにコピー">Share</a> |
-                                    <a class="control_button" id="export_img" title="予測結果を画像として保存">Export</a>
-                                </span>
+                    <section id="results_view_overview" class="results-view active" data-results-panel="overview" role="tabpanel">
+                        <section id="scenario_info_floating_container" class="result-section-card" aria-labelledby="scenario_overview_heading">
+                            <h2 id="scenario_overview_heading">シナリオ概要</h2>
+                            <span id="cursor_info">現在のマウス位置:
+                                緯度: <span id="cursor_lat">?</span>
+                                経度: <span id="cursor_lon">?</span>
+                            </span><br>
+                            <span id="cursor_pred" class="initially-hidden">
+                                到達距離: <span id="cursor_pred_range"></span> km,
+                                飛行時間: <span id="cursor_pred_time"></span><br>
+                                発射点からカーソル距離: <span id="cursor_pred_launchrange">?</span> km
                             </span>
-                            <span class="ui-corner-all control_buttons compact-control-buttons">
-                                <a class="control_button" id="showHideDebug">デバッグを表示</a> |
-                                <a class="control_button" id="showHideChart" onclick="toggleChart()">高度グラフを表示</a> |
-                                <a class="control_button" id="showHideWindChart" onclick="toggleWindChart()">風速グラフを表示</a> |
-                                <a class="control_button" id="showHideForm">打ち上げ設定を非表示</a> |
-                                <a class="control_button" id="coord_format_toggle" title="緯度経度表示形式を切替">60進法表示</a> |
-                                <a class="control_button" id="about_window_show">このツールについて</a>
-                            </span>
-                        </details>
-                        <div class="always-on-footer" style="display:block; margin-top:8px; border-top:1px solid var(--border-color); padding-top:6px; font-size:11px; line-height:1.4;">
-                            本ツールは主に Tawhiri を利用しています。開発・運用に貢献された先人の方々へ敬意を表し、気球実験を成功させましょう！
-                        </div>
-                    </div>
-                    <div id="metrics_restore_anchor"></div>
-                    <br />
-                    <div id="pos_list_section">
-                        <div class="pos-list-toolbar">
-                            <a id="toggle_pos_list">落下位置一覧を非表示</a>
-                            <div class="export-controls pos-list-controls">
-                                <button type="button" id="csv_export_btn" class="btn-export" title="CSVダウンロード">CSV</button>
-                                <button type="button" id="clipboard_copy_btn" class="btn-export" title="クリップボードにコピー">コピー</button>
-                                <button type="button" id="clear_all_btn" class="btn-export btn-export-danger" title="すべての予測結果をクリア">全クリア</button>
+                            <hr>
+                            <div id="launch_site_info">
+                                <b>放球場所の状態（予報）</b><br>
+                                地表風速（0–500 m）: <b id="launch_surface_wind">-</b> m/s<br>
+                                最大風速（全高度）: <b id="launch_max_wind">-</b> m/s
                             </div>
-                        </div>
-                        <div id="pos_list_container">
-                            <table id="pos_list_table">
-                                <thead>
-                                    <tr>
-                                        <th>打ち上げ場所</th>
-                                        <th>打ち上げ時刻 (JST)</th>
-                                        <th>落下場所</th>
-                                        <th>海陸判定</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="pos_list_body"></tbody>
-                            </table>
-                        </div>
-                    </div>
-                    <details style="margin-top:10px; border-top:1px solid var(--border-color); padding-top:8px;">
-                        <summary style="cursor:pointer; font-size:12px; font-weight:600; color:var(--text-secondary); margin-bottom:5px;">
-                            愛媛気球実験 実行履歴 (最大10件)
-                        </summary>
-                        <div id="ehime_history_panel_result" style="max-height:180px; overflow-y:auto;">
-                            <p style="font-size:11px; color:var(--text-secondary); padding:4px;">実行履歴なし</p>
-                        </div>
-                    </details>
-                    <div id="fishing_port_support_panel" style="margin-top:10px; border-top:1px solid var(--border-color); padding-top:8px;">
-                        <b style="font-size:12px; color:var(--color-primary);">漁港サポート</b>
-                        <div style="display:flex; gap:6px; margin-top:6px; flex-wrap:wrap;">
-                            <button type="button" id="toggle_all_fishing_ports_btn" class="btn-preset" style="height:24px; font-size:10px; padding:0 8px;" onclick="toggleAllFishingPorts()">漁港をすべて表示</button>
-                            <button type="button" id="clear_nearby_fishing_ports_btn" class="btn-preset" style="height:24px; font-size:10px; padding:0 8px;" onclick="clearNearbyFishingPorts()">近傍ピンを消去</button>
-                        </div>
-                        <div id="nearest_fishing_ports_info" style="margin-top:6px; font-size:11px; color:var(--text-secondary); line-height:1.45;">
-                            シミュレーション後に近い漁港と距離を表示します。
-                        </div>
-                    </div>
-                    <br />
-                    <div class="log-overlay-section">
-                        <b>実測ログ重ね合わせ (CSV)</b><br>
-                        <input type="file" id="log_file_input" accept=".csv" onchange="handleLogUpload(this.files)">
-                        <a id="clear_log_overlay" onclick="clearLogOverlay()">クリア</a>
-                        <br>
-                        <span class="log-overlay-hint">Format: lat,lon,alt (header optional)</span>
-                    </div>
-                    <br />
-                    <span><b>非営利目的でのみご利用ください。</b></span>
+                            <hr>
+                            <div id="cursor_pred_metrics">着地点: <span id="cursor_pred_landrange">?</span> km</div>
+                            <span id="cursor_pred_lastrun" class="initially-hidden">
+                                最終実行（JST）: <span id="run_time">?</span> / 使用モデル: <span id="dataset">?</span>
+                            </span>
+                        </section>
+
+                        <section class="result-section-card" aria-labelledby="result_actions_heading">
+                            <h2 id="result_actions_heading">結果操作</h2>
+                            <div id="cursor_pred_links" class="result-action-grid initially-hidden">
+                                <a class="result-action" id="panto">中心へ移動</a>
+                                <a class="result-action" id="dlcsv">CSV出力</a>
+                                <a class="result-action" id="dlkml">KML出力</a>
+                                <a class="result-action" id="ehime_dlcsv" style="display:none" href="#" title="愛媛モードの13バリエーションをCSV出力">愛媛CSV出力</a>
+                                <a class="result-action" id="share_url" title="URLをクリップボードにコピー">URL共有</a>
+                                <a class="result-action" id="export_img" title="予測結果を画像として保存">画像出力</a>
+                            </div>
+                            <div class="result-action-grid result-action-grid-secondary">
+                                <button type="button" class="result-action" id="showHideChart" onclick="toggleChart()">高度グラフ</button>
+                                <button type="button" class="result-action" id="showHideWindChart" onclick="toggleWindChart()">風速グラフ</button>
+                                <button type="button" class="result-action" id="showHideDebug">診断ログ</button>
+                                <button type="button" class="result-action" id="coord_format_toggle" title="緯度経度表示形式を切替">座標形式切替</button>
+                                <button type="button" class="result-action" id="about_window_show">このツールについて</button>
+                            </div>
+                        </section>
+
+                        <section id="fishing_port_support_panel" class="result-section-card" aria-labelledby="fishing_support_heading">
+                            <h2 id="fishing_support_heading">漁港サポート</h2>
+                            <div class="result-inline-actions">
+                                <button type="button" id="toggle_all_fishing_ports_btn" class="btn-preset" onclick="toggleAllFishingPorts()">漁港をすべて表示</button>
+                                <button type="button" id="clear_nearby_fishing_ports_btn" class="btn-preset" onclick="clearNearbyFishingPorts()">近傍ピンを消去</button>
+                            </div>
+                            <div id="nearest_fishing_ports_info" class="result-helper-text">シミュレーション後に近い漁港と距離を表示します。</div>
+                        </section>
+
+                        <section class="result-section-card log-overlay-section" aria-labelledby="log_overlay_heading">
+                            <h2 id="log_overlay_heading">実測ログ重ね合わせ</h2>
+                            <input type="file" id="log_file_input" accept=".csv" onchange="handleLogUpload(this.files)">
+                            <button type="button" id="clear_log_overlay" class="result-text-button" onclick="clearLogOverlay()">クリア</button>
+                            <div class="log-overlay-hint">CSV形式: lat, lon, alt（ヘッダー任意）</div>
+                        </section>
+                    </section>
+
+                    <section id="results_view_charts" class="results-view" data-results-panel="charts" role="tabpanel" hidden>
+                        <section class="result-section-card chart-series-card" aria-labelledby="chart_series_heading">
+                            <div class="result-section-heading-row">
+                                <h2 id="chart_series_heading">表示する系列</h2>
+                                <span class="result-helper-text">最大5系列</span>
+                            </div>
+                            <div id="chart_series_selector" class="chart-series-selector">
+                                <p class="chart-series-empty">予測を実行すると系列を選択できます。</p>
+                            </div>
+                        </section>
+                        <section id="chart_container" class="result-section-card result-chart-card" aria-labelledby="altitude_chart_heading">
+                            <h2 id="altitude_chart_heading">高度プロファイル</h2>
+                            <div id="altitude_chart_empty" class="chart-empty-state">
+                                <b>まだ予測データがありません</b>
+                                <span>予測を実行すると、経過時間ごとの高度を表示します。</span>
+                            </div>
+                            <div class="chart-canvas-shell"><canvas id="altitude_chart" hidden></canvas></div>
+                        </section>
+                        <section id="wind_chart_container" class="result-section-card result-chart-card" aria-labelledby="wind_chart_heading">
+                            <h2 id="wind_chart_heading">高度別 水平風速</h2>
+                            <div id="wind_chart_empty" class="chart-empty-state">
+                                <b>まだ予測データがありません</b>
+                                <span>予測を実行すると、軌跡から推定した水平風速を表示します。</span>
+                            </div>
+                            <div class="chart-canvas-shell"><canvas id="wind_chart" hidden></canvas></div>
+                        </section>
+                    </section>
+
+                    <section id="results_view_history" class="results-view" data-results-panel="history" role="tabpanel" hidden>
+                        <section class="result-section-card" aria-labelledby="run_history_heading">
+                            <div class="result-section-heading-row">
+                                <h2 id="run_history_heading">実行履歴</h2>
+                                <button type="button" id="run_history_refresh" class="result-text-button">更新</button>
+                            </div>
+                            <label class="run-history-filter">種類
+                                <select id="run_history_filter">
+                                    <option value="">すべて</option>
+                                    <option value="single">単発予測</option>
+                                    <option value="ehime_ensemble">愛媛13条件</option>
+                                    <option value="auto_search">放球自動探索</option>
+                                    <option value="uncertainty">不確実性解析</option>
+                                </select>
+                            </label>
+                            <div id="run_history_list" class="run-history-list" aria-live="polite">
+                                <p class="run-history-empty">保存された実行履歴はありません。</p>
+                            </div>
+                            <p class="result-helper-text">設定は従来どおり自動保存されます。履歴は実行単位で保存され、固定した履歴は自動整理の対象外です。</p>
+                        </section>
+
+                        <section id="pos_list_section" class="result-section-card" aria-labelledby="landing_list_heading">
+                            <div class="result-section-heading-row">
+                                <h2 id="landing_list_heading">落下位置一覧</h2>
+                                <button type="button" id="toggle_pos_list" class="result-text-button">一覧を非表示</button>
+                            </div>
+                            <div class="export-controls pos-list-controls">
+                                <button type="button" id="csv_export_btn" class="btn-export" title="CSVダウンロード">CSV出力</button>
+                                <button type="button" id="clipboard_copy_btn" class="btn-export" title="クリップボードにコピー">コピー</button>
+                                <button type="button" id="clear_all_btn" class="btn-export btn-export-danger" title="表示中の予測結果をクリア（保存履歴は保持）">表示クリア</button>
+                            </div>
+                            <div id="pos_list_container">
+                                <table id="pos_list_table">
+                                    <thead><tr><th>打ち上げ場所</th><th>打ち上げ時刻（JST）</th><th>落下場所</th><th>海陸判定</th></tr></thead>
+                                    <tbody id="pos_list_body"></tbody>
+                                </table>
+                            </div>
+                        </section>
+
+                        <details class="result-section-card legacy-history-card">
+                            <summary>愛媛気球実験の旧履歴（最大10件）</summary>
+                            <div id="ehime_history_panel_result" class="legacy-history-list">
+                                <p class="run-history-empty">実行履歴なし</p>
+                            </div>
+                        </details>
+                    </section>
+
+                    <footer class="results-footer">
+                        本ツールは主に Tawhiri を利用しています。予測には不確実性があるため、運用判断では最新の気象情報と安全基準を併用してください。<br>
+                        <b>非営利目的でのみご利用ください。</b>
+                    </footer>
                 </div>
-                <!-- /scenario_info -->
             </div>
             <!-- /panel-results -->
 
@@ -421,24 +438,24 @@
     </aside>
     <!-- /app-sidebar -->
 
-    <!-- Chart Container -->
-    <div id="chart_container" class="box ui-corner-all">
-        <canvas id="altitude_chart"></canvas>
+    <!-- SETTINGS/RESULTS の選択に依存しない実行状態・診断 -->
+    <div id="status_message" class="box ui-corner-all" role="status" aria-live="polite">
+        <span id="prediction_status"></span><br>
+        <button type="button" id="showHideDebug_status" class="result-text-button">診断ログ</button>
     </div>
-    <style>
-        /* Auto-search modal fixes */
-        #auto_search_modal { max-width: calc(100% - 32px); }
-        #auto_search_modal input, #auto_search_modal select { box-sizing: border-box; padding-left:6px; }
-        #auto_sites_container label { color: var(--text-primary); display:block; padding:6px 8px; border-radius:6px; cursor:pointer; }
-        #auto_sites_container label:hover { background: var(--bg-hover); }
-        #auto_sites_container input[type=checkbox] { margin-right:8px; vertical-align:middle; transform:scale(1.02); }
-        #auto_search_modal { z-index: 10020 !important; }
-    </style>
-
-    <!-- Wind Chart Container -->
-    <div id="wind_chart_container" class="box ui-corner-all">
-        <canvas id="wind_chart"></canvas>
+    <div id="error_window" class="box ui-corner-all" role="alert">
+        <span id="error_message">エラーはありません。</span><br><br>
+        <button type="button" id="closeErrorWindow" class="result-text-button">閉じる</button>
     </div>
+    <aside id="scenario_template" class="box ui-corner-all diagnostics-panel" aria-label="診断ログ" aria-hidden="true">
+        <header class="diagnostics-header">
+            <div><span class="results-eyebrow">DIAGNOSTICS</span><h1>診断ログ</h1></div>
+            <button type="button" id="diagnostics_close" class="result-text-button">閉じる</button>
+        </header>
+        <div id="scenario_template_scroller">
+            <span id="debuginfo">メッセージはありません</span>
+        </div>
+    </aside>
 
     <!-- Save location to cookie -->
     <div id="location_save" class="box ui-corner-all">

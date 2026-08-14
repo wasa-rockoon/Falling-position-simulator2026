@@ -2,7 +2,7 @@
 'use strict';
 
 var CACHE_PREFIX = 'wasa-predictor-';
-var CACHE_VERSION = '025d03dbdcd4';
+var CACHE_VERSION = '6c6b0ad881e2';
 var APP_CACHE_NAME = CACHE_PREFIX + 'app-' + CACHE_VERSION;
 var TILE_CACHE_NAME = CACHE_PREFIX + 'tiles-v1';
 var TILE_CACHE_LIMIT = 500;
@@ -75,6 +75,7 @@ var APP_SHELL = [
     "./js/core/app-notifications.js",
     "./js/core/app-shell.js",
     "./js/core/app-storage.js",
+    "./js/core/results-workspace.js",
     "./js/core/run-repository.js",
     "./js/core/settings-repository.js",
     "./js/domain/run-record.js",
@@ -94,6 +95,7 @@ var APP_SHELL = [
     "./js/pred/log-overlay.js",
     "./js/pred/mobile-ui.js",
     "./js/pred/pred-api-client.js",
+    "./js/pred/pred-chart-core.js",
     "./js/pred/pred-chart.js",
     "./js/pred/pred-collaborate.js",
     "./js/pred/pred-common.js",

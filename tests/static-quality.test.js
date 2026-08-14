@@ -102,8 +102,9 @@ test('planning feature UI stays consistent and exposes map results', () => {
     const uncertaintySource = read('js/pred/uncertainty-analysis.js');
     const autoSearchSource = read('js/pred/auto-search.js');
 
-    assert.match(html, /id="run_auto_search_btn" class="feature-action-btn"/);
-    assert.match(html, /id="popout_metrics_btn" class="panel-icon-button"/);
+    assert.match(html, /id="run_auto_search_btn" class="app-action-btn"/);
+    assert.doesNotMatch(html, /id="popout_metrics_btn"/);
+    assert.match(html, /id="results_view_overview"/);
     assert.match(html, /id="auto_results_count"/);
     assert.match(html, /id="auto_download_btn"[^>]*>CSV出力</);
     assert.match(predictorCss, /\.auto-results-list[\s\S]*max-height:[^;]+;[\s\S]*overflow-y:\s*auto/);

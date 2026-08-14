@@ -21,6 +21,13 @@
         this.historyLimit = Math.max(1, Number(options.historyLimit) || 50);
         this.updateQueues = new Map();
     }
+    function notifyChange(action, runId) {
+        var eventRoot = typeof globalThis !== 'undefined' ? globalThis : null;
+        if (!eventRoot || typeof eventRoot.dispatchEvent !== 'function' || typeof eventRoot.CustomEvent !== 'function') return;
+        eventRoot.dispatchEvent(new eventRoot.CustomEvent('wasa:run-repository-change', {
+            detail: { action: action, runId: runId || '' }
+        }));
+    }
 
     Repository.prototype.get = function (runId) {
         return this.runs.get(runId);
@@ -35,6 +42,7 @@
         await this.runs.set(copy.id, copy);
         await this.history.set(copy.id, historyEntry);
         await this.prune();
+        notifyChange('save', copy.id);
         return RunRecord.clone(copy);
     };
 
@@ -118,6 +126,7 @@
         entry.pinned = pinned === true;
         entry.updatedAt = new Date().toISOString();
         await this.history.set(runId, entry);
+        notifyChange('pin', runId);
         return RunRecord.clone(entry);
     };
 
@@ -130,6 +139,7 @@
         }
         await this.runs.delete(runId);
         await this.history.delete(runId);
+        notifyChange('remove', runId);
         return true;
     };
 
@@ -274,6 +284,7 @@
         await this.runs.clear();
         await this.history.clear();
         await this.migrations.clear();
+        notifyChange('clear', '');
     };
 
     var defaultRepository = new Repository();

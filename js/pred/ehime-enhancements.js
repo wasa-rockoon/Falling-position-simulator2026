@@ -125,13 +125,11 @@ function clearAllPredictions() {
     var tbody = document.querySelector('#pos_list_table tbody');
     if (tbody) tbody.innerHTML = '';
 
-    // C3履歴キャッシュをクリア
-    if (typeof clearEhimeHistoryCache === 'function') {
-        clearEhimeHistoryCache();
-    }
+    // 保存履歴・自動保存設定は消さず、現在の表示系列だけを初期化する。
+    if (typeof clearPredictionCharts === 'function') clearPredictionCharts();
 
     if (typeof showToast === 'function') {
-        showToast('すべての予測結果をクリアしました', 'info', 3000);
+        showToast('表示中の予測結果をクリアしました（保存履歴は保持）', 'info', 3000);
     }
 }
 

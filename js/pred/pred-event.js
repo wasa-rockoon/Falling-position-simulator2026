@@ -115,17 +115,7 @@ function EH_LaunchCard() {
 }
 
 function EH_ScenarioInfo() {
-    // Controls in the Scenario Information window
-    $("#showHideDebug").click(function() {
-        toggleWindow("scenario_template", "showHideDebug", "Show Debug", "Hide Debug");
-    });
-    $("#showHideDebug_status").click(function() {
-        toggleWindow("scenario_template", "showHideDebug", "Show Debug", "Hide Debug");
-    });
-    $("#showHideForm").click(function() {
-        toggleWindow("input_form", "showHideForm", "Show Launch Card",
-            "Hide Launch Card");
-    });
+    // RESULTS内タブと診断ログは ResultsWorkspace が一元管理する。
     $("#closeErrorWindow").click(function() {
         $("#error_window").fadeOut();
     });
