@@ -95,9 +95,10 @@ test('every planning workflow uses the local classifier and no runtime external 
         'js/pred/pred-new.js',
         'js/pred/auto-search.js',
         'js/pred/uncertainty-analysis.js',
-        'js/pred/launch-window.js',
         'js/pred/ehime-enhancements.js'
     ];
+    const launchWindow = fs.readFileSync(path.join(root, 'js/pred/launch-window.js'), 'utf8');
+    assert.match(launchWindow, /showAutoSearchWeatherPreset/);
     for (const file of files) {
         const source = fs.readFileSync(path.join(root, file), 'utf8');
         assert.match(source, /LandSea\.classify|classifyLandSeaAt/, file);

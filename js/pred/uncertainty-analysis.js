@@ -43,11 +43,6 @@
     function element(id) { return document.getElementById(id); }
     function numberValue(id) { return Number(element(id).value); }
 
-    function escapeCsv(value) {
-        var text = value == null ? '' : String(value);
-        return /[",\r\n]/.test(text) ? '"' + text.replace(/"/g, '""') + '"' : text;
-    }
-
     function formatNumber(value, digits) {
         if (!Number.isFinite(value)) return '-';
         return Number(value).toLocaleString('ja-JP', { minimumFractionDigits: digits, maximumFractionDigits: digits });
@@ -435,21 +430,6 @@
         });
     }
 
-    function extractLanding(data) {
-        var phases = data && data.prediction;
-        if (!Array.isArray(phases)) throw new Error('予測API応答にtrajectoryがありません');
-        for (var phaseIndex = phases.length - 1; phaseIndex >= 0; phaseIndex -= 1) {
-            var trajectory = phases[phaseIndex] && phases[phaseIndex].trajectory;
-            if (Array.isArray(trajectory) && trajectory.length) {
-                var last = trajectory[trajectory.length - 1];
-                var longitude = Number(last.longitude);
-                if (longitude > 180) longitude -= 360;
-                return { lat: Number(last.latitude), lng: longitude, altitude: Number(last.altitude), datetime: last.datetime || '' };
-            }
-        }
-        throw new Error('予測API応答に着地点がありません');
-    }
-
     function classifyLanding(landing) {
         if (root.LandSea && typeof root.LandSea.classify === 'function') return root.LandSea.classify(landing.lat, landing.lng);
         return {
@@ -825,16 +805,14 @@
     }
 
     async function executeAnalysis() {
-        var requestContext = root.createPredictionRequestContext
-            ? root.createPredictionRequestContext({
-                runId: state.runId,
-                source: state.requestConfig.source,
-                baseUrl: state.requestConfig.baseUrl,
-                customUrl: state.requestConfig.customUrl,
-                maxHttpAttempts: state.configuration.callLimit
-            })
-            : null;
-        var client = requestContext && typeof requestContext.request === 'function' ? requestContext : root.PredictionApi.getClient(state.requestConfig);
+        if (!root.PredictionRunner) throw new Error('PredictionRunner is unavailable');
+        var requestContext = root.PredictionRunner.createContext({
+            runId: state.runId,
+            source: state.requestConfig.source,
+            baseUrl: state.requestConfig.baseUrl,
+            customUrl: state.requestConfig.customUrl,
+            maxHttpAttempts: state.configuration.callLimit
+        });
         state.status = 'running';
         state.pauseRequested = false;
         renderResults();
@@ -854,12 +832,13 @@
                 var params = requestParameters(run, sample);
                 state.attemptedCalls += 1;
                 try {
-                    var response = await client.request(params, {
+                    var execution = await root.PredictionRunner.run(params, requestContext, {
                         label: 'uncertainty:' + run.site.id + ':' + run.cursor,
                         canAttempt: function () { return state.networkCalls < state.configuration.callLimit; },
                         onAttempt: function () { state.networkCalls += 1; }
                     });
-                    var landing = extractLanding(response.data);
+                    var response = execution.response;
+                    var landing = { lat: execution.landing.latitude, lng: execution.landing.longitude, altitude: execution.landing.altitudeM, datetime: execution.landing.timeUtc || '' };
                     var landSea = classifyLanding(landing);
                     run.observations.push({
                         index: run.cursor,
@@ -1024,16 +1003,9 @@
                 ]);
             });
         });
-        var csv = '\uFEFF' + rows.map(function (row) { return row.map(escapeCsv).join(','); }).join('\r\n');
-        var blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
-        var url = URL.createObjectURL(blob);
-        var link = document.createElement('a');
-        link.href = url;
-        link.download = 'uncertainty_results_' + new Date().toISOString().replace(/[:.]/g, '-') + '.csv';
-        document.body.appendChild(link);
-        link.click();
-        link.remove();
-        setTimeout(function () { URL.revokeObjectURL(url); }, 0);
+        if (!root.ExportService) throw new Error('ExportService is unavailable');
+        var csv = rows.map(function (row) { return row.map(root.ExportService.escapeCsv).join(','); }).join('\r\n');
+        root.ExportService.download(csv, 'uncertainty_results_' + new Date().toISOString().replace(/[:.]/g, '-') + '.csv', 'text/csv;charset=utf-8');
     }
 
     async function open() {

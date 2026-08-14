@@ -526,12 +526,11 @@
 
     async function evaluateCoarse(candidate) {
         try {
-            var data = await root.requestTawhiriData(predictionParams(candidate), state.requestContext, { label: 'auto-coarse' });
-            if (!data || !data.prediction) return { ok: false, reason: 'empty_prediction' };
-            var parsed = root.parsePrediction(data.prediction);
-            var landing = parsed.landing.latlng;
+            if (!root.PredictionRunner) throw new Error('PredictionRunner is unavailable');
+            var execution = await root.PredictionRunner.run(predictionParams(candidate), state.requestContext, { label: 'auto-coarse' });
+            var landing = execution.landing;
             var landSea = root.LandSea && typeof root.LandSea.classify === 'function'
-                ? root.LandSea.classify(landing.lat, landing.lng)
+                ? root.LandSea.classify(landing.latitude, landing.longitude)
                 : { classification: 'unknown', coastDistanceKm: null, reason: 'classifier-unavailable' };
             var distanceKm = Number(landSea.coastDistanceKm);
             var hasDistance = Number.isFinite(distanceKm);
@@ -544,8 +543,8 @@
             return {
                 ok: isSea && hasDistance && distanceKm <= MAX_OFFSHORE_KM,
                 reason: reason,
-                landingLat: landing.lat,
-                landingLon: landing.lng,
+                landingLat: landing.latitude,
+                landingLon: landing.longitude,
                 distanceKm: hasDistance ? distanceKm : null,
                 landSea: landSea
             };
@@ -759,15 +758,10 @@
         if (!state.running) persistState();
     }
 
-    function escapeCsv(value) {
-        var text = String(value === null || value === undefined ? '' : value);
-        return /[",\r\n]/.test(text) ? '"' + text.replace(/"/g, '""') + '"' : text;
-    }
-
     function downloadResultsCsv() {
         if (state.results.length === 0) return;
         var headers = ['日時(JST)', '地点', '探索モード', '上昇速度(m/s)', '下降速度(m/s)', '破裂高度(m)', '降水量(mm)', '地上風速(m/s)', '粗探索結果', '海落ち率(%)', '最大沖合距離(km)', '最寄り回収協力先', '協力先距離(km)', '回収実績あり'];
-        var lines = [headers.map(escapeCsv).join(',')];
+        var lines = [headers.map(root.ExportService.escapeCsv).join(',')];
         state.results.forEach(function (row) {
             lines.push([
                 row.timeJst, row.site, MODES[row.mode] ? MODES[row.mode].label : row.mode,
@@ -777,17 +771,10 @@
                 row.supportName,
                 Number.isFinite(row.supportDistanceKm) ? row.supportDistanceKm.toFixed(1) : '',
                 row.supportHasHistory ? 'あり' : 'なし'
-            ].map(escapeCsv).join(','));
+            ].map(root.ExportService.escapeCsv).join(','));
         });
-        var blob = new Blob(['\uFEFF' + lines.join('\r\n') + '\r\n'], { type: 'text/csv;charset=utf-8' });
-        var url = URL.createObjectURL(blob);
-        var link = document.createElement('a');
-        link.href = url;
-        link.download = 'auto_search_results.csv';
-        document.body.appendChild(link);
-        link.click();
-        link.remove();
-        root.setTimeout(function () { URL.revokeObjectURL(url); }, 0);
+        if (!root.ExportService) throw new Error('ExportService is unavailable');
+        root.ExportService.download(lines.join('\r\n') + '\r\n', 'auto_search_results.csv', 'text/csv;charset=utf-8');
     }
 
     function renderResults() {
@@ -876,6 +863,43 @@
         estimateAutoSearch();
     }
 
+    function presetAvailable(label) {
+        if (state.phase === 0 || state.status === 'idle') return true;
+        notify('保存済みの探索があります。「新規探索」を押してから' + label + 'を選んでください。', 'warning');
+        return false;
+    }
+
+    async function showAllSitesPreset() {
+        await showModal();
+        if (!presetAvailable('全地点探索')) return;
+        $('#auto_search_mode').val('full');
+        $('#auto_sites_container input[type=checkbox]').prop('checked', true);
+        estimateAutoSearch();
+        notify('全地点・全候補精密探索プリセットを設定しました。見積りを確認して開始してください。', 'info');
+    }
+
+    async function showWeatherComparisonPreset() {
+        await showModal();
+        if (!presetAvailable('時間帯比較')) return;
+        var date = [$('#year').val(), String($('#month').val()).padStart(2, '0'), String($('#day').val()).padStart(2, '0')].join('-');
+        var time = [String($('#hour').val()).padStart(2, '0'), String($('#min').val()).padStart(2, '0')].join(':');
+        var startUtc = jstToUtcMoment(date, time) || root.moment.utc();
+        var startJst = startUtc.clone().utcOffset(9 * 60);
+        var endJst = startJst.clone().add(6, 'hours');
+        $('#auto_start_date').val(startJst.format('YYYY-MM-DD'));
+        $('#auto_start_time').val(startJst.format('HH:mm'));
+        $('#auto_end_date').val(endJst.format('YYYY-MM-DD'));
+        $('#auto_end_time').val(endJst.format('HH:mm'));
+        $('#auto_interval_min').val(15);
+        $('#auto_search_mode').val('fast');
+        var selectedName = $('#site option:selected').text();
+        var choices = $('#auto_sites_container input[type=checkbox]');
+        choices.prop('checked', false);
+        var matching = choices.filter(function () { return String($(this).data('name')) === selectedName; });
+        (matching.length ? matching : choices.first()).prop('checked', true);
+        estimateAutoSearch();
+        notify('現在地点・6時間・15分間隔の気象比較プリセットを設定しました。', 'info');
+    }
     async function resetSearch() {
         var previousRunId = state.runId;
         state = emptyState();
@@ -920,7 +944,8 @@
 
     root.AppShell.registerInitializer('automatic-search', initAutoSearchUi, 40);
 
-    root.showAutoSearchModal = showModal;
+    root.showAllSitesAutoSearchPreset = showAllSitesPreset;
+    root.showAutoSearchWeatherPreset = showWeatherComparisonPreset;    root.showAutoSearchModal = showModal;
     root.hideAutoSearchModal = hideModal;
     root.cancelAutoSearch = requestPause;
     root.downloadAutoResultsCSV = downloadResultsCsv;

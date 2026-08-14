@@ -189,6 +189,8 @@
         var form = element('gas_calculator_modal').querySelector('form');
         if (form) form.addEventListener('submit', function (event) { event.preventDefault(); });
         element('open_gas_calculator_btn').addEventListener('click', open);
+        var mobileButton = element('mobile_nav_gas');
+        if (mobileButton) mobileButton.addEventListener('click', open);
         element('gas_calculator_close').addEventListener('click', close);
         element('gas_calculator_backdrop').addEventListener('click', close);
         element('gas_apply_to_prediction').addEventListener('click', applyToPrediction);

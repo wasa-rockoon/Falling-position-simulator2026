@@ -211,6 +211,30 @@
         appendText(article, 'div', 'run-history-summary', historySummary(item));
 
         var actions = appendText(article, 'div', 'run-history-actions', '');
+        function addHistoryAction(label, operation, successMessage) {
+            var button = appendText(actions, 'button', 'result-text-button', label);
+            button.type = 'button';
+            button.addEventListener('click', async function () {
+                button.disabled = true;
+                try {
+                    await operation();
+                    if (successMessage && root.showToast) root.showToast(successMessage, 'info', 1800);
+                } catch (error) {
+                    report(error, 'results.history.' + label);
+                    if (root.showToast) root.showToast(error.message || '履歴を操作できませんでした。', 'warning', 2600);
+                } finally {
+                    button.disabled = false;
+                }
+            });
+            return button;
+        }
+        if (root.HistoryController) {
+            addHistoryAction('地図表示', function () { return root.HistoryController.show(item.runId); }, '保存した結果を地図に表示しました。');
+            addHistoryAction('CSV', function () { return root.HistoryController.exportRecord(item.runId, 'csv'); });
+            addHistoryAction('KML', function () { return root.HistoryController.exportRecord(item.runId, 'kml'); });
+            if (isActiveStatus(item.status)) addHistoryAction('再開', function () { return root.HistoryController.resume(item.runId); });
+            else addHistoryAction('再実行準備', function () { return root.HistoryController.prepareRerun(item.runId); }, '保存した条件をSETTINGSへ反映しました。');
+        }
         var pin = appendText(actions, 'button', 'result-text-button', item.pinned ? '固定解除' : '固定');
         pin.type = 'button';
         pin.setAttribute('aria-pressed', item.pinned ? 'true' : 'false');

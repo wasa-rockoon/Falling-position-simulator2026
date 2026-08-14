@@ -44,8 +44,6 @@ function initPredictor() {
     // Plot the initial launch location
     plotClick();
 
-    // Initialise the burst calculator
-    calc_init();
 
     // Run the prediction if it is provided in the URL.
     if(params_provided) {

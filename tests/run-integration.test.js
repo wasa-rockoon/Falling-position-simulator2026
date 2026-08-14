@@ -22,10 +22,11 @@ test('RunRecord foundation loads before prediction features', () => {
 
 test('all prediction workflows persist a common RunRecord type', () => {
     const prediction = read('js/pred/pred-new.js');
+    const ehime = read('js/pred/ehime-controller.js');
     const autoSearch = read('js/pred/auto-search.js');
     const uncertainty = read('js/pred/uncertainty-analysis.js');
     assert.match(prediction, /startPredictionRunRecord\(run_settings, requestContext, 'single'/);
-    assert.match(prediction, /startPredictionRunRecord\(base_settings, requestContext, 'ehime_ensemble'/);
+    assert.match(ehime, /startPredictionRunRecord\(base_settings, requestContext, 'ehime_ensemble'/);
     assert.match(autoSearch, /type:\s*'auto_search'/);
     assert.match(uncertainty, /type:\s*'uncertainty'/);
     assert.match(autoSearch, /RunRepository\.update\(state\.runId/);

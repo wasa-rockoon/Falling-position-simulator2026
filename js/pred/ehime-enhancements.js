@@ -18,42 +18,17 @@ var ENSEMBLE_HEATMAP_VISIBLE = false;
 function exportPosListCSV() {
     var table = document.getElementById('pos_list_table');
     if (!table) return;
-
-    var rows = table.querySelectorAll('tr');
-    if (rows.length <= 1) {
-        if (typeof showToast === 'function') {
-            showToast('エクスポートするデータがありません', 'warning', 3000);
-        }
+    var tableRows = Array.from(table.querySelectorAll('tr'));
+    if (tableRows.length <= 1) {
+        if (typeof showToast === 'function') showToast('エクスポートするデータがありません', 'warning', 3000);
         return;
     }
-
-    var csv = [];
-    rows.forEach(function (row) {
-        var cols = row.querySelectorAll('th, td');
-        var rowData = [];
-        cols.forEach(function (col) {
-            // リンクテキストを取得（HTMLを除去）
-            var text = col.textContent.trim().replace(/"/g, '""');
-            rowData.push('"' + text + '"');
-        });
-        csv.push(rowData.join(','));
-    });
-
-    var csvContent = '\uFEFF' + csv.join('\n'); // BOM付きUTF-8
-    var blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    var link = document.createElement('a');
-    var url = URL.createObjectURL(blob);
-    link.setAttribute('href', url);
-    link.setAttribute('download', '落下位置一覧_' + new Date().toISOString().slice(0, 10) + '.csv');
-    link.style.display = 'none';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-
-    if (typeof showToast === 'function') {
-        showToast('CSVをエクスポートしました', 'success', 3000);
-    }
+    if (typeof ExportService === 'undefined') throw new Error('ExportService is unavailable');
+    var csv = tableRows.map(function (row) {
+        return Array.from(row.querySelectorAll('th, td')).map(function (column) { return ExportService.escapeCsv(column.textContent.trim()); }).join(',');
+    }).join('\r\n');
+    ExportService.download(csv, '落下位置一覧_' + new Date().toISOString().slice(0, 10) + '.csv', 'text/csv;charset=utf-8');
+    if (typeof showToast === 'function') showToast('CSVをエクスポートしました', 'success', 3000);
 }
 
 function copyPosListToClipboard() {
@@ -443,57 +418,14 @@ function exportEnsembleCSV() {
         if (typeof showToast === 'function') showToast('エクスポートするアンサンブル結果がありません', 'warning', 3000);
         return;
     }
-
-    // CSVヘッダー行
-    var header = [
-        'ラベル', '変更内容', '着地緯度', '着地経度',
-        '上昇速度(m/s)', '下降速度(m/s)', '破裂高度(m)',
-        '飛行時間', '打上緯度', '打上経度',
-        '破裂緯度', '破裂経度', '破裂高度(実)', '海陸判定', '判定信頼度', '判定元', '海岸距離(km)', '判定データ版'
-    ];
-
-    var rows = [header.join(',')];
-    // indexでソートしてからエクスポート
-    var sorted = exportRows;
-
-    for (var i = 0; i < sorted.length; i++) {
-        var r = sorted[i];
-        var classification = r.landSeaClassification || (r.isWater === true ? 'sea' : (r.isWater === false ? 'land' : 'unknown'));
-        var landSea = classification === 'sea' ? '海' : (classification === 'land' ? '陸' : (classification === 'inland_water' ? '内水面' : '不明'));
-        var row = [
-            '"' + r.label + '"',
-            '"' + r.description + '"',
-            r.lat.toFixed(6),
-            r.lng.toFixed(6),
-            r.ascent_rate.toFixed(2),
-            r.descent_rate.toFixed(2),
-            r.burst_altitude.toFixed(0),
-            '"' + r.flight_time_str + '"',
-            r.launch_lat.toFixed(6),
-            r.launch_lng.toFixed(6),
-            r.burst_lat.toFixed(6),
-            r.burst_lng.toFixed(6),
-            (r.burst_alt || 0).toFixed(0),
-            '"' + landSea + '"',
-            '"' + (r.landSea && r.landSea.confidence || 'unknown') + '"',
-            '"' + (r.landSea && r.landSea.source || 'unavailable') + '"',
-            r.landSea && r.landSea.coastDistanceKm != null ? Number(r.landSea.coastDistanceKm).toFixed(3) : '',
-            '"' + (r.landSea && r.landSea.dataVersion || '') + '"'
-        ];
-        rows.push(row.join(','));
-    }
-
-    // BOM付きUTF-8でCSV生成
-    var csvContent = '\uFEFF' + rows.join('\n');
-    var blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    var link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = 'ensemble_results_' + moment().format('YYYYMMDD_HHmmss') + '.csv';
-    link.style.display = 'none';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-
+    if (typeof ExportService === 'undefined') throw new Error('ExportService is unavailable');
+    var headers = ['ラベル', '変更内容', '着地緯度', '着地経度', '上昇速度(m/s)', '下降速度(m/s)', '破裂高度(m)', '飛行時間', '打上緯度', '打上経度', '破裂緯度', '破裂経度', '破裂高度(実)', '海陸判定', '判定信頼度', '判定元', '海岸距離(km)', '判定データ版'];
+    var rows = exportRows.map(function (row) {
+        var classification = row.landSeaClassification || (row.isWater === true ? 'sea' : (row.isWater === false ? 'land' : 'unknown'));
+        return [row.label, row.description, row.lat.toFixed(6), row.lng.toFixed(6), row.ascent_rate.toFixed(2), row.descent_rate.toFixed(2), row.burst_altitude.toFixed(0), row.flight_time_str, row.launch_lat.toFixed(6), row.launch_lng.toFixed(6), row.burst_lat.toFixed(6), row.burst_lng.toFixed(6), (row.burst_alt || 0).toFixed(0), classification === 'sea' ? '海' : (classification === 'land' ? '陸' : (classification === 'inland_water' ? '内水面' : '不明')), row.landSea && row.landSea.confidence || 'unknown', row.landSea && row.landSea.source || 'unavailable', row.landSea && row.landSea.coastDistanceKm != null ? Number(row.landSea.coastDistanceKm).toFixed(3) : '', row.landSea && row.landSea.dataVersion || ''];
+    });
+    var csv = [headers].concat(rows).map(function (row) { return row.map(ExportService.escapeCsv).join(','); }).join('\r\n');
+    ExportService.download(csv, 'ensemble_results_' + moment().format('YYYYMMDD_HHmmss') + '.csv', 'text/csv;charset=utf-8');
     if (typeof showToast === 'function') showToast('アンサンブル結果をCSVエクスポートしました', 'success', 3000);
 }
 
@@ -527,14 +459,8 @@ function exportEnsembleJSON() {
     };
 
     var json = JSON.stringify(exportData, null, 2);
-    var blob = new Blob([json], { type: 'application/json;charset=utf-8;' });
-    var link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = 'ensemble_results_' + moment().format('YYYYMMDD_HHmmss') + '.json';
-    link.style.display = 'none';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    if (typeof ExportService === 'undefined') throw new Error('ExportService is unavailable');
+    ExportService.download(json, 'ensemble_results_' + moment().format('YYYYMMDD_HHmmss') + '.json', 'application/json;charset=utf-8');
 
     if (typeof showToast === 'function') showToast('アンサンブル結果をJSONエクスポートしました', 'success', 3000);
 }

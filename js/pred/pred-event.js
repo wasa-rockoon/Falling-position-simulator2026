@@ -29,42 +29,14 @@ function setupEventHandlers() {
 }
 
 function EH_BurstCalc() {
-    // Activate the "use burst calc" links
-    $("#burst-calc-show").click(function() {
-        $("#burst-calc-wrapper").show();
+    $('#burst-calc-show').off('click.gasCalculator').on('click.gasCalculator', function (event) {
+        event.preventDefault();
+        if (window.GasCalculatorUI && typeof window.GasCalculatorUI.open === 'function') window.GasCalculatorUI.open();
     });
-    $("#burst-calc-show").hover(
-        function() {
-            $("#ascent,#burst").css("background-color", "#AACCFF");
-        },
-        function() {
-            $("#ascent,#burst").css("background-color", "");
-        });
-    $("#burst-calc-use").click(function() {
-        // Write the ascent rate and burst altitude to the launch card
-        $("#ascent").val($("#ar").html());
-        $("#burst").val($("#ba").html());
-        $("#burst-calc-wrapper").hide();
-    });
-    $("#burst-calc-close").click(function() {
-        // Close the burst calc without doing anything
-        $("#burst-calc-wrapper").hide();
-        $("#modelForm").show();
-    });
-    $("#burst-calc-advanced-show").click(function() {
-        // Show the burst calculator constants
-        // We use a callback function to fade in the new content to make
-        // sure the old content has gone, in order to create a smooth effect
-        $("#burst-calc").fadeOut('fast', function() {
-            $("#burst-calc-constants").fadeIn();
-        });
-    });
-    $("#burst-calc-advanced-hide").click(function() {
-        // Show the burst calculator constants
-        $("#burst-calc-constants").fadeOut('fast', function() {
-            $("#burst-calc").fadeIn();
-        });
-    });
+    $('#burst-calc-show').hover(
+        function () { $('#ascent,#burst').css('background-color', '#AACCFF'); },
+        function () { $('#ascent,#burst').css('background-color', ''); }
+    );
 }
 
 function EH_NOTAMSettings() {

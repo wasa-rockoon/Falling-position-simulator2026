@@ -2,7 +2,7 @@
 'use strict';
 
 var CACHE_PREFIX = 'wasa-predictor-';
-var CACHE_VERSION = '6c6b0ad881e2';
+var CACHE_VERSION = 'fbc2310f49fe';
 var APP_CACHE_NAME = CACHE_PREFIX + 'app-' + CACHE_VERSION;
 var TILE_CACHE_NAME = CACHE_PREFIX + 'tiles-v1';
 var TILE_CACHE_LIMIT = 500;
@@ -66,7 +66,6 @@ var APP_SHELL = [
     "./images/tipsy.gif",
     "./index.html",
     "./js/calc/balloon-gas.js",
-    "./js/calc/calc.js",
     "./js/calc/gas-calculator-template.js",
     "./js/calc/gas-calculator-ui.js",
     "./js/chart.min.js",
@@ -75,6 +74,9 @@ var APP_SHELL = [
     "./js/core/app-notifications.js",
     "./js/core/app-shell.js",
     "./js/core/app-storage.js",
+    "./js/core/export-service.js",
+    "./js/core/history-controller.js",
+    "./js/core/map-layer-registry.js",
     "./js/core/results-workspace.js",
     "./js/core/run-repository.js",
     "./js/core/settings-repository.js",
@@ -89,7 +91,9 @@ var APP_SHELL = [
     "./js/moment.js",
     "./js/pred/auto-search-core.js",
     "./js/pred/auto-search.js",
+    "./js/pred/ehime-controller.js",
     "./js/pred/ehime-enhancements.js",
+    "./js/pred/hourly-controller.js",
     "./js/pred/landsea.js",
     "./js/pred/launch-window.js",
     "./js/pred/log-overlay.js",
@@ -107,10 +111,14 @@ var APP_SHELL = [
     "./js/pred/pred-new.js",
     "./js/pred/pred-ui.js",
     "./js/pred/pred.js",
+    "./js/pred/prediction-renderer.js",
+    "./js/pred/prediction-results-ui.js",
+    "./js/pred/prediction-runner.js",
     "./js/pred/request-context.js",
     "./js/pred/uncertainty-analysis.js",
     "./js/pred/uncertainty-core.js",
     "./js/pred/uncertainty-template.js",
+    "./js/pred/variant-profile-registry.js",
     "./manifest.json",
     "./ports.json",
     "./sites.json"

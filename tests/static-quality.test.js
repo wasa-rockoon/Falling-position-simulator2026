@@ -54,8 +54,11 @@ test('application code does not use blocking dialogs or empty catch', () => {
         'js/pred/pred-collaborate.js',
         'js/pred/pred-map.js',
         'js/pred/pred-new.js',
+        'js/pred/ehime-controller.js',
+        'js/pred/prediction-renderer.js',
+        'js/pred/hourly-controller.js',
+        'js/pred/prediction-results-ui.js',
         'js/pred/pred-ui.js',
-        'js/calc/calc.js',
         'js/calc/gas-calculator-ui.js',
         'js/colour-map.js'
     ];
@@ -76,11 +79,12 @@ test('runtime feature initialization is centralized in AppShell', () => {
     assert.match(read('js/core/app-shell.js'), /registerInitializer/);
 });
 
-test('pred-new has no duplicate named function declarations', () => {
-    const source = read('js/pred/pred-new.js');
-    const names = [...source.matchAll(/\bfunction\s+([A-Za-z_$][\w$]*)\s*\(/g)].map((match) => match[1]);
-    const duplicates = [...new Set(names.filter((name, index) => names.indexOf(name) !== index))];
+test('prediction runtime is split into bounded modules without duplicate declarations', () => {
+    const files = ['js/pred/pred-new.js', 'js/pred/ehime-controller.js', 'js/pred/prediction-renderer.js', 'js/pred/hourly-controller.js', 'js/pred/prediction-results-ui.js'];
+    const declarations = files.flatMap((file) => [...read(file).matchAll(/\bfunction\s+([A-Za-z_$][\w$]*)\s*\(/g)].map((match) => ({ name: match[1], file })));
+    const duplicates = [...new Set(declarations.map((item) => item.name).filter((name, index, names) => names.indexOf(name) !== index))];
     assert.deepEqual(duplicates, []);
+    assert.ok(read('js/pred/pred-new.js').split(/\r?\n/).length <= 1500);
 });
 
 test('the shared notification implementation is not overwritten by feature code', () => {
@@ -117,9 +121,45 @@ test('planning feature UI stays consistent and exposes map results', () => {
     assert.match(autoSearchSource, /state\.results\.length > 0\) downloadResultsCsv\(\)/);
 });
 test('single prediction forwards its request context to the result info writer', () => {
-    const source = read('js/pred/pred-new.js');
+    const source = read('js/pred/prediction-renderer.js');
     assert.match(source, /writePredictionInfo\(settings, data\.metadata, data\.request, fall_only \? extended_results : null, requestContext\);/);
     assert.match(source, /function writePredictionInfo\(settings, metadata, request, fall_results, requestContext\)/);
+});
+test('prediction workflows use the shared runner, variants and export services', () => {
+    const html = read('index.html');
+    const runnerIndex = html.indexOf('js/pred/prediction-runner.js');
+    const variantsIndex = html.indexOf('js/pred/variant-profile-registry.js');
+    const predictionIndex = html.indexOf('js/pred/pred-new.js');
+    assert.ok(runnerIndex >= 0 && variantsIndex > runnerIndex && predictionIndex > variantsIndex);
+
+    const launchWindow = read('js/pred/launch-window.js');
+    const ehime = read('js/pred/ehime-controller.js');
+    const autoSearch = read('js/pred/auto-search.js');
+    const uncertainty = read('js/pred/uncertainty-analysis.js');
+    assert.doesNotMatch(launchWindow, /\$\.get\(api_url/);
+    assert.match(launchWindow, /showAutoSearchWeatherPreset/);
+    assert.match(ehime, /VariantProfileRegistry\.buildEhime/);
+    assert.doesNotMatch(ehime, /function addVariant/);
+    assert.match(autoSearch, /PredictionRunner\.run/);
+    assert.match(uncertainty, /PredictionRunner\.run/);
+
+    for (const file of ['js/pred/auto-search.js', 'js/pred/uncertainty-analysis.js', 'js/pred/ehime-controller.js', 'js/pred/ehime-enhancements.js', 'js/pred/prediction-renderer.js']) {
+        assert.doesNotMatch(read(file), /new Blob|URL\.createObjectURL/, file);
+        assert.match(read(file), /ExportService/, file);
+    }
+});
+test('overlapping planning features route to their consolidated workflows', () => {
+    const html = read('index.html');
+    const autoSearch = read('js/pred/auto-search.js');
+    const launchWindow = read('js/pred/launch-window.js');
+    const predictionEvents = read('js/pred/pred-event.js');
+    assert.match(html, /id="run_batch_btn"[^>]+showAllSitesAutoSearchPreset/);
+    assert.match(html, /id="launch_window_run_btn"[^>]*>時間帯を比較</);
+    assert.doesNotMatch(html, /id="launch_window_panel"|id="burst-calc-wrapper"|js\/calc\/calc\.js/);
+    assert.match(autoSearch, /function showAllSitesPreset/);
+    assert.match(autoSearch, /function showWeatherComparisonPreset/);
+    assert.match(launchWindow, /showAutoSearchWeatherPreset/);
+    assert.match(predictionEvents, /GasCalculatorUI\.open/);
 });
 test('uncertainty analysis owns and restores its JST launch datetime', () => {
     const template = read('js/pred/uncertainty-template.js');
