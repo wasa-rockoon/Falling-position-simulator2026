@@ -24,6 +24,7 @@
         return {
             version: JOB_VERSION,
             id: null,
+            runId: null,
             status: 'idle',
             configuration: null,
             baseSettings: null,
@@ -249,8 +250,139 @@
         });
     }
 
+    function runRecordStatus() {
+        if (state.status === 'running') return 'running';
+        if (state.status === 'pausing') return 'pause_requested';
+        if (state.status === 'completed') return 'completed';
+        if (state.status === 'idle') return 'draft';
+        return 'paused';
+    }
+
+    function uncertaintyLandings() {
+        var landings = [];
+        state.siteRuns.forEach(function (siteRun) {
+            siteRun.observations.forEach(function (observation) {
+                if (!Number.isFinite(observation.lat) || !Number.isFinite(observation.lng)) return;
+                landings.push({
+                    seriesId: state.runId + ':' + siteRun.site.id + ':' + observation.index,
+                    latitude: observation.lat,
+                    longitude: observation.lng,
+                    timeUtc: state.baseSettings && state.baseSettings.launch_datetime,
+                    nearestSupportPoint: null,
+                    landSea: {
+                        classification: observation.isWater === true ? 'sea' : (observation.isWater === false ? 'land' : 'unknown'),
+                        confidence: 'unknown',
+                        source: 'legacy-local',
+                        coastDistanceKm: null,
+                        dataVersion: '',
+                        reason: ''
+                    }
+                });
+            });
+        });
+        return landings;
+    }
+
+    function uncertaintyRunOptions(status) {
+        var landings = uncertaintyLandings();
+        var seaCount = landings.filter(function (landing) { return landing.landSea.classification === 'sea'; }).length;
+        var landCount = landings.filter(function (landing) { return landing.landSea.classification === 'land'; }).length;
+        var known = seaCount + landCount;
+        var unknown = landings.length - known;
+        var firstSite = state.siteRuns[0] && state.siteRuns[0].site || {};
+        return {
+            id: state.runId,
+            type: 'uncertainty',
+            status: status,
+            title: '不確実性解析',
+            input: {
+                launch: {
+                    latitude: firstSite.latitude != null ? firstSite.latitude : state.baseSettings && state.baseSettings.launch_latitude,
+                    longitude: firstSite.longitude != null ? firstSite.longitude : state.baseSettings && state.baseSettings.launch_longitude,
+                    altitudeM: firstSite.altitude != null ? firstSite.altitude : state.baseSettings && state.baseSettings.launch_altitude,
+                    datetimeUtc: state.baseSettings && state.baseSettings.launch_datetime,
+                    label: state.siteRuns.map(function (run) { return run.site.name; }).join(', ')
+                },
+                flight: {
+                    ascentRateMps: state.baseSettings && state.baseSettings.ascent_rate,
+                    descentRateMps: state.baseSettings && state.baseSettings.descent_rate,
+                    burstAltitudeM: state.baseSettings && state.baseSettings.burst_altitude,
+                    profileId: state.baseSettings && state.baseSettings.profile
+                },
+                api: {
+                    endpointId: state.requestConfig && state.requestConfig.source,
+                    resolvedBaseUrl: state.requestConfig && state.requestConfig.baseUrl,
+                    maxHttpAttempts: state.configuration && state.configuration.callLimit
+                },
+                feature: {
+                    configuration: state.configuration,
+                    requestConfig: state.requestConfig,
+                    sites: state.siteRuns.map(function (run) { return run.site; })
+                }
+            },
+            progress: {
+                completedUnits: state.attemptedCalls,
+                totalUnits: state.configuration && state.configuration.budget ? state.configuration.budget.maximumCalls : 0,
+                currentLabel: state.siteRuns[state.currentSiteIndex] ? state.siteRuns[state.currentSiteIndex].site.name : '',
+                httpAttempts: state.networkCalls,
+                cacheHits: state.cacheHits,
+                retryCount: 0,
+                requestedAction: state.pauseRequested ? 'pause' : 'none'
+            },
+            output: {
+                trajectories: [],
+                landings: landings,
+                metrics: {
+                    seaRate: known ? seaCount / known * 100 : null,
+                    unknownRate: landings.length ? unknown / landings.length * 100 : null,
+                    attemptedCalls: state.attemptedCalls,
+                    networkCalls: state.networkCalls
+                },
+                candidates: state.siteRuns.map(function (run) {
+                    return {
+                        site: run.site,
+                        status: run.status,
+                        reason: run.reason,
+                        completedSamples: run.cursor,
+                        cap: run.cap,
+                        sequential: run.sequential
+                    };
+                }),
+                warnings: state.status === 'error' ? ['consecutive-api-errors'] : [],
+                resumeSnapshot: JSON.parse(JSON.stringify(state))
+            },
+            provenance: {
+                predictorSource: state.requestConfig && state.requestConfig.source,
+                randomSeed: state.configuration && state.configuration.seed
+            }
+        };
+    }
+
+    async function persistRunRecord() {
+        if (!state.runId || !root.RunRepository || !root.RunRecord) return;
+        var status = runRecordStatus();
+        var options = uncertaintyRunOptions(status);
+        var existing = await root.RunRepository.get(state.runId);
+        if (!existing) {
+            await root.RunRepository.save(root.RunRecord.create(options));
+            return;
+        }
+        await root.RunRepository.update(state.runId, {
+            status: status,
+            input: options.input,
+            progress: options.progress,
+            output: options.output,
+            provenance: options.provenance
+        });
+    }
+
     async function persist() {
         if (jobStore) await jobStore.save(state);
+        try {
+            await persistRunRecord();
+        } catch (error) {
+            if (typeof root.reportNonFatalError === 'function') root.reportNonFatalError(error, 'uncertainty.run-record');
+        }
     }
 
     function configureNewAnalysis() {
@@ -261,7 +393,8 @@
         var requestConfig = readRequestConfig();
         validateLaunchTime(baseSettings, requestConfig);
         state = emptyState();
-        state.id = 'uncertainty-' + Date.now().toString(36);
+        state.id = root.RunRecord ? root.RunRecord.makeId('run') : 'uncertainty-' + Date.now().toString(36);
+        state.runId = state.id;
         state.status = 'paused';
         state.configuration = Object.assign({}, config, { budget: budget });
         state.baseSettings = baseSettings;
@@ -679,7 +812,16 @@
     }
 
     async function executeAnalysis() {
-        var client = root.PredictionApi.getClient(state.requestConfig);
+        var requestContext = root.createPredictionRequestContext
+            ? root.createPredictionRequestContext({
+                runId: state.runId,
+                source: state.requestConfig.source,
+                baseUrl: state.requestConfig.baseUrl,
+                customUrl: state.requestConfig.customUrl,
+                maxHttpAttempts: state.configuration.callLimit
+            })
+            : null;
+        var client = requestContext && typeof requestContext.request === 'function' ? requestContext : root.PredictionApi.getClient(state.requestConfig);
         state.status = 'running';
         state.pauseRequested = false;
         renderResults();
@@ -794,6 +936,17 @@
 
     async function newAnalysis() {
         if (state.status === 'running' || state.status === 'pausing') return;
+        var previousRunId = state.runId;
+        if (previousRunId && root.RunRepository) {
+            try {
+                var previous = await root.RunRepository.get(previousRunId);
+                if (previous && root.RunRecord.activeStatuses.indexOf(previous.status) !== -1) {
+                    await root.RunRepository.update(previousRunId, { status: 'cancelled' });
+                }
+            } catch (error) {
+                if (typeof root.reportNonFatalError === 'function') root.reportNonFatalError(error, 'uncertainty.cancel-record');
+            }
+        }
         state = emptyState();
         clearUncertaintyMap();
         if (jobStore) await jobStore.clear();
@@ -817,16 +970,26 @@
     }
 
     async function restore() {
-        if (!jobStore || state.status !== 'idle') return;
-        var saved = await jobStore.load();
+        if (state.status !== 'idle') return;
+        var saved = jobStore ? await jobStore.load() : null;
+        if ((!saved || saved.version !== JOB_VERSION) && root.RunRepository) {
+            var activeRuns = await root.RunRepository.getActive('uncertainty');
+            var fallbackRuns = activeRuns.length ? activeRuns : await root.RunRepository.listRuns({ type: 'uncertainty' });
+            var latestRun = fallbackRuns[0];
+            if (latestRun && latestRun.output && latestRun.output.resumeSnapshot) {
+                saved = latestRun.output.resumeSnapshot;
+            }
+        }
         if (!saved || saved.version !== JOB_VERSION) return;
         clearUncertaintyMap();
         state = Object.assign(emptyState(), saved);
+        if (!state.runId) state.runId = state.id || (root.RunRecord ? root.RunRecord.makeId('run') : '');
         if (state.status === 'running' || state.status === 'pausing') state.status = 'paused';
         state.pauseRequested = false;
         if (state.configuration) applyConfiguration(state.configuration);
         if (state.baseSettings && state.baseSettings.launch_datetime) setLaunchDateTime(state.baseSettings.launch_datetime);
         renderResults();
+        await persist();
     }
 
     function downloadCsv() {

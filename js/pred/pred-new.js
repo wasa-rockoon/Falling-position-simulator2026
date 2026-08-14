@@ -63,18 +63,56 @@ function createPredictionRequestContext(options) {
     var source = options.source || ($('#api_source').val() || 'sondehub');
     var customUrl = options.customUrl;
     if (customUrl === undefined) customUrl = ($('#api_custom_url').val() || '').trim();
-    var baseUrl = options.baseUrl || resolveTawhiriApiUrl();
+    var baseUrl = options.baseUrl || options.resolvedBaseUrl || resolveTawhiriApiUrl();
     if (!baseUrl) return null;
-    var context = { source: source, baseUrl: baseUrl, client: null };
+    if (typeof PredictionRequestContext !== 'undefined') {
+        return PredictionRequestContext.create({
+            runId: options.runId || '',
+            source: source,
+            customUrl: customUrl,
+            resolvedBaseUrl: baseUrl,
+            maxHttpAttempts: options.maxHttpAttempts,
+            pauseController: options.pauseController,
+            diagnostics: options.diagnostics
+        });
+    }
+    var context = { runId: options.runId || '', source: source, endpointId: source, baseUrl: baseUrl, resolvedBaseUrl: baseUrl, client: null };
     if (typeof PredictionApi !== 'undefined') {
         context.client = PredictionApi.getClient({ source: source, baseUrl: baseUrl, customUrl: customUrl });
     }
     return context;
 }
 
+function createFallbackPredictionRequestContext(previousContext, settings) {
+    var nextContext = createPredictionRequestContext({
+        runId: previousContext && previousContext.runId,
+        source: 'sondehub',
+        baseUrl: 'https://api.v2.sondehub.org/tawhiri'
+    });
+    if (!nextContext || !previousContext) return nextContext;
+
+    var ready = previousContext.runRecordReady || Promise.resolve();
+    nextContext.runRecordReady = ready;
+    if (nextContext.runId && typeof RunRepository !== 'undefined') {
+        nextContext.runRecordReady = ready.then(function () {
+            return RunRepository.update(nextContext.runId, {
+                input: { api: predictionRunInput(settings, nextContext).api },
+                provenance: { predictorSource: nextContext.endpointId || nextContext.source || 'sondehub' },
+                output: { warnings: ['Local API validation failed; prediction continued with SondeHub.'] }
+            });
+        }).catch(function (error) {
+            if (typeof reportNonFatalError === 'function') reportNonFatalError(error, 'run-record.api-fallback');
+            return null;
+        });
+    }
+    return nextContext;
+}
 function requestTawhiriData(settings, requestContext, options) {
     var context = requestContext || createPredictionRequestContext();
     if (!context) return Promise.reject(new Error('Prediction API is not configured'));
+    if (typeof context.request === 'function') {
+        return context.request(settings, options || {}).then(function (result) { return result.data; });
+    }
     if (context.client) {
         return context.client.request(settings, options || {}).then(function (result) { return result.data; });
     }
@@ -83,6 +121,208 @@ function requestTawhiriData(settings, requestContext, options) {
     });
 }
 
+function predictionRunInput(settings, context) {
+    settings = settings || {};
+    context = context || {};
+    var longitude = Number(settings.launch_longitude);
+    if (longitude > 180) longitude -= 360;
+    return {
+        launch: {
+            latitude: settings.launch_latitude,
+            longitude: longitude,
+            altitudeM: settings.launch_altitude,
+            datetimeUtc: settings.launch_datetime,
+            label: $('#site option:selected').text() || ''
+        },
+        flight: {
+            ascentRateMps: settings.ascent_rate,
+            descentRateMps: settings.descent_rate,
+            burstAltitudeM: settings.burst_altitude,
+            floatAltitudeM: settings.float_altitude,
+            profileId: settings.profile
+        },
+        api: {
+            endpointId: context.endpointId || context.source || '',
+            resolvedBaseUrl: context.resolvedBaseUrl || context.baseUrl || '',
+            timeoutMs: context.timeoutMs,
+            maxHttpAttempts: Number.isFinite(context.maxHttpAttempts) ? context.maxHttpAttempts : null,
+            concurrency: context.concurrency,
+            minIntervalMs: context.minIntervalMs
+        },
+        feature: { predictionType: settings.pred_type || 'single' }
+    };
+}
+
+function startPredictionRunRecord(settings, context, type, title, runId) {
+    if (!context || typeof RunRecord === 'undefined' || typeof RunRepository === 'undefined') return runId || null;
+    var id = runId || context.runId || RunRecord.makeId('run');
+    context.runId = id;
+    var record = RunRecord.create({
+        id: id,
+        type: type || 'single',
+        status: 'running',
+        title: title || '予測',
+        input: predictionRunInput(settings, context),
+        provenance: {
+            predictorSource: context.endpointId || context.source || ''
+        }
+    });
+    context.runRecordReady = RunRepository.save(record).catch(function (error) {
+        if (typeof reportNonFatalError === 'function') reportNonFatalError(error, 'run-record.start');
+        return null;
+    });
+    return id;
+}
+
+function plainTrajectorySeries(predictionResult, runId, variantId, label) {
+    if (!predictionResult) return null;
+    var path = Array.isArray(predictionResult.flight_path) ? predictionResult.flight_path : [];
+    return {
+        id: runId + ':' + (variantId || 'main'),
+        runId: runId,
+        variantId: variantId || null,
+        label: label || variantId || '予測',
+        color: '',
+        visible: variantId ? variantId === 'BASE' : true,
+        points: path.map(function (point) {
+            return {
+                timeUtc: null,
+                latitude: Array.isArray(point) ? point[0] : null,
+                longitude: Array.isArray(point) ? point[1] : null,
+                altitudeM: Array.isArray(point) ? point[2] : null,
+                horizontalSpeedMps: null,
+                verticalSpeedMps: null,
+                phase: null
+            };
+        })
+    };
+}
+
+function plainLandingResult(predictionResult, seriesId) {
+    if (!predictionResult || !predictionResult.landing || !predictionResult.landing.latlng) return null;
+    var landing = predictionResult.landing;
+    return {
+        seriesId: seriesId,
+        latitude: landing.latlng.lat,
+        longitude: landing.latlng.lng,
+        timeUtc: landing.datetime && typeof landing.datetime.toISOString === 'function' ? landing.datetime.toISOString() : null,
+        nearestSupportPoint: null,
+        landSea: {
+            classification: 'unknown',
+            confidence: 'unknown',
+            source: 'unclassified',
+            coastDistanceKm: null,
+            dataVersion: '',
+            reason: ''
+        }
+    };
+}
+
+function persistPredictionRunBoundary(context, boundary) {
+    if (!context || !context.runId || typeof RunRepository === 'undefined') return Promise.resolve(null);
+    var progress = Object.assign({}, boundary && boundary.progress || {});
+    if (context.diagnostics) {
+        progress.httpAttempts = context.diagnostics.httpAttempts;
+        progress.cacheHits = context.diagnostics.cacheHits;
+        progress.retryCount = context.diagnostics.retryCount;
+    }
+    var ready = context.runRecordReady || Promise.resolve();
+    return ready.then(function () {
+        return RunRepository.saveBoundary(context.runId, Object.assign({}, boundary || {}, { progress: progress }));
+    }).catch(function (error) {
+        if (typeof reportNonFatalError === 'function') reportNonFatalError(error, 'run-record.boundary');
+        return null;
+    });
+}
+
+function saveSinglePredictionResult(context, predictionResult) {
+    if (!context || !context.runId) return;
+    var series = plainTrajectorySeries(predictionResult, context.runId, null, '予測');
+    var landing = plainLandingResult(predictionResult, series ? series.id : context.runId + ':main');
+    persistPredictionRunBoundary(context, {
+        status: 'completed',
+        progress: { completedUnits: 1, totalUnits: 1, currentLabel: '完了' },
+        output: {
+            trajectories: series ? [series] : [],
+            landings: landing ? [landing] : [],
+            metrics: {}
+        }
+    });
+}
+
+function buildEhimeRunOutput(runId) {
+    var trajectories = [];
+    var landings = [];
+    var completed = 0;
+    var failed = 0;
+    Object.keys(ehime_predictions || {}).forEach(function (key) {
+        var entry = ehime_predictions[key];
+        if (!entry) return;
+        if (entry.status === 'error') failed += 1;
+        if (entry.status !== 'ok' || !entry.results) return;
+        completed += 1;
+        var series = plainTrajectorySeries(entry.results, runId, entry.label, entry.label);
+        if (series) trajectories.push(series);
+        var landing = plainLandingResult(entry.results, series ? series.id : runId + ':' + entry.label);
+        if (landing) landings.push(landing);
+    });
+    return {
+        completed: completed,
+        failed: failed,
+        trajectories: trajectories,
+        landings: landings
+    };
+}
+
+function persistEhimeRunBoundary(status, error) {
+    if (!ehime_current || !ehime_current.runId) return Promise.resolve(null);
+    var output = buildEhimeRunOutput(ehime_current.runId);
+    return persistPredictionRunBoundary(ehime_current.requestContext, {
+        status: status,
+        progress: {
+            completedUnits: output.completed + output.failed,
+            totalUnits: ehime_variant_total,
+            currentLabel: status === 'running' ? '愛媛13条件を実行中' : '愛媛13条件完了'
+        },
+        output: {
+            trajectories: output.trajectories,
+            landings: output.landings,
+            metrics: { completedVariants: output.completed, failedVariants: output.failed }
+        },
+        error: error
+    });
+}
+
+function initializePredictionBatch(context, total) {
+    if (!context) return;
+    context.batchProgress = {
+        completed: 0,
+        total: Math.max(0, Number(total) || 0),
+        failed: 0
+    };
+}
+
+function recordPredictionBatchBoundary(context, success, error) {
+    if (!context || !context.batchProgress) return;
+    context.batchProgress.completed += 1;
+    if (!success) context.batchProgress.failed += 1;
+    var done = context.batchProgress.completed >= context.batchProgress.total;
+    var status = done
+        ? (context.batchProgress.failed === 0 ? 'completed' : (context.batchProgress.failed < context.batchProgress.total ? 'partial' : 'failed'))
+        : 'running';
+    persistPredictionRunBoundary(context, {
+        status: status,
+        progress: {
+            completedUnits: context.batchProgress.completed,
+            totalUnits: context.batchProgress.total,
+            currentLabel: done ? '時刻比較完了' : '時刻比較を実行中'
+        },
+        output: {
+            metrics: { failedPredictions: context.batchProgress.failed }
+        },
+        error: done && status === 'failed' ? error : undefined
+    });
+}
 function getPredictionRequestBaseUrl(requestContext) {
     if (requestContext && requestContext.baseUrl) return requestContext.baseUrl;
     return resolveTawhiriApiUrl() || 'https://api.v2.sondehub.org/tawhiri';
@@ -118,7 +358,7 @@ function requestPredictionWithApiValidation(run_settings, extra_settings, reques
 
             $('#api_source').val('sondehub');
             toggleCustomApiInput();
-            requestContext = createPredictionRequestContext({ source: 'sondehub', baseUrl: 'https://api.v2.sondehub.org/tawhiri' });
+            requestContext = createFallbackPredictionRequestContext(requestContext, run_settings);
             try {
                 var u1 = new URL(window.location.href);
                 u1.searchParams.set('api_source', 'sondehub');
@@ -132,7 +372,7 @@ function requestPredictionWithApiValidation(run_settings, extra_settings, reques
         .fail(function () {
             $('#api_source').val('sondehub');
             toggleCustomApiInput();
-            requestContext = createPredictionRequestContext({ source: 'sondehub', baseUrl: 'https://api.v2.sondehub.org/tawhiri' });
+            requestContext = createFallbackPredictionRequestContext(requestContext, run_settings);
             try {
                 var u2 = new URL(window.location.href);
                 u2.searchParams.set('api_source', 'sondehub');
@@ -309,6 +549,9 @@ function runPrediction() {
         return;
     }
     var requestContext = createPredictionRequestContext({ source: requestedApiSource, baseUrl: selectedApiUrl });
+    if (!ehime_mode) {
+        startPredictionRunRecord(run_settings, requestContext, 'single', fall_mode ? '落下予測' : '通常予測');
+    }
     appendDebug('Using API: ' + selectedApiUrl);
 
 
@@ -1112,16 +1355,23 @@ function finalizeEhimeRunIfCompleted() {
     });
     if (pending) return;
 
-    var anySuccess = keys.some(function (k) {
+    var successCount = keys.filter(function (k) {
         return ehime_predictions[k] && ehime_predictions[k].status === 'ok';
-    });
+    }).length;
+    var anySuccess = successCount > 0;
 
     if (anySuccess) {
         saveEhimeHistorySnapshot();
         renderEhimeHistoryPanel();
     }
     ehime_history_saved_for_run = true;
-    $(document).trigger('ehime_run_complete', [{ runId: ehime_current && ehime_current.runId, success: anySuccess }]);
+    var finalStatus = !anySuccess ? 'failed' : (successCount === keys.length ? 'completed' : 'partial');
+    var finalError = !anySuccess && typeof AppErrors !== 'undefined'
+        ? AppErrors.create('EHIME_ALL_VARIANTS_FAILED', '愛媛13条件の予測に失敗しました。', { phase: 'prediction', runId: ehime_current && ehime_current.runId })
+        : undefined;
+    persistEhimeRunBoundary(finalStatus, finalError).then(function () {
+        $(document).trigger('ehime_run_complete', [{ runId: ehime_current && ehime_current.runId, success: anySuccess }]);
+    });
 }
 
 $(document).on('click', '#ehime_history_prev_btn', function () {
@@ -1637,6 +1887,10 @@ function tawhiriRequest(settings, extra_settings, requestContext) {
     if (!context) return;
     function requestFailure(error, fallbackMessage) {
         var detail = error && error.message ? ' ' + error.message : '';
+        var normalized = typeof AppErrors !== 'undefined'
+            ? AppErrors.normalize(error, { code: 'PREDICTION_FAILED', userMessage: fallbackMessage, phase: 'prediction', runId: context.runId })
+            : error;
+        persistPredictionRunBoundary(context, { status: 'failed', error: normalized });
         throwError(fallbackMessage + detail);
     }
     if (settings.pred_type === 'single' || settings.pred_type === 'fall') {
@@ -1665,13 +1919,20 @@ function tawhiriRequest(settings, extra_settings, requestContext) {
         throwError('Hourly/Daily predictions are only available for the standard flight profile.');
         return;
     }
+    initializePredictionBatch(context, Math.ceil(MAX_PRED_HOURS / timeStep));
     for (let currentHour = 0; currentHour < MAX_PRED_HOURS; currentHour += timeStep) {
         let currentMoment = moment(extra_settings.launch_moment).add(currentHour, 'hours');
         let currentSettings = Object.assign({}, settings, { launch_datetime: currentMoment.format() });
         hourly_predictions[currentHour] = { layers: {}, settings: currentSettings, apiUrl: context.baseUrl };
         requestTawhiriData(currentSettings, context, { label: 'hourly-' + currentHour })
-            .then(function (data) { processHourlyTawhiriResults(data, currentSettings, currentHour, context); })
-            .catch(function (error) { hourly_predictions[currentHour].error = error && error.message ? error.message : String(error); });
+            .then(function (data) {
+                processHourlyTawhiriResults(data, currentSettings, currentHour, context);
+                recordPredictionBatchBoundary(context, true);
+            })
+            .catch(function (error) {
+                hourly_predictions[currentHour].error = error && error.message ? error.message : String(error);
+                recordPredictionBatchBoundary(context, false, error);
+            });
     }
 }
 
@@ -1683,8 +1944,10 @@ function runEhimePredictions(base_settings, extra_settings, requestContext) {
     clearMapItems();
     ehime_predictions = {};
     ehime_history_saved_for_run = false;
-    var runId = 'ehime-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 8);
-    ehime_current = { base: base_settings, apiUrl: requestContext ? requestContext.baseUrl : null, runId: runId };
+    var runId = requestContext && requestContext.runId ? requestContext.runId : (typeof RunRecord !== 'undefined' ? RunRecord.makeId('run') : 'ehime-' + Date.now().toString(36));
+    if (requestContext) requestContext.runId = runId;
+    ehime_current = { base: base_settings, apiUrl: requestContext ? requestContext.baseUrl : null, runId: runId, requestContext: requestContext };
+    startPredictionRunRecord(base_settings, requestContext, 'ehime_ensemble', '愛媛13条件比較', runId);
     var asc_base = base_settings.ascent_rate;
     var desc_base = base_settings.descent_rate;
     var burst_base = base_settings.burst_altitude;
@@ -1728,7 +1991,7 @@ function runEhimePredictions(base_settings, extra_settings, requestContext) {
                 ehime_predictions[variantId].status = 'error';
                 ehime_predictions[variantId].error = error && error.message ? error.message : String(error);
                 updateEhimeSummaryFromStore();
-                finalizeEhimeRunIfCompleted();
+                persistEhimeRunBoundary('running').then(finalizeEhimeRunIfCompleted);
             });
     });
     updateEhimeCSVLink();
@@ -1750,7 +2013,9 @@ function processEhimeResult(data, settings, variant_id, variant_index, requestCo
     if (!ehime_current || ehime_current.runId !== runId) return;
     if (data.hasOwnProperty('error')) {
         ehime_predictions[variant_id].status = 'error';
+        ehime_predictions[variant_id].error = data.error && (data.error.description || data.error.message) || 'prediction error';
         updateEhimeSummaryFromStore();
+        persistEhimeRunBoundary('running').then(finalizeEhimeRunIfCompleted);
         return;
     }
     var prediction_results = parsePrediction(data.prediction);
@@ -1801,7 +2066,7 @@ function processEhimeResult(data, settings, variant_id, variant_index, requestCo
             updateAllPopups();
         }
     } catch (_e) { if (typeof reportNonFatalError === 'function') reportNonFatalError(_e, 'non-fatal fallback'); }
-    finalizeEhimeRunIfCompleted();
+    persistEhimeRunBoundary('running').then(finalizeEhimeRunIfCompleted);
 }
 
 function plotEhimeLandingMarker(variant_id, variant_index) {
@@ -2031,6 +2296,8 @@ function processTawhiriResults(data, settings, fall_only, requestContext) {
 
     if (data.hasOwnProperty('error')) {
         // The prediction API has returned an error.
+        var apiError = new Error(data.error.description || "Predictor returned error");
+        persistPredictionRunBoundary(requestContext, { status: 'failed', error: apiError });
         throwError("Predictor returned error: " + data.error.description)
     } else {
 
@@ -2096,6 +2363,7 @@ function processTawhiriResults(data, settings, fall_only, requestContext) {
         } catch (_e) { if (typeof reportNonFatalError === 'function') reportNonFatalError(_e, 'non-fatal fallback'); }
 
         writePredictionInfo(settings, data.metadata, data.request, fall_only ? extended_results : null, requestContext);
+        saveSinglePredictionResult(requestContext, extended_results);
 
     }
 
@@ -2588,6 +2856,8 @@ function processHourlyTawhiriResults(data, settings, current_hour, requestContex
 
     if (data.hasOwnProperty('error')) {
         // The prediction API has returned an error.
+        var apiError = new Error(data.error.description || "Predictor returned error");
+        persistPredictionRunBoundary(requestContext, { status: 'failed', error: apiError });
         throwError("Predictor returned error: " + data.error.description)
     } else {
 
@@ -3153,6 +3423,11 @@ function initPredNewExtensions() {
     if (_predNewExtensionsInitialized) return;
     _predNewExtensionsInitialized = true;
     renderEhimeHistoryPanel();
+    if (typeof RunRepository !== 'undefined' && typeof loadEhimeHistoryCache === 'function') {
+        RunRepository.migrateLegacyEhime(loadEhimeHistoryCache()).catch(function (error) {
+            if (typeof reportNonFatalError === 'function') reportNonFatalError(error, 'ehime-history.migration');
+        });
+    }
     $('#prediction_type').off('change.predNewFall').on('change.predNewFall', updateFallModeUI);
     updateFallModeUI();
     bindPanToCenterLink();

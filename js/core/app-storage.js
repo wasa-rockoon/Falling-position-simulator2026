@@ -6,8 +6,8 @@
     'use strict';
 
     var DATABASE_NAME = 'falling-position-simulator-2026';
-    var DATABASE_VERSION = 1;
-    var STORE_NAMES = ['predictionCache', 'jobs', 'settings'];
+    var DATABASE_VERSION = 2;
+    var STORE_NAMES = ['predictionCache', 'jobs', 'settings', 'runs', 'history', 'migrations'];
     var memoryStores = {};
     var databasePromise = null;
 
@@ -93,6 +93,48 @@
                 return clone(getMemoryStore(storeName).get(key));
             },
 
+            async list() {
+                try {
+                    var idbResult = await withStore('readonly', function (store, resolve, reject) {
+                        var items = [];
+                        var request = store.openCursor();
+                        request.onsuccess = function () {
+                            var cursor = request.result;
+                            if (!cursor) {
+                                resolve({ supported: true, items: items });
+                                return;
+                            }
+                            items.push({ key: String(cursor.key), value: clone(cursor.value) });
+                            cursor.continue();
+                        };
+                        request.onerror = function () { reject(request.error); };
+                    });
+                    if (idbResult.supported) return idbResult.items;
+                } catch (_error) { if (typeof reportNonFatalError === 'function') reportNonFatalError(_error, 'storage.list.idb'); }
+
+                try {
+                    if (root.localStorage) {
+                        var prefix = localStorageKey(storeName, '');
+                        var localItems = [];
+                        for (var index = 0; index < root.localStorage.length; index += 1) {
+                            var storageKey = root.localStorage.key(index);
+                            if (!storageKey || storageKey.indexOf(prefix) !== 0) continue;
+                            var raw = root.localStorage.getItem(storageKey);
+                            localItems.push({
+                                key: storageKey.slice(prefix.length),
+                                value: raw === null ? null : JSON.parse(raw)
+                            });
+                        }
+                        if (localItems.length) return localItems;
+                    }
+                } catch (_error2) { if (typeof reportNonFatalError === 'function') reportNonFatalError(_error2, 'storage.list.local'); }
+
+                var memoryItems = [];
+                getMemoryStore(storeName).forEach(function (value, key) {
+                    memoryItems.push({ key: String(key), value: clone(value) });
+                });
+                return memoryItems;
+            },
             async set(key, value) {
                 var copied = clone(value);
                 try {
@@ -155,6 +197,8 @@
 
     return {
         createStore: createStore,
-        databaseName: DATABASE_NAME
+        databaseName: DATABASE_NAME,
+        databaseVersion: DATABASE_VERSION,
+        storeNames: STORE_NAMES.slice()
     };
 }));

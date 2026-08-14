@@ -31,6 +31,7 @@
     function emptyState() {
         return {
             version: JOB_VERSION,
+            runId: null,
             phase: 0,
             status: 'idle',
             running: false,
@@ -88,17 +89,127 @@
         return snapshot;
     }
 
+    function runStatus() {
+        if (state.status === 'running') return 'running';
+        if (state.status === 'pausing') return 'pause_requested';
+        if (state.status === 'completed') return 'completed';
+        if (state.status === 'error') return 'failed';
+        if (state.status === 'idle') return 'draft';
+        return 'paused';
+    }
+
+    function autoRunOptions(status) {
+        var first = state.queue && state.queue[0] || {};
+        return {
+            id: state.runId,
+            type: 'auto_search',
+            status: status,
+            title: '放球自動探索',
+            input: {
+                launch: {
+                    latitude: first.lat,
+                    longitude: first.lon,
+                    altitudeM: first.alt,
+                    datetimeUtc: first.launchUtc || null,
+                    label: state.configuration && state.configuration.selectedSites ? state.configuration.selectedSites.join(', ') : ''
+                },
+                flight: {
+                    ascentRateMps: state.runSettings && state.runSettings.ascent_rate,
+                    descentRateMps: state.runSettings && state.runSettings.descent_rate,
+                    burstAltitudeM: state.runSettings && state.runSettings.burst_altitude,
+                    floatAltitudeM: state.runSettings && state.runSettings.float_altitude,
+                    profileId: state.runSettings && state.runSettings.profile
+                },
+                api: {
+                    endpointId: state.requestConfig && state.requestConfig.source,
+                    resolvedBaseUrl: state.requestConfig && state.requestConfig.baseUrl,
+                    maxHttpAttempts: state.configuration && state.configuration.callLimit
+                },
+                feature: {
+                    mode: state.mode,
+                    phase: state.phase,
+                    configuration: state.configuration,
+                    requestConfig: state.requestConfig
+                }
+            },
+            progress: {
+                completedUnits: state.done,
+                totalUnits: state.total,
+                currentLabel: 'Phase ' + state.phase,
+                httpAttempts: state.requestContext && state.requestContext.diagnostics ? state.requestContext.diagnostics.httpAttempts : 0,
+                cacheHits: state.requestContext && state.requestContext.diagnostics ? state.requestContext.diagnostics.cacheHits : 0,
+                retryCount: state.requestContext && state.requestContext.diagnostics ? state.requestContext.diagnostics.retryCount : 0,
+                requestedAction: state.pauseRequested ? 'pause' : 'none'
+            },
+            output: {
+                trajectories: [],
+                landings: [],
+                metrics: {
+                    matchedCandidates: state.results.length,
+                    coarseCandidates: state.coarseCandidates.length,
+                    fineCandidates: state.fineCandidates.length,
+                    seaThreshold: state.configuration && state.configuration.seaThreshold
+                },
+                candidates: state.results,
+                warnings: [],
+                resumeSnapshot: serializeState()
+            },
+            provenance: {
+                predictorSource: state.requestConfig && state.requestConfig.source
+            }
+        };
+    }
+
+    async function persistRunRecord() {
+        if (!state.runId || !root.RunRepository || !root.RunRecord) return;
+        var status = runStatus();
+        var existing = await root.RunRepository.get(state.runId);
+        if (!existing) {
+            await root.RunRepository.save(root.RunRecord.create(autoRunOptions(status)));
+            return;
+        }
+        var options = autoRunOptions(status);
+        await root.RunRepository.update(state.runId, {
+            status: status,
+            input: options.input,
+            progress: options.progress,
+            output: options.output,
+            provenance: options.provenance
+        });
+    }
+
     async function persistState() {
         if (jobStore) await jobStore.save(serializeState());
+        try {
+            await persistRunRecord();
+        } catch (error) {
+            if (typeof root.reportNonFatalError === 'function') root.reportNonFatalError(error, 'auto-search.run-record');
+        }
     }
 
-    async function clearPersistedState() {
+    async function clearPersistedState(previousRunId) {
         if (jobStore) await jobStore.clear();
+        if (previousRunId && root.RunRepository) {
+            try {
+                var record = await root.RunRepository.get(previousRunId);
+                if (record && root.RunRecord.activeStatuses.indexOf(record.status) !== -1) {
+                    await root.RunRepository.update(previousRunId, { status: 'cancelled' });
+                }
+            } catch (error) {
+                if (typeof root.reportNonFatalError === 'function') root.reportNonFatalError(error, 'auto-search.cancel-record');
+            }
+        }
     }
 
-    function createRequestContextFromConfig(config) {
+    function createRequestContextFromConfig(config, runId, maxHttpAttempts) {
         if (!config || typeof root.createPredictionRequestContext !== 'function') return null;
-        return root.createPredictionRequestContext({ source: config.source, baseUrl: config.baseUrl, customUrl: config.customUrl });
+        return root.createPredictionRequestContext({
+            runId: runId || '',
+            source: config.source,
+            baseUrl: config.baseUrl,
+            customUrl: config.customUrl,
+            maxHttpAttempts: maxHttpAttempts
+        });
     }
 
     function updateStepIndicators(activePhase) {
@@ -281,6 +392,7 @@
         var context = root.createPredictionRequestContext ? root.createPredictionRequestContext() : null;
         if (!context) return;
         state = emptyState();
+        state.runId = root.RunRecord ? root.RunRecord.makeId('run') : 'auto-' + Date.now().toString(36);
         state.phase = 1;
         state.status = 'ready';
         state.mode = estimate.mode;
@@ -298,7 +410,7 @@
         };
         state.runSettings = readRunSettings();
         state.requestConfig = { source: context.source, baseUrl: context.baseUrl, customUrl: ($('#api_custom_url').val() || '').trim() };
-        state.requestContext = context;
+        state.requestContext = createRequestContextFromConfig(state.requestConfig, state.runId, estimate.callLimit);
         await persistState();
         updateProgress(
             '<b>探索条件を保存しました。</b><br>Phase 1 天候APIは最大 ' + estimate.weatherCalls + '回です。地点×日付で共有するため、時刻ごとには呼びません。',
@@ -594,7 +706,7 @@
 
     async function runCurrentPhase() {
         if (state.running) return;
-        state.requestContext = state.requestContext || createRequestContextFromConfig(state.requestConfig);
+        state.requestContext = state.requestContext || createRequestContextFromConfig(state.requestConfig, state.runId, state.configuration && state.configuration.callLimit);
         if (!state.requestContext && state.phase >= 2) {
             notify('保存されたAPI設定を復元できません。', 'error');
             return;
@@ -679,7 +791,8 @@
         state.running = false;
         state.pauseRequested = false;
         if (state.status !== 'completed') state.status = 'paused';
-        state.requestContext = createRequestContextFromConfig(state.requestConfig);
+        if (!state.runId) state.runId = root.RunRecord ? root.RunRecord.makeId('run') : '';
+        state.requestContext = createRequestContextFromConfig(state.requestConfig, state.runId, state.configuration && state.configuration.callLimit);
         applyConfiguration(state.configuration);
         await populateSites(state.configuration ? state.configuration.selectedSites : []);
         renderResults();
@@ -701,8 +814,17 @@
             return;
         }
         var saved = jobStore ? await jobStore.load() : null;
+        if ((!saved || saved.version !== JOB_VERSION) && root.RunRepository) {
+            var activeRuns = await root.RunRepository.getActive('auto_search');
+            var fallbackRuns = activeRuns.length ? activeRuns : await root.RunRepository.listRuns({ type: 'auto_search' });
+            var latestRun = fallbackRuns[0];
+            if (latestRun && latestRun.output && latestRun.output.resumeSnapshot) {
+                saved = latestRun.output.resumeSnapshot;
+            }
+        }
         if (saved && saved.version === JOB_VERSION) {
             await restoreSavedState(saved);
+            await persistState();
             return;
         }
         var nowJst = root.moment.utc().utcOffset(9 * 60);
@@ -721,9 +843,10 @@
     }
 
     async function resetSearch() {
+        var previousRunId = state.runId;
         state = emptyState();
         weatherDayCache.clear();
-        await clearPersistedState();
+        await clearPersistedState(previousRunId);
         $('#auto_results').hide();
         await showModal();
     }

@@ -2,7 +2,7 @@
 'use strict';
 
 var CACHE_PREFIX = 'wasa-predictor-';
-var CACHE_VERSION = 'f658b2779317';
+var CACHE_VERSION = 'd1b3541d1d86';
 var APP_CACHE_NAME = CACHE_PREFIX + 'app-' + CACHE_VERSION;
 var TILE_CACHE_NAME = CACHE_PREFIX + 'tiles-v1';
 var TILE_CACHE_LIMIT = 500;
@@ -69,9 +69,13 @@ var APP_SHELL = [
     "./js/calc/gas-calculator-ui.js",
     "./js/chart.min.js",
     "./js/colour-map.js",
+    "./js/core/app-errors.js",
     "./js/core/app-notifications.js",
     "./js/core/app-shell.js",
     "./js/core/app-storage.js",
+    "./js/core/run-repository.js",
+    "./js/core/settings-repository.js",
+    "./js/domain/run-record.js",
     "./js/html2canvas.min.js",
     "./js/jquery-3.3.1.min.js",
     "./js/jquery-ui.min.js",
@@ -98,6 +102,7 @@ var APP_SHELL = [
     "./js/pred/pred-new.js",
     "./js/pred/pred-ui.js",
     "./js/pred/pred.js",
+    "./js/pred/request-context.js",
     "./js/pred/uncertainty-analysis.js",
     "./js/pred/uncertainty-core.js",
     "./js/pred/uncertainty-template.js",

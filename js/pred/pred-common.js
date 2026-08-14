@@ -168,6 +168,7 @@
     }
 
     function loadPresets() {
+        if (window.SettingsRepository) return window.SettingsRepository.getPresets();
         try {
             var raw = localStorage.getItem(PRESET_KEY);
             return raw ? JSON.parse(raw) : [];
@@ -178,6 +179,10 @@
     }
 
     function savePresets(presets) {
+        if (window.SettingsRepository) {
+            window.SettingsRepository.savePresets(presets);
+            return;
+        }
         localStorage.setItem(PRESET_KEY, JSON.stringify(presets));
     }
 
@@ -231,17 +236,24 @@
     }
 
     window.saveLastSettings = function () {
-        localStorage.setItem(LAST_SETTINGS_KEY, JSON.stringify(getFormValues()));
+        var values = getFormValues();
+        if (window.SettingsRepository) {
+            window.SettingsRepository.saveLastSettings(values);
+            return;
+        }
+        localStorage.setItem(LAST_SETTINGS_KEY, JSON.stringify(values));
     };
 
     function restoreLastSettings() {
         try {
-            var raw = localStorage.getItem(LAST_SETTINGS_KEY);
-            if (!raw) {
+            var values = window.SettingsRepository
+                ? window.SettingsRepository.getLastSettings()
+                : JSON.parse(localStorage.getItem(LAST_SETTINGS_KEY) || 'null');
+            if (!values) {
                 showToast('前回設定はありません', 'warning', 1800);
                 return;
             }
-            applyFormValues(JSON.parse(raw));
+            applyFormValues(values);
             showToast('前回設定を復元しました', 'success', 1800);
         } catch (_e) {
             if (typeof reportNonFatalError === 'function') reportNonFatalError(_e, 'presets.restore');
