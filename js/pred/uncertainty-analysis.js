@@ -34,6 +34,9 @@
             attemptedCalls: 0,
             networkCalls: 0,
             cacheHits: 0,
+            retryCount: 0,
+            failures: 0,
+            partialReason: '',
             pauseRequested: false,
             startedAt: null,
             completedAt: null
@@ -181,10 +184,19 @@
         var budget = core.planBudget(count, config);
         var launchDate = element('uncertainty_launch_date').value || '-';
         var launchTime = element('uncertainty_launch_time').value || '-';
-        var message = '解析日時（JST）: ' + launchDate + ' ' + launchTime + '<br>選択 ' + count + '地点 / 最小 ' + budget.minimumCalls + '回 / 最大 ' + budget.maximumCalls + '回';
-        if (budget.reducedByLimit) message += '（上限により1地点 ' + budget.perSiteCap + '回へ縮小）';
-        message += '<br>HTTP試行上限 ' + config.callLimit + '回 / 最大所要時間の概算: 約' + humanDuration(estimateSeconds(config.callLimit));
+        var source = $('#api_source').val() || 'sondehub';
+        var policy = root.PredictionApi && root.PredictionApi.policies ? root.PredictionApi.policies[source] : null;
+        var maxRetries = policy ? policy.maxRetries : 2;
+        var attempts = root.PredictionWorkload
+            ? root.PredictionWorkload.estimateAttempts(budget.maximumCalls, maxRetries, 0)
+            : { worstCaseHttpAttempts: budget.maximumCalls * (maxRetries + 1) };
+        var message = '解析日時（JST）: ' + launchDate + ' ' + launchTime + '<br>選択 ' + count + '地点 / 論理サンプル 最小 ' + budget.minimumCalls + '回 / 最大 ' + budget.maximumCalls + '回';
+        if (budget.reducedByLimit) message += '（HTTP上限により1地点 ' + budget.perSiteCap + '回へ縮小）';
+        message += '<br>HTTP試行上限 ' + config.callLimit + '回 / 再試行込み最悪 ' + attempts.worstCaseHttpAttempts + '回 / 上限までの概算: 約' + humanDuration(estimateSeconds(config.callLimit));
         if (!budget.canReachMinimum) message += '<br><strong>API上限を増やすか、地点数を減らしてください。</strong>';
+        var advice = root.PredictionWorkload ? root.PredictionWorkload.apiAdvice(source, config.callLimit) : { aboveRecommended: false };
+        if (advice.aboveRecommended) message += '<br><strong>公開APIの推奨目安300試行を超えています。大量解析にはLocalhostを推奨します。</strong>';
+        message += '<br>事前キャッシュ命中は未判定（0件として計算）。命中時はHTTP試行と所要時間が短縮されます。';
         element('uncertainty_estimate').innerHTML = message;
     }
 
@@ -249,6 +261,7 @@
         if (state.status === 'running') return 'running';
         if (state.status === 'pausing') return 'pause_requested';
         if (state.status === 'completed') return 'completed';
+        if (state.status === 'partial') return 'paused';
         if (state.status === 'idle') return 'draft';
         return 'paused';
     }
@@ -319,7 +332,7 @@
                 currentLabel: state.siteRuns[state.currentSiteIndex] ? state.siteRuns[state.currentSiteIndex].site.name : '',
                 httpAttempts: state.networkCalls,
                 cacheHits: state.cacheHits,
-                retryCount: 0,
+                retryCount: state.retryCount,
                 requestedAction: state.pauseRequested ? 'pause' : 'none'
             },
             output: {
@@ -333,7 +346,9 @@
                     inlandWaterCount: inlandWaterCount,
                     unknownCount: unknown,
                     attemptedCalls: state.attemptedCalls,
-                    networkCalls: state.networkCalls
+                    networkCalls: state.networkCalls,
+                    retryCount: state.retryCount,
+                    failures: state.failures
                 },
                 candidates: state.siteRuns.map(function (run) {
                     return {
@@ -345,7 +360,7 @@
                         sequential: run.sequential
                     };
                 }),
-                warnings: (state.status === 'error' ? ['consecutive-api-errors'] : []).concat(unknown > 0 ? [unknown + ' sample(s) have unknown land/sea results.'] : []),
+                warnings: (state.partialReason === 'budget' ? ['http-attempt-budget-exhausted'] : []).concat(state.partialReason === 'errors' ? ['one-or-more-sites-have-consecutive-api-errors'] : []).concat(unknown > 0 ? [unknown + ' sample(s) have unknown land/sea results.'] : []),
                 resumeSnapshot: JSON.parse(JSON.stringify(state))
             },
             provenance: {
@@ -781,120 +796,168 @@
         var maximum = state.configuration && state.configuration.budget ? state.configuration.budget.maximumCalls : 0;
         var percent = maximum ? Math.min(100, state.attemptedCalls / maximum * 100) : 0;
         element('uncertainty_progress_bar').style.width = percent + '%';
-        element('uncertainty_progress_text').textContent = 'サンプル ' + state.attemptedCalls + ' / 最大 ' + maximum + '（HTTP試行 ' + state.networkCalls + ' / 上限 ' + (state.configuration ? state.configuration.callLimit : 0) + '、キャッシュ ' + state.cacheHits + '）';
-        var label = { idle: '未実行', running: '解析中', pausing: '中断待ち', paused: '中断中', completed: '完了', error: 'エラーで中断' }[state.status] || state.status;
+        element('uncertainty_progress_text').textContent = 'サンプル ' + state.attemptedCalls + ' / 最大 ' + maximum + '（HTTP試行 ' + state.networkCalls + ' / 上限 ' + (state.configuration ? state.configuration.callLimit : 0) + '、再試行 ' + state.retryCount + '、キャッシュ ' + state.cacheHits + '）';
+        var label = { idle: '未実行', running: '解析中', pausing: '中断待ち', paused: '中断中', partial: '一部完了', completed: '完了', error: 'エラーで中断' }[state.status] || state.status;
         element('uncertainty_status').textContent = label;
         element('uncertainty_export').disabled = !state.siteRuns.some(function (run) { return run.observations.length > 0; });
         element('uncertainty_pause').disabled = state.status !== 'running' && state.status !== 'pausing';
         element('uncertainty_start').disabled = state.status === 'running' || state.status === 'pausing';
-        element('uncertainty_start').textContent = state.status === 'paused' || state.status === 'error' ? '解析再開' : (state.status === 'completed' ? '完了' : '解析開始');
+        element('uncertainty_start').textContent = state.status === 'partial' ? (state.partialReason === 'budget' ? '上限を増やして再開' : '未完了地点を再開') : (state.status === 'paused' || state.status === 'error' ? '解析再開' : (state.status === 'completed' ? '完了' : '解析開始'));
         element('uncertainty_start').disabled = element('uncertainty_start').disabled || state.status === 'completed';
-        Array.from(document.querySelectorAll('.uncertainty-config fieldset')).forEach(function (fieldset) {
-            fieldset.disabled = state.status !== 'idle';
+        var configurationLocked = state.status !== 'idle';
+        Array.from(document.querySelectorAll('.uncertainty-config fieldset input, .uncertainty-config fieldset select, .uncertainty-config fieldset button')).forEach(function (control) {
+            control.disabled = configurationLocked;
         });
+        if (state.status === 'partial' && state.partialReason === 'budget') element('uncertainty_call_limit').disabled = false;
         element('uncertainty_new').disabled = state.status === 'running' || state.status === 'pausing';
     }
 
     async function pauseAtBoundary(run) {
         state.status = 'paused';
         state.pauseRequested = false;
-        if (run && run.status === 'running') run.status = 'paused';
+        if (run && run.status !== 'completed' && run.status !== 'error') run.status = 'paused';
         await persist();
         renderResults();
         if (root.showToast) root.showToast('現在のAPI呼出完了後に解析を中断しました', 'info', 3500);
     }
 
+    function restoredRequestDiagnostics() {
+        return root.PredictionWorkload ? root.PredictionWorkload.normalizeDiagnostics({
+            httpAttempts: state.networkCalls,
+            cacheHits: state.cacheHits,
+            retryCount: state.retryCount,
+            failures: state.failures
+        }) : {
+            httpAttempts: Number(state.networkCalls) || 0,
+            cacheHits: Number(state.cacheHits) || 0,
+            retryCount: Number(state.retryCount) || 0,
+            failures: Number(state.failures) || 0,
+            lastLabel: '',
+            lastError: null
+        };
+    }
+
+    function syncRequestDiagnostics(diagnostics) {
+        state.networkCalls = diagnostics.httpAttempts;
+        state.cacheHits = diagnostics.cacheHits;
+        state.retryCount = diagnostics.retryCount;
+        state.failures = diagnostics.failures;
+    }
+
+    function nextRunnableSiteIndex(startIndex) {
+        if (root.PredictionWorkload) return root.PredictionWorkload.nextRunnableIndex(state.siteRuns, startIndex);
+        for (var offset = 0; offset < state.siteRuns.length; offset += 1) {
+            var index = (startIndex + offset) % state.siteRuns.length;
+            var run = state.siteRuns[index];
+            if (run.status !== 'completed' && run.status !== 'error' && run.cursor < run.cap) return index;
+        }
+        return -1;
+    }
+
+    async function finishPartial(reason, message) {
+        state.status = 'partial';
+        state.partialReason = reason;
+        state.pauseRequested = false;
+        await persist();
+        renderResults();
+        if (root.showToast) root.showToast(message, 'warning', 4500);
+    }
+
     async function executeAnalysis() {
         if (!root.PredictionRunner) throw new Error('PredictionRunner is unavailable');
+        var diagnostics = restoredRequestDiagnostics();
         var requestContext = root.PredictionRunner.createContext({
             runId: state.runId,
             source: state.requestConfig.source,
             baseUrl: state.requestConfig.baseUrl,
             customUrl: state.requestConfig.customUrl,
-            maxHttpAttempts: state.configuration.callLimit
+            maxHttpAttempts: state.configuration.callLimit,
+            diagnostics: diagnostics
         });
+        var samplesBySite = {};
         state.status = 'running';
+        state.partialReason = '';
         state.pauseRequested = false;
         renderResults();
         await persist();
-        for (var siteIndex = state.currentSiteIndex; siteIndex < state.siteRuns.length; siteIndex += 1) {
+
+        while (true) {
+            var siteIndex = nextRunnableSiteIndex(state.currentSiteIndex);
+            if (siteIndex < 0) break;
+            if (diagnostics.httpAttempts >= state.configuration.callLimit) {
+                syncRequestDiagnostics(diagnostics);
+                await finishPartial('budget', 'HTTP試行上限に到達しました。完了済みサンプルは自動保存されています。');
+                return;
+            }
             var run = state.siteRuns[siteIndex];
             state.currentSiteIndex = siteIndex;
-            if (run.status === 'completed') continue;
+            if (state.pauseRequested) {
+                await pauseAtBoundary(run);
+                return;
+            }
             run.status = 'running';
-            var samples = sampleSettings(run);
-            while (run.cursor < run.cap) {
-                if (state.pauseRequested) {
-                    await pauseAtBoundary(run);
-                    return;
-                }
-                var sample = samples[run.cursor];
-                var params = requestParameters(run, sample);
-                state.attemptedCalls += 1;
-                try {
-                    var execution = await root.PredictionRunner.run(params, requestContext, {
-                        label: 'uncertainty:' + run.site.id + ':' + run.cursor,
-                        canAttempt: function () { return state.networkCalls < state.configuration.callLimit; },
-                        onAttempt: function () { state.networkCalls += 1; }
-                    });
-                    var response = execution.response;
-                    var landing = { lat: execution.landing.latitude, lng: execution.landing.longitude, altitude: execution.landing.altitudeM, datetime: execution.landing.timeUtc || '' };
-                    var landSea = classifyLanding(landing);
-                    run.observations.push({
-                        index: run.cursor,
-                        ascentRate: sample.ascent_rate,
-                        descentRate: sample.descent_rate,
-                        burstAltitude: sample.burst_altitude,
-                        lat: landing.lat,
-                        lng: landing.lng,
-                        isWater: legacyIsWater(landSea),
-                        landSea: landSea,
-                        cacheHit: response.cacheHit
-                    });
-                    if (response.cacheHit) state.cacheHits += 1;
-
-                    run.consecutiveErrors = 0;
-                } catch (error) {
-                    run.observations.push({ index: run.cursor, error: error && error.message ? error.message : String(error) });
-                    run.consecutiveErrors += 1;
-                    if (typeof root.reportNonFatalError === 'function') root.reportNonFatalError(error, 'uncertainty.request');
-                }
-                run.cursor += 1;
-                var boundary = run.cursor % state.configuration.batchSize === 0 || run.cursor >= run.cap;
-                if (boundary) evaluateRun(run);
-                await persist();
-                renderResults();
-                if (run.consecutiveErrors >= 3) {
-                    run.status = 'error';
-                    run.reason = 'consecutive-errors';
-                    state.status = 'error';
-                    await persist();
-                    renderResults();
-                    showError('同じ地点でAPIエラーが3回連続したため中断しました。API状態を確認して再開してください。');
-                    return;
-                }
-                if (state.pauseRequested) {
-                    await pauseAtBoundary(run);
-                    return;
-                }
-                if (run.status === 'completed') break;
+            if (!samplesBySite[run.site.id]) samplesBySite[run.site.id] = sampleSettings(run);
+            var sample = samplesBySite[run.site.id][run.cursor];
+            var params = requestParameters(run, sample);
+            state.attemptedCalls += 1;
+            try {
+                var execution = await root.PredictionRunner.run(params, requestContext, {
+                    label: 'uncertainty:' + run.site.id + ':' + run.cursor
+                });
+                var response = execution.response;
+                var landing = { lat: execution.landing.latitude, lng: execution.landing.longitude, altitude: execution.landing.altitudeM, datetime: execution.landing.timeUtc || '' };
+                var landSea = classifyLanding(landing);
+                run.observations.push({
+                    index: run.cursor,
+                    ascentRate: sample.ascent_rate,
+                    descentRate: sample.descent_rate,
+                    burstAltitude: sample.burst_altitude,
+                    lat: landing.lat,
+                    lng: landing.lng,
+                    isWater: legacyIsWater(landSea),
+                    landSea: landSea,
+                    cacheHit: response.cacheHit
+                });
+                run.consecutiveErrors = 0;
+            } catch (error) {
+                run.observations.push({ index: run.cursor, error: error && error.message ? error.message : String(error) });
+                run.consecutiveErrors += 1;
+                if (typeof root.reportNonFatalError === 'function') root.reportNonFatalError(error, 'uncertainty.request');
             }
-            if (run.status !== 'completed') {
-                evaluateRun(run);
-                if (run.status !== 'completed') {
-                    run.status = 'completed';
-                    run.reason = 'maximum';
-                }
+            syncRequestDiagnostics(diagnostics);
+            run.cursor += 1;
+            var boundary = run.cursor % state.configuration.batchSize === 0 || run.cursor >= run.cap;
+            if (boundary) evaluateRun(run);
+            if (run.consecutiveErrors >= 3) {
+                run.status = 'error';
+                run.reason = 'consecutive-errors';
+            } else if (run.status !== 'completed') {
+                run.status = 'pending';
             }
-            state.currentSiteIndex = siteIndex + 1;
+            state.currentSiteIndex = (siteIndex + 1) % state.siteRuns.length;
             await persist();
             renderResults();
+            if (state.pauseRequested) {
+                await pauseAtBoundary(run);
+                return;
+            }
         }
-        state.status = 'completed';
+
+        state.siteRuns.forEach(function (run) {
+            if (run.status === 'error' || run.status === 'completed') return;
+            evaluateRun(run);
+            if (run.status !== 'completed') {
+                run.status = 'completed';
+                run.reason = 'maximum';
+            }
+        });
+        var hasErrors = state.siteRuns.some(function (run) { return run.status === 'error'; });
+        state.status = hasErrors ? 'partial' : 'completed';
+        state.partialReason = hasErrors ? 'errors' : '';
         state.completedAt = new Date().toISOString();
         await persist();
         renderResults();
-        if (root.showToast) root.showToast('不確実性解析が完了しました', 'success', 4000);
+        if (root.showToast) root.showToast(hasErrors ? '一部地点で連続APIエラーが発生しました。ほかの地点の結果は保存済みです。' : '不確実性解析が完了しました', hasErrors ? 'warning' : 'success', 4000);
     }
 
     async function startOrResume() {
@@ -903,6 +966,19 @@
         try {
             if (state.status === 'idle') await configureNewAnalysis();
             if (state.status === 'completed') return;
+            if (state.status === 'partial' && state.partialReason === 'budget') {
+                var increasedLimit = Math.floor(numberValue('uncertainty_call_limit'));
+                if (!Number.isFinite(increasedLimit) || increasedLimit <= state.networkCalls) {
+                    showError('再開するには、API試行上限を現在の試行数 ' + state.networkCalls + ' 回より大きくしてください。');
+                    return;
+                }
+                state.configuration.callLimit = increasedLimit;
+                var revisedBudget = core.planBudget(state.siteRuns.length, state.configuration);
+                state.configuration.budget = revisedBudget;
+                state.siteRuns.forEach(function (run) {
+                    run.cap = Math.max(run.cursor, revisedBudget.perSiteCap);
+                });
+            }
             state.siteRuns.forEach(function (run) {
                 if (run.status === 'paused' || run.status === 'error') {
                     run.status = 'pending';
@@ -977,6 +1053,22 @@
         if (!saved || saved.version !== JOB_VERSION) return;
         clearUncertaintyMap();
         state = Object.assign(emptyState(), saved);
+        state.attemptedCalls = Math.max(0, Number(state.attemptedCalls) || 0);
+        state.networkCalls = Math.max(0, Number(state.networkCalls) || 0);
+        state.cacheHits = Math.max(0, Number(state.cacheHits) || 0);
+        state.retryCount = Math.max(0, Number(state.retryCount) || 0);
+        state.failures = Math.max(0, Number(state.failures) || 0);
+        state.siteRuns = (state.siteRuns || []).map(function (run) {
+            run.cursor = Math.max(0, Number(run.cursor) || 0);
+            run.cap = Math.max(run.cursor, Number(run.cap) || 0);
+            run.observations = Array.isArray(run.observations) ? run.observations : [];
+            run.consecutiveErrors = Math.max(0, Number(run.consecutiveErrors) || 0);
+            if (run.status === 'running') run.status = 'paused';
+            return run;
+        });
+        if (state.status === 'partial' && !state.partialReason) {
+            state.partialReason = state.configuration && state.networkCalls >= state.configuration.callLimit ? 'budget' : 'errors';
+        }
         if (!state.runId) state.runId = state.id || (root.RunRecord ? root.RunRecord.makeId('run') : '');
         if (state.status === 'running' || state.status === 'pausing') state.status = 'paused';
         state.pauseRequested = false;

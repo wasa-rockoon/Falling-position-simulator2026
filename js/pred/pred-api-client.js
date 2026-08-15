@@ -214,7 +214,12 @@
         var policy = Object.assign({}, DEFAULT_POLICIES[this.source], options.policy || {});
         this.timeoutMs = policy.timeoutMs;
         this.maxRetries = policy.maxRetries;
+        this.maxBackoffMs = Math.max(1, Number(policy.maxBackoffMs) || 30000);
         this.cacheTtlMs = Number(options.cacheTtlMs) || (3 * 60 * 60 * 1000);
+        this.maxMemoryEntries = Math.max(1, Math.floor(Number(options.maxMemoryEntries) || 500));
+        this.maxPersistentEntries = Math.max(this.maxMemoryEntries, Math.floor(Number(options.maxPersistentEntries) || 2500));
+        this.persistentPruneInterval = Math.max(1, Math.floor(Number(options.persistentPruneInterval) || 50));
+        this.persistentWrites = 0;
         this.memoryCache = new Map();
         this.inFlight = new Map();
         this.queue = new RequestQueue({
@@ -223,6 +228,14 @@
             onStateChange: options.onQueueStateChange
         });
     }
+
+    PredictionClient.prototype._rememberCached = function (key, cached) {
+        this.memoryCache.delete(key);
+        this.memoryCache.set(key, cached);
+        while (this.memoryCache.size > this.maxMemoryEntries) {
+            this.memoryCache.delete(this.memoryCache.keys().next().value);
+        }
+    };
 
     PredictionClient.prototype._getCached = async function (key) {
         var cached = this.memoryCache.get(key);
@@ -233,14 +246,38 @@
             if (cacheStore) await cacheStore.delete(key);
             return null;
         }
-        this.memoryCache.set(key, cached);
+        this._rememberCached(key, cached);
         return cached.data;
     };
 
+    PredictionClient.prototype._prunePersistentCache = async function () {
+        if (!cacheStore || typeof cacheStore.list !== 'function') return;
+        var entries = await cacheStore.list();
+        var now = Date.now();
+        var live = [];
+        for (var index = 0; index < entries.length; index += 1) {
+            var entry = entries[index];
+            var value = entry && entry.value;
+            if (!value || Number(value.expiresAt) <= now) await cacheStore.delete(entry.key);
+            else live.push(entry);
+        }
+        live.sort(function (first, second) {
+            return Number(first.value.storedAt || first.value.expiresAt || 0) - Number(second.value.storedAt || second.value.expiresAt || 0);
+        });
+        while (live.length > this.maxPersistentEntries) {
+            await cacheStore.delete(live.shift().key);
+        }
+    };
+
     PredictionClient.prototype._setCached = async function (key, data) {
-        var cached = { data: data, expiresAt: Date.now() + this.cacheTtlMs };
-        this.memoryCache.set(key, cached);
-        if (cacheStore) await cacheStore.set(key, cached);
+        var now = Date.now();
+        var cached = { data: data, storedAt: now, expiresAt: now + this.cacheTtlMs };
+        this._rememberCached(key, cached);
+        if (cacheStore) {
+            await cacheStore.set(key, cached);
+            this.persistentWrites += 1;
+            if (this.persistentWrites % this.persistentPruneInterval === 0) await this._prunePersistentCache();
+        }
     };
 
     PredictionClient.prototype._fetchOnce = async function (url, externalSignal) {
@@ -278,6 +315,9 @@
             if (error && error.name === 'AbortError') {
                 throw new PredictionRequestError('予測APIがタイムアウトしました', { retryable: true, timeout: true });
             }
+            if (error && error.name === 'TypeError') {
+                throw new PredictionRequestError('予測APIへ接続できませんでした', { retryable: true, network: true, cause: error });
+            }
             throw error;
         } finally {
             if (timer) root.clearTimeout(timer);
@@ -300,7 +340,10 @@
                 lastError = error;
                 if (signal && signal.aborted) throw abortError();
                 if (!error.retryable || attempt >= retryLimit) throw error;
-                var backoff = Math.max(error.retryAfterMs || 0, (750 * Math.pow(2, attempt)) + Math.floor(Math.random() * 250));
+                if (typeof options.canAttempt === 'function' && !options.canAttempt()) {
+                    throw new PredictionRequestError('API呼び出し上限に達しました', { retryable: false, callLimit: true });
+                }
+                var backoff = Math.min(this.maxBackoffMs, Math.max(error.retryAfterMs || 0, (750 * Math.pow(2, attempt)) + Math.floor(Math.random() * 250)));
                 await wait(backoff, signal);
             }
         }
@@ -334,6 +377,16 @@
     PredictionClient.prototype.resume = function () { this.queue.resume(); };
     PredictionClient.prototype.cancelPending = function (message) { this.queue.cancelPending(message); };
     PredictionClient.prototype.queueSnapshot = function () { return this.queue.snapshot(); };
+    PredictionClient.prototype.cacheSnapshot = function () {
+        var queue = this.queue.snapshot();
+        return {
+            memoryEntries: this.memoryCache.size,
+            maximumMemoryEntries: this.maxMemoryEntries,
+            inFlight: this.inFlight.size,
+            pending: queue.pending,
+            active: queue.active
+        };
+    };
 
     function getClient(options) {
         options = options || {};

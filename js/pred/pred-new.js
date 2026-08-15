@@ -147,7 +147,7 @@ function predictionRunInput(settings, context) {
 }
 
 function startPredictionRunRecord(settings, context, type, title, runId) {
-    if (!context || typeof RunRecord === 'undefined' || typeof RunRepository === 'undefined') return runId || null;
+    if (!context || context.suppressRunRecord || typeof RunRecord === 'undefined' || typeof RunRepository === 'undefined') return runId || null;
     var id = runId || context.runId || RunRecord.makeId('run');
     context.runId = id;
     var record = RunRecord.create({
@@ -285,7 +285,7 @@ function buildEhimeRunOutput(runId) {
 }
 
 function persistEhimeRunBoundary(status, error) {
-    if (!ehime_current || !ehime_current.runId) return Promise.resolve(null);
+    if (!ehime_current || !ehime_current.runId || ehime_current.suppressRunRecord) return Promise.resolve(null);
     var output = buildEhimeRunOutput(ehime_current.runId);
     return persistPredictionRunBoundary(ehime_current.requestContext, {
         status: status,

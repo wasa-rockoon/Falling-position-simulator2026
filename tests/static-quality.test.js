@@ -181,3 +181,30 @@ test('uncertainty spatial layers can be combined independently', () => {
     assert.match(analysis, /root\.L\.polygon\(summary\.ellipse95\.coordinates/);
     assert.match(analysis, /root\.L\.polyline\(level\.segments/);
 });
+test('bulk workflows share retry-inclusive workload control and resumable boundaries', () => {
+    const html = read('index.html');
+    const workloadIndex = html.indexOf('js/pred/workload-core.js');
+    const autoIndex = html.indexOf('js/pred/auto-search.js');
+    const uncertaintyIndex = html.indexOf('js/pred/uncertainty-analysis.js');
+    assert.ok(workloadIndex >= 0 && autoIndex > workloadIndex && uncertaintyIndex > workloadIndex);
+
+    const autoSearch = read('js/pred/auto-search.js');
+    assert.match(autoSearch, /PredictionApi\.getClient\(\{[\s\S]*api\.open-meteo\.com/);
+    assert.doesNotMatch(autoSearch, /root\.fetch\(url\.toString/);
+    assert.match(autoSearch, /while \(current\.isSameOrBefore\(endUtc\)\)[\s\S]*sites\.forEach/);
+    assert.match(autoSearch, /run13VariantEnsemble\([\s\S]*state\.requestContext[\s\S]*suppressRunRecord: true/);
+    assert.match(autoSearch, /state\.status = 'partial'/);
+    assert.match(autoSearch, /state\.phaseIndex \+= 1;[\s\S]*partialAtBoundary/);
+
+    const uncertainty = read('js/pred/uncertainty-analysis.js');
+    assert.match(uncertainty, /nextRunnableSiteIndex\(state\.currentSiteIndex\)/);
+    assert.match(uncertainty, /state\.currentSiteIndex = \(siteIndex \+ 1\) % state\.siteRuns\.length/);
+    assert.match(uncertainty, /run\.consecutiveErrors >= 3[\s\S]*run\.status = 'error'/);
+    assert.match(uncertainty, /finishPartial\('budget'/);
+    assert.match(uncertainty, /retryCount: state\.retryCount/);
+
+    const apiClient = read('js/pred/pred-api-client.js');
+    assert.match(apiClient, /maxMemoryEntries/);
+    assert.match(apiClient, /_prunePersistentCache/);
+    assert.match(apiClient, /client\.inFlight\.has\(key\)/);
+});

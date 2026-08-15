@@ -2,7 +2,7 @@
 'use strict';
 
 var CACHE_PREFIX = 'wasa-predictor-';
-var CACHE_VERSION = 'fbc2310f49fe';
+var CACHE_VERSION = '419e68223843';
 var APP_CACHE_NAME = CACHE_PREFIX + 'app-' + CACHE_VERSION;
 var TILE_CACHE_NAME = CACHE_PREFIX + 'tiles-v1';
 var TILE_CACHE_LIMIT = 500;
@@ -119,6 +119,7 @@ var APP_SHELL = [
     "./js/pred/uncertainty-core.js",
     "./js/pred/uncertainty-template.js",
     "./js/pred/variant-profile-registry.js",
+    "./js/pred/workload-core.js",
     "./manifest.json",
     "./ports.json",
     "./sites.json"

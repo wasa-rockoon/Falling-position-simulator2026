@@ -164,3 +164,44 @@ test('client does not start an HTTP attempt after a caller budget is exhausted',
     );
     assert.equal(fetchCalls, 1);
 });
+test('client keeps a bounded in-memory cache under a 1000-request workload', async () => {
+    let calls = 0;
+    const client = new PredictionApi.PredictionClient({
+        source: 'custom',
+        baseUrl: 'https://bounded-cache.example.test/tawhiri',
+        maxMemoryEntries: 50,
+        maxPersistentEntries: 2000,
+        persistentPruneInterval: 2000,
+        policy: { concurrency: 4, minIntervalMs: 0, timeoutMs: 1000, maxRetries: 0 },
+        fetchImpl: async () => {
+            calls += 1;
+            return { ok: true, status: 200, headers: { get: () => null }, json: async () => ({ prediction: [] }) };
+        }
+    });
+    for (let index = 0; index < 1000; index += 1) {
+        await client.request({ launch_latitude: 33, sample: index });
+    }
+    const snapshot = client.cacheSnapshot();
+    assert.equal(calls, 1000);
+    assert.equal(snapshot.memoryEntries, 50);
+    assert.equal(snapshot.maximumMemoryEntries, 50);
+    assert.equal(snapshot.inFlight, 0);
+});
+test('client retries transient offline fetch failures without exceeding the attempt count', async () => {
+    let calls = 0;
+    const client = new PredictionApi.PredictionClient({
+        source: 'custom',
+        baseUrl: 'https://offline-retry.example.test/tawhiri',
+        policy: { concurrency: 1, minIntervalMs: 0, timeoutMs: 1000, maxRetries: 2, maxBackoffMs: 1 },
+        fetchImpl: async () => {
+            calls += 1;
+            if (calls < 3) throw new TypeError('offline');
+            return { ok: true, status: 200, headers: { get: () => null }, json: async () => ({ prediction: [] }) };
+        }
+    });
+    const attempts = [];
+    const result = await client.request({ launch_latitude: 36 }, { onAttempt: (attempt) => attempts.push(attempt) });
+    assert.equal(result.cacheHit, false);
+    assert.equal(calls, 3);
+    assert.deepEqual(attempts, [1, 2, 3]);
+});

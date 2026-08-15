@@ -4,9 +4,9 @@
     var JOB_TYPE = 'automatic-launch-search';
     var JOB_VERSION = 2;
     var MAX_OFFSHORE_KM = 22.2;
-    var WEATHER_SECONDS_PER_CALL = 1.2;
     var PREDICTION_SECONDS_PER_CALL = 1.5;
     var FINE_VARIANT_COUNT = 13;
+    var DEFAULT_MAX_RETRIES = 2;
     var jobStore = root.PredictionJobStore ? new root.PredictionJobStore.JobStore(JOB_TYPE) : null;
     var weatherDayCache = new Map();
     var supportPoints = [];
@@ -49,7 +49,8 @@
             configuration: null,
             runSettings: null,
             requestConfig: null,
-            requestContext: null
+            requestContext: null,
+            httpDiagnostics: { httpAttempts: 0, cacheHits: 0, retryCount: 0, failures: 0, lastLabel: '', lastError: null }
         };
     }
 
@@ -93,6 +94,7 @@
         if (state.status === 'running') return 'running';
         if (state.status === 'pausing') return 'pause_requested';
         if (state.status === 'completed') return 'completed';
+        if (state.status === 'partial') return 'paused';
         if (state.status === 'error') return 'failed';
         if (state.status === 'idle') return 'draft';
         return 'paused';
@@ -138,9 +140,9 @@
                 completedUnits: state.done,
                 totalUnits: state.total,
                 currentLabel: 'Phase ' + state.phase,
-                httpAttempts: state.requestContext && state.requestContext.diagnostics ? state.requestContext.diagnostics.httpAttempts : 0,
-                cacheHits: state.requestContext && state.requestContext.diagnostics ? state.requestContext.diagnostics.cacheHits : 0,
-                retryCount: state.requestContext && state.requestContext.diagnostics ? state.requestContext.diagnostics.retryCount : 0,
+                httpAttempts: state.httpDiagnostics.httpAttempts,
+                cacheHits: state.httpDiagnostics.cacheHits,
+                retryCount: state.httpDiagnostics.retryCount,
                 requestedAction: state.pauseRequested ? 'pause' : 'none'
             },
             output: {
@@ -205,17 +207,30 @@
         }
     }
 
-    function createRequestContextFromConfig(config, runId, maxHttpAttempts) {
+    function createRequestContextFromConfig(config, runId, maxHttpAttempts, diagnostics) {
         if (!config || typeof root.createPredictionRequestContext !== 'function') return null;
         return root.createPredictionRequestContext({
             runId: runId || '',
             source: config.source,
             baseUrl: config.baseUrl,
             customUrl: config.customUrl,
-            maxHttpAttempts: maxHttpAttempts
+            maxHttpAttempts: maxHttpAttempts,
+            diagnostics: diagnostics
         });
     }
 
+    function normalizeHttpDiagnostics(value) {
+        return root.PredictionWorkload ? root.PredictionWorkload.normalizeDiagnostics(value) : Object.assign({
+            httpAttempts: 0, cacheHits: 0, retryCount: 0, failures: 0, lastLabel: '', lastError: null
+        }, value || {});
+    }
+
+    function attemptBudgetExhausted() {
+        var limit = state.configuration ? state.configuration.callLimit : 0;
+        return root.PredictionWorkload
+            ? root.PredictionWorkload.isAttemptBudgetExhausted(state.httpDiagnostics, limit)
+            : state.httpDiagnostics.httpAttempts >= limit;
+    }
     function updateStepIndicators(activePhase) {
         [1, 2, 3].forEach(function (phase) {
             var element = document.getElementById('step_indicator_' + phase);
@@ -234,7 +249,8 @@
     }
 
     function updateProgress(statusHtml, done, total, activePhase) {
-        $('#auto_progress_text').text(done + ' / ' + total);
+        var requestProgress = state.configuration ? ' · HTTP ' + state.httpDiagnostics.httpAttempts + ' / ' + state.configuration.callLimit + '（再試行 ' + state.httpDiagnostics.retryCount + '、キャッシュ ' + state.httpDiagnostics.cacheHits + '）' : '';
+        $('#auto_progress_text').text(done + ' / ' + total + requestProgress);
         var percent = total > 0 ? Math.round((done / total) * 100) : 0;
         $('#auto_progress_bar').css('width', percent + '%');
         if (statusHtml) $('#auto_estimate_text').html(statusHtml);
@@ -298,10 +314,10 @@
 
     function buildCandidates(startUtc, endUtc, intervalMinutes, sites) {
         var candidates = [];
-        sites.forEach(function (site) {
-            var current = startUtc.clone();
-            while (current.isSameOrBefore(endUtc)) {
-                var launchUtc = current.clone().utc().format();
+        var current = startUtc.clone();
+        while (current.isSameOrBefore(endUtc)) {
+            var launchUtc = current.clone().utc().format();
+            sites.forEach(function (site) {
                 candidates.push({
                     id: site.name + '|' + launchUtc,
                     name: site.name,
@@ -312,9 +328,9 @@
                     weather: null,
                     coarse: null
                 });
-                current.add(intervalMinutes, 'minutes');
-            }
-        });
+            });
+            current.add(intervalMinutes, 'minutes');
+        }
         return candidates;
     }
 
@@ -350,20 +366,35 @@
             return estimate;
         }
         var totalCalls = estimate.weatherCalls + estimate.coarseCalls + estimate.fineCalls;
-        var seconds = (estimate.weatherCalls * WEATHER_SECONDS_PER_CALL) +
-            ((estimate.coarseCalls + estimate.fineCalls) * PREDICTION_SECONDS_PER_CALL);
+        var source = $('#api_source').val() || 'sondehub';
+        var policy = root.PredictionApi && root.PredictionApi.policies ? root.PredictionApi.policies[source] : null;
+        var maxRetries = policy ? policy.maxRetries : DEFAULT_MAX_RETRIES;
+        var attempts = root.PredictionWorkload
+            ? root.PredictionWorkload.estimateAttempts(totalCalls, maxRetries, 0)
+            : { worstCaseHttpAttempts: totalCalls * (maxRetries + 1) };
         var limit = Math.max(1, Math.round(finiteNumber($('#auto_max_calls').val(), 500)));
+        var secondsPerAttempt = source === 'local' ? 0.5 : (source === 'custom' ? 1.0 : PREDICTION_SECONDS_PER_CALL);
+        var seconds = Math.min(limit, attempts.worstCaseHttpAttempts) * secondsPerAttempt;
         var warning = totalCalls > limit
-            ? '<br><span class="auto-error">設定上限 ' + limit + ' 回を超えています。期間・地点を減らすか上限を変更してください。</span>' : '';
-        var publicWarning = $('#api_source').val() === 'sondehub'
-            ? '<br><span class="auto-warning">公開APIは同時1件で実行します。大量探索にはLocalhostを推奨します。</span>' : '';
+            ? '<br><span class="auto-warning">キャッシュが無い場合は上限到達時点で一部完了として保存します。期間・地点または上限を調整できます。</span>' : '';
+        var retryWarning = attempts.worstCaseHttpAttempts > limit
+            ? '<br><span class="auto-warning">429・5xx・タイムアウトの再試行を含む最悪時は ' + attempts.worstCaseHttpAttempts + '試行です。</span>' : '';
+        var advice = root.PredictionWorkload ? root.PredictionWorkload.apiAdvice(source, limit) : { isPublic: source === 'sondehub', aboveRecommended: false };
+        var publicWarning = advice.isPublic
+            ? '<br><span class="auto-warning">公開APIは同時1件で実行します。' + (advice.aboveRecommended ? '推奨目安300試行を超えています。' : '') + '数千件規模はLocalhostを推奨します。</span>' : '';
         $('#auto_estimate_text').html(
             '<b>' + MODES[estimate.mode].label + '</b><br>' +
-            '候補 ' + estimate.candidates.length + '件 / 最大API呼び出し ' + totalCalls + '回' +
+            '候補 ' + estimate.candidates.length + '件 / 論理API要求 ' + totalCalls + '回' +
             '（天候 ' + estimate.weatherCalls + ' / 粗探索 ' + estimate.coarseCalls + ' / 精密探索 ' + estimate.fineCalls + '）<br>' +
-            '所要時間概算 約' + Math.max(1, Math.ceil(seconds / 60)) + '分。キャッシュ命中時は短縮されます。' + warning + publicWarning
+            'HTTP試行上限 ' + limit + '回 / 再試行込み最悪 ' + attempts.worstCaseHttpAttempts + '回<br>' +
+            '上限までの所要時間概算 約' + Math.max(1, Math.ceil(seconds / 60)) + '分。事前キャッシュ命中は未判定（0件として計算）、命中時は短縮されます。' + warning + retryWarning + publicWarning
         );
-        return Object.assign(estimate, { totalCalls: totalCalls, callLimit: limit });
+        return Object.assign(estimate, {
+            totalCalls: totalCalls,
+            callLimit: limit,
+            maxRetries: maxRetries,
+            worstCaseHttpAttempts: attempts.worstCaseHttpAttempts
+        });
     }
 
     function readRunSettings() {
@@ -389,10 +420,7 @@
             notify('地点を1つ以上選択してください。', 'error');
             return;
         }
-        if (estimate.totalCalls > estimate.callLimit) {
-            notify('最大API呼び出し回数が設定上限を超えています。', 'error');
-            return;
-        }
+
         var context = root.createPredictionRequestContext ? root.createPredictionRequestContext() : null;
         if (!context) return;
         state = emptyState();
@@ -410,11 +438,14 @@
             seaThreshold: finiteNumber($('#auto_sea_threshold').val(), 75),
             rainThreshold: finiteNumber($('#auto_rain_threshold').val(), 1),
             windThreshold: finiteNumber($('#auto_wind_threshold').val(), 10),
-            callLimit: estimate.callLimit
+            callLimit: estimate.callLimit,
+            logicalCalls: estimate.totalCalls,
+            worstCaseHttpAttempts: estimate.worstCaseHttpAttempts
         };
         state.runSettings = readRunSettings();
         state.requestConfig = { source: context.source, baseUrl: context.baseUrl, customUrl: ($('#api_custom_url').val() || '').trim() };
-        state.requestContext = createRequestContextFromConfig(state.requestConfig, state.runId, estimate.callLimit);
+        state.httpDiagnostics = normalizeHttpDiagnostics();
+        state.requestContext = createRequestContextFromConfig(state.requestConfig, state.runId, estimate.callLimit, state.httpDiagnostics);
         await persistState();
         updateProgress(
             '<b>探索条件を保存しました。</b><br>Phase 1 天候APIは最大 ' + estimate.weatherCalls + '回です。地点×日付で共有するため、時刻ごとには呼びません。',
@@ -430,18 +461,38 @@
     async function getWeatherDay(candidate) {
         var key = weatherCacheKey(candidate);
         if (weatherDayCache.has(key)) return weatherDayCache.get(key);
+        if (!root.PredictionApi) throw new Error('PredictionApi is unavailable');
         var date = candidate.launchUtc.slice(0, 10);
-        var url = new URL('https://api.open-meteo.com/v1/forecast');
-        url.searchParams.set('latitude', candidate.lat);
-        url.searchParams.set('longitude', candidate.lon);
-        url.searchParams.set('hourly', 'precipitation,wind_speed_10m');
-        url.searchParams.set('wind_speed_unit', 'ms');
-        url.searchParams.set('timezone', 'UTC');
-        url.searchParams.set('start_date', date);
-        url.searchParams.set('end_date', date);
-        var pending = root.fetch(url.toString(), { headers: { Accept: 'application/json' } }).then(function (response) {
-            if (!response.ok) throw new Error('Open-Meteo HTTP ' + response.status);
-            return response.json();
+        var params = {
+            latitude: candidate.lat,
+            longitude: candidate.lon,
+            hourly: 'precipitation,wind_speed_10m',
+            wind_speed_unit: 'ms',
+            timezone: 'UTC',
+            start_date: date,
+            end_date: date
+        };
+        var client = root.PredictionApi.getClient({
+            source: 'custom',
+            baseUrl: 'https://api.open-meteo.com/v1/forecast',
+            policy: { concurrency: 1, minIntervalMs: 500, timeoutMs: 30000, maxRetries: DEFAULT_MAX_RETRIES }
+        });
+        var diagnostics = state.httpDiagnostics;
+        diagnostics.lastLabel = 'weather:' + key;
+        var pending = client.request(params, {
+            label: diagnostics.lastLabel,
+            canAttempt: function () { return !attemptBudgetExhausted(); },
+            onAttempt: function (attempt) {
+                diagnostics.httpAttempts += 1;
+                if (attempt > 1) diagnostics.retryCount += 1;
+            }
+        }).then(function (response) {
+            if (response.cacheHit) diagnostics.cacheHits += 1;
+            return response.data;
+        }).catch(function (error) {
+            diagnostics.failures += 1;
+            diagnostics.lastError = { message: error && error.message ? error.message : String(error), label: diagnostics.lastLabel };
+            throw error;
         });
         weatherDayCache.set(key, pending);
         try {
@@ -483,6 +534,16 @@
         $('#auto_action_btn').text('Phase ' + state.phase + ' 再開').prop('disabled', false);
     }
 
+    async function partialAtBoundary(message) {
+        state.running = false;
+        state.status = 'partial';
+        state.pauseRequested = false;
+        await persistState();
+        updateProgress(message || 'HTTP試行上限に到達したため、現在の候補までを一部完了として保存しました。', state.done, state.total, state.phase);
+        $('#auto_action_btn').text('API上限を増やして再開').prop('disabled', false);
+        notify('API試行上限に到達しました。結果は自動保存されています。', 'warning');
+    }
+
     async function runPhase1() {
         state.running = true;
         state.status = 'running';
@@ -490,6 +551,10 @@
         state.total = state.queue.length;
         $('#auto_action_btn').text('Phase 1 実行中...').prop('disabled', true);
         for (; state.phaseIndex < state.queue.length; state.phaseIndex += 1) {
+            if (attemptBudgetExhausted()) {
+                await partialAtBoundary();
+                return;
+            }
             var candidate = state.queue[state.phaseIndex];
             candidate.weather = candidate.weather || await evaluateWeather(candidate);
             if (candidate.weather.ok && !state.p1Passed.some(function (item) { return item.id === candidate.id; })) state.p1Passed.push(candidate);
@@ -499,6 +564,11 @@
             if (state.pauseRequested) {
                 state.phaseIndex += 1;
                 await pauseAtBoundary();
+                return;
+            }
+            if (attemptBudgetExhausted()) {
+                state.phaseIndex += 1;
+                await partialAtBoundary();
                 return;
             }
         }
@@ -563,6 +633,10 @@
         state.total = state.p1Passed.length;
         $('#auto_action_btn').text('Phase 2 実行中...').prop('disabled', true);
         for (; state.phaseIndex < state.p1Passed.length; state.phaseIndex += 1) {
+            if (attemptBudgetExhausted()) {
+                await partialAtBoundary();
+                return;
+            }
             var candidate = state.p1Passed[state.phaseIndex];
             candidate.coarse = candidate.coarse || await evaluateCoarse(candidate);
             if (!state.coarseCandidates.some(function (item) { return item.id === candidate.id; })) state.coarseCandidates.push(candidate);
@@ -572,6 +646,11 @@
             if (state.pauseRequested) {
                 state.phaseIndex += 1;
                 await pauseAtBoundary();
+                return;
+            }
+            if (attemptBudgetExhausted()) {
+                state.phaseIndex += 1;
+                await partialAtBoundary();
                 return;
             }
         }
@@ -656,7 +735,7 @@
             }
             $(document).on('ehime_run_complete', handler);
             try {
-                expectedRunId = root.run13VariantEnsemble(predictionParams(candidate), state.requestConfig.baseUrl);
+                expectedRunId = root.run13VariantEnsemble(predictionParams(candidate), state.requestConfig.baseUrl, state.requestContext, { suppressRunRecord: true });
             } catch (error) {
                 root.clearTimeout(timeout);
                 $(document).off('ehime_run_complete', handler);
@@ -685,6 +764,10 @@
         $('#auto_action_btn').text('Phase 3 実行中...').prop('disabled', true);
         var threshold = state.configuration.seaThreshold;
         for (; state.phaseIndex < state.fineCandidates.length; state.phaseIndex += 1) {
+            if (attemptBudgetExhausted()) {
+                await partialAtBoundary();
+                return;
+            }
             var candidate = state.fineCandidates[state.phaseIndex];
             var fine = await runFine(candidate, threshold);
             candidate.fine = fine;
@@ -725,6 +808,11 @@
                 await pauseAtBoundary();
                 return;
             }
+            if (attemptBudgetExhausted()) {
+                state.phaseIndex += 1;
+                await partialAtBoundary();
+                return;
+            }
         }
         state.phase = 4;
         state.running = false;
@@ -739,7 +827,22 @@
 
     async function runCurrentPhase() {
         if (state.running) return;
-        state.requestContext = state.requestContext || createRequestContextFromConfig(state.requestConfig, state.runId, state.configuration && state.configuration.callLimit);
+        if (state.status === 'partial') {
+            var increasedLimit = Math.max(1, Math.round(finiteNumber($('#auto_max_calls').val(), 0)));
+            if (increasedLimit <= state.httpDiagnostics.httpAttempts) {
+                notify('再開するには、API試行上限を現在の試行数 ' + state.httpDiagnostics.httpAttempts + ' 回より大きくしてください。', 'warning');
+                return;
+            }
+            state.configuration.callLimit = increasedLimit;
+            state.status = 'paused';
+            state.requestContext = null;
+        }
+        state.requestContext = state.requestContext || createRequestContextFromConfig(
+            state.requestConfig,
+            state.runId,
+            state.configuration && state.configuration.callLimit,
+            state.httpDiagnostics
+        );
         if (!state.requestContext && state.phase >= 2) {
             notify('保存されたAPI設定を復元できません。', 'error');
             return;
@@ -809,11 +912,12 @@
 
     async function restoreSavedState(snapshot) {
         state = Object.assign(emptyState(), snapshot);
+        state.httpDiagnostics = normalizeHttpDiagnostics(snapshot && (snapshot.httpDiagnostics || (snapshot.requestContext && snapshot.requestContext.diagnostics)));
         state.running = false;
         state.pauseRequested = false;
-        if (state.status !== 'completed') state.status = 'paused';
+        if (state.status !== 'completed' && state.status !== 'partial') state.status = 'paused';
         if (!state.runId) state.runId = root.RunRecord ? root.RunRecord.makeId('run') : '';
-        state.requestContext = createRequestContextFromConfig(state.requestConfig, state.runId, state.configuration && state.configuration.callLimit);
+        state.requestContext = createRequestContextFromConfig(state.requestConfig, state.runId, state.configuration && state.configuration.callLimit, state.httpDiagnostics);
         applyConfiguration(state.configuration);
         await populateSites(state.configuration ? state.configuration.selectedSites : []);
         renderResults();
@@ -823,7 +927,7 @@
                 : '<b>前回の探索を復元しました。</b><br>Phase ' + state.phase + ' の ' + state.phaseIndex + '件目から再開できます。',
             state.done, state.total, state.status === 'completed' ? 4 : state.phase
         );
-        $('#auto_action_btn').text(state.status === 'completed' ? '完了' : 'Phase ' + state.phase + ' 再開').prop('disabled', state.status === 'completed');
+        $('#auto_action_btn').text(state.status === 'completed' ? '完了' : (state.status === 'partial' ? 'API上限を増やして再開' : 'Phase ' + state.phase + ' 再開')).prop('disabled', state.status === 'completed');
     }
 
     async function showModal() {

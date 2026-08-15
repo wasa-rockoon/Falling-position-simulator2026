@@ -1226,7 +1226,7 @@ function tawhiriRequest(settings, extra_settings, requestContext) {
 }
 
 // Generate and run multiple variant predictions for Ehime mode
-function runEhimePredictions(base_settings, extra_settings, requestContext) {
+function runEhimePredictions(base_settings, extra_settings, requestContext, runtimeOptions) {
     if (ehime_current && ehime_current.runId && Object.keys(ehime_predictions || {}).some(function (key) { return ehime_predictions[key].status === 'pending'; })) {
         $(document).trigger('ehime_run_complete', [{ runId: ehime_current.runId, success: false, interrupted: true }]);
     }
@@ -1235,8 +1235,9 @@ function runEhimePredictions(base_settings, extra_settings, requestContext) {
     ehime_history_saved_for_run = false;
     var runId = requestContext && requestContext.runId ? requestContext.runId : (typeof RunRecord !== 'undefined' ? RunRecord.makeId('run') : 'ehime-' + Date.now().toString(36));
     if (requestContext) requestContext.runId = runId;
-    ehime_current = { base: base_settings, apiUrl: requestContext ? requestContext.baseUrl : null, runId: runId, requestContext: requestContext };
-    startPredictionRunRecord(base_settings, requestContext, 'ehime_ensemble', '愛媛13条件比較', runId);
+    runtimeOptions = runtimeOptions || {};
+    ehime_current = { base: base_settings, apiUrl: requestContext ? requestContext.baseUrl : null, runId: runId, requestContext: requestContext, suppressRunRecord: runtimeOptions.suppressRunRecord === true };
+    if (!ehime_current.suppressRunRecord) startPredictionRunRecord(base_settings, requestContext, 'ehime_ensemble', '愛媛13条件比較', runId);
     if (typeof VariantProfileRegistry === 'undefined') throw new Error('VariantProfileRegistry is unavailable');
     var variants = VariantProfileRegistry.buildEhime(base_settings);
     ehime_variant_total = variants.length;
@@ -1266,14 +1267,14 @@ function runEhimePredictions(base_settings, extra_settings, requestContext) {
     refreshEhimePanel();
     return runId;
 }
-function run13VariantEnsemble(base_settings, api_url) {
+function run13VariantEnsemble(base_settings, api_url, requestContext, runtimeOptions) {
     if (!base_settings) return;
     var settings = Object.assign({}, base_settings, { pred_type: 'ehime' });
     var source = $('#api_source').val() || 'sondehub';
-    var context = createPredictionRequestContext({ source: source, baseUrl: api_url || resolveTawhiriApiUrl() });
+    var context = requestContext || createPredictionRequestContext({ source: source, baseUrl: api_url || resolveTawhiriApiUrl() });
     if (!context) return;
     if ($('#prediction_type').val() !== 'ehime') $('#prediction_type').val('ehime').trigger('change');
-    return runEhimePredictions(settings, {}, context);
+    return runEhimePredictions(settings, {}, context, runtimeOptions);
 }
 
 function processEhimeResult(data, settings, variant_id, variant_index, requestContext, runId) {
