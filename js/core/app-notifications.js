@@ -62,12 +62,19 @@
         return toast;
     }
 
+    function safeDiagnostic(error) {
+        if (root.AppErrors && typeof root.AppErrors.serialize === 'function') return root.AppErrors.serialize(error);
+        var message = error && error.message ? error.message : String(error || 'Unknown error');
+        return { name: error && error.name || 'Error', technicalMessage: String(message).slice(0, 1000) };
+    }
+
     function report(error, context, userMessage, type) {
         var normalized = error instanceof Error ? error : new Error(String(error));
+        var diagnostic = safeDiagnostic(normalized);
         var label = context ? '[' + context + '] ' : '';
-        if (root.console && console.error) console.error(label + normalized.message, normalized);
+        if (root.console && console.error) console.error(label + diagnostic.technicalMessage, diagnostic);
         if (document && document.dispatchEvent) {
-            document.dispatchEvent(new CustomEvent('app:error', { detail: { error: normalized, context: context || '' } }));
+            document.dispatchEvent(new CustomEvent('app:error', { detail: { error: diagnostic, context: context || '' } }));
         }
         if (userMessage) show(userMessage, type || 'error', 6000);
         return normalized;
@@ -75,9 +82,10 @@
 
     function reportNonFatal(error, context) {
         var normalized = error instanceof Error ? error : new Error(String(error));
+        var diagnostic = safeDiagnostic(normalized);
         var label = context ? '[' + context + '] ' : '';
-        if (root.console && console.warn) console.warn(label + normalized.message, normalized);
-        document.dispatchEvent(new CustomEvent('app:warning', { detail: { error: normalized, context: context || '' } }));
+        if (root.console && console.warn) console.warn(label + diagnostic.technicalMessage, diagnostic);
+        document.dispatchEvent(new CustomEvent('app:warning', { detail: { error: diagnostic, context: context || '' } }));
         return normalized;
     }
 

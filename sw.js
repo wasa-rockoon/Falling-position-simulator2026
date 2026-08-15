@@ -2,7 +2,7 @@
 'use strict';
 
 var CACHE_PREFIX = 'wasa-predictor-';
-var CACHE_VERSION = '419e68223843';
+var CACHE_VERSION = '5911371d9582';
 var APP_CACHE_NAME = CACHE_PREFIX + 'app-' + CACHE_VERSION;
 var TILE_CACHE_NAME = CACHE_PREFIX + 'tiles-v1';
 var TILE_CACHE_LIMIT = 500;

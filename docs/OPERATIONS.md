@@ -3,18 +3,18 @@
 ## 必要環境
 
 - Node.js 20以上
-- Windows PowerShell（アイコン再生成時のみ）
-- ローカルTawhiriを使う場合は別途Tawhiriサーバー
+- npm
+- Windows PowerShell（PWAアイコン・jQuery UI画像を再生成する場合のみ）
+- ローカルAPIを使う場合はTawhiriサーバー
 
-npmの実行時依存はありません。Acornと `node_modules/` は不要で、構文検査はNode標準の `--check` を使います。
-
-## 起動
+## セットアップと起動
 
 ```powershell
+npm install
 node cors-proxy.js
 ```
 
-既定の画面は `http://localhost:3100/` です。ローカルAPIを選ぶ場合、プロキシは `localhost:8000` のTawhiriへ接続します。
+既定URLは `http://localhost:3100/`、サーバー情報は `http://localhost:3100/__server-info` です。Localhost APIは既定で `localhost:8000` へ転送します。
 
 ```powershell
 $env:TAWHIRI_HOST = 'localhost'
@@ -23,53 +23,129 @@ $env:PORT = '3100'
 node cors-proxy.js
 ```
 
-ローカルTawhiriがない場合は画面でSondeHubを選択してください。`/__server-info` で静的配信元と接続先を確認できます。
+3100番が使用中の場合、開発サーバーは最大20ポート先まで順番に試します。起動ログに表示されたURLを使ってください。
 
-## 生成と検証
+## ビルド
 
 ```powershell
 npm run build
-npm run check
+```
+
+クロスプラットフォームの通常ビルドは次を実行します。
+
+1. 正本KMLから `ports.json` を再生成
+2. HTMLとローカル資産から `sw.js` を再生成
+3. 実行対象JavaScriptの構文検査
+
+画像生成は必要な場合だけWindowsで実行します。
+
+```powershell
+npm run build:icons:windows
+npm run build:ui-assets:windows
+```
+
+`ports.json` と `sw.js` は生成物ですがアプリの一部なのでコミットします。直接編集せず生成元を変更してください。
+
+## テスト
+
+```powershell
 npm test
 ```
 
-`npm run build` は次を再生成します。
+Nodeテストは外部通信せず、計算、海陸固定点、保存、APIキュー、再試行予算、履歴、PWA、依存ハッシュ、HTML品質を確認します。
 
-1. KMLから `ports.json`
-2. PWA 192/512pxアイコン
-3. 欠落しやすいjQuery UI画像スプライト
-4. HTMLの実読込資産を列挙した `sw.js`
+初回だけPlaywright用Chromiumを導入します。
 
-これらの生成物はアプリの一部なのでコミット対象です。`node_modules/`、自動探索/不確実性解析のCSV、解析用の一時ファイルは `.gitignore` 対象です。
+```powershell
+npx playwright install chromium
+npm run test:e2e
+```
 
-海陸判定の固定版データと出典・SHA-256は `data/land-sea-datasets.json` で管理します。内水面データを更新する場合だけ、国土数値情報W09-05の配布ZIPのSHA-256を照合し、展開した `W09-05-g.xml` から次を実行します。通常の `npm run build` ではネットワーク取得や再生成を行いません。
+E2Eは `http://localhost:4173` で専用サーバーを起動し、Tawhiri/Open-Meteoをテスト内で固定応答へ差し替えます。公開API、実ローカルTawhiri、外部地図タイルへは到達しません。
+
+すべてまとめて実行する場合:
+
+```powershell
+npm run ci
+```
+
+## CI
+
+`.github/workflows/ci.yml` はpushとpull requestで以下を実行します。
+
+1. `npm ci`
+2. `npm run build`
+3. `ports.json` と `sw.js` に未コミット生成差分がないことを確認
+4. `npm test`
+5. Chromium導入
+6. `npm run test:e2e`
+7. Playwrightレポートを14日保存
+
+CIでは安定性のためPlaywright workerを1にします。
+
+## データ更新
+
+### 支援・回収地点
+
+`漁船・回収地点位置関係マップ.kml` が正本です。
+
+```powershell
+npm run build:data
+```
+
+支援地点と実回収地点は用途を分け、探索の最寄り支援距離には支援地点だけを使います。
+
+### 海陸データ
+
+`data/land-sea-datasets.json` にデータ版、出典、ライセンス、SHA-256、既知制約を記録します。通常ビルドではネットワーク取得しません。湖沼データを更新するときだけ、配布ZIPを照合して次を実行します。
 
 ```powershell
 node scripts/build-inland-water.mjs C:\path\to\W09-05-g.xml data\inland_water_japan_w09_05.geojson
 ```
 
-生成後はマニフェストのファイルSHA-256、地物数、データ版を更新し、固定検証点のテストを通します。
+更新後は固定検証点、境界、穴、MultiPolygon、データハッシュのテストを通してください。
 
-## コミットの境界
+## 保存データと移行
 
-- `git status --short` と `git diff --stat` で対象を確認する。
-- 機能コード、対応するテスト、文書、必要な生成物を同じ変更単位に含める。
-- 生成CSV、`node_modules/`、Office一時ファイル、調査用スクリプトやパッチを含めない。
-- `ports.json` は直接修正せず、KMLを正本として `npm run build:data` で更新する。
-- ユーザーが作成した未追跡ファイルは、用途が確認できない限り削除も一括追加もしない。
+- localStorage: 前回設定、プリセット、テーマ、旧愛媛履歴
+- Cookie: 旧保存地点
+- IndexedDB: RunRecord、ジョブ、APIキャッシュ
 
-## リリース前
+ストレージスキーマは互換読込を先に実装し、旧キーや旧履歴を削除しません。履歴の「表示クリア」は地図表示だけを消し、保存履歴を削除しません。
 
-- `npm run build` 後に差分を確認する。
-- `npm run check` と `npm test` を通す。
-- `docs/MANUAL_CHECKLIST.md` を実ブラウザで確認する。
-- API URLや秘密情報をリポジトリへ保存しない。
-- Service Worker更新トーストの「今すぐ更新」で新バージョンへ切り替わることを確認する。
+## ログと秘密情報
 
-外部通信先はTawhiri/SondeHub、Open-Meteo、地図タイルです。海陸判定は固定版ローカルデータだけを使用し、BigDataCloud/Overpassへ通信しません。仕様変更、利用制限、障害時の挙動は機能ごとに確認し、取得や判定の失敗はunknownとして保持してください。
+リポジトリ、URL、ログ、スクリーンショットへAPIキーやtokenを保存しないでください。アプリは診断メッセージ内の一般的な秘密クエリとBearer値をマスクし、1000文字へ制限しますが、入力段階で秘密値を共有しないことが第一です。
 
-## 依存関係
+バグ報告には次だけを含めます。
 
-ローカル同梱ライブラリのバージョンとSHA-256は `vendor-dependencies.json` に固定しています。未使用だったTurf、Leaflet Heat、jQuery Formのうち、前二つのCDN読込とjQuery Formの実行時読込は削除しました。
+- 再現手順
+- 入力条件（秘密情報を除く）
+- ブラウザとOS
+- 画面の利用者向けエラー
+- マスク済み診断ログ
 
-古いjQuery系・Leaflet系の一括更新は描画・Cookie・イベント挙動へ影響するため、機能改修と分離した専用ブランチで行い、このチェックリストを全て再実行してください。
+## リリース手順
+
+1. `git status --short` で意図しない未追跡物がないか確認
+2. `npm ci`
+3. `npm run build`
+4. `git diff --exit-code -- ports.json sw.js` または生成差分をレビューしてコミット
+5. `npm test`
+6. `npm run test:e2e`
+7. `docs/MANUAL_CHECKLIST.md` で実API・実端末確認
+8. `vendor-dependencies.json` と `docs/DEPENDENCIES.md` を確認
+9. 対象ブランチへpushしGitHub Actions成功を確認
+
+`node_modules/`、Playwrightレポート、生成CSV、ログ、Office一時ファイル、調査資料はコミットしません。
+
+## 障害切り分け
+
+| 症状 | 確認 |
+|---|---|
+| 画面全体が開かない | 開発サーバーURL、同一オリジン資産404、Service Worker |
+| Localhost予測だけ502 | Tawhiriのホスト・ポート、`/__server-info` |
+| SondeHubだけ失敗 | 時刻範囲、公開API状態、429、ネットワーク |
+| 大量処理が一部完了 | HTTP試行上限、再試行数、キャッシュ命中、再開ボタン |
+| 海陸がunknown | データ読込、対象範囲、データ版、沿岸解像度 |
+| 古い画面が残る | 更新通知、Service Worker waiting、キャッシュ版 |

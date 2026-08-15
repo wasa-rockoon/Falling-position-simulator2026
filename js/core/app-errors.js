@@ -5,13 +5,29 @@
 }(typeof globalThis !== 'undefined' ? globalThis : this, function () {
     'use strict';
 
+    var MAX_DIAGNOSTIC_LENGTH = 1000;
+    var SECRET_QUERY_PATTERN = /([?&](?:api[_-]?key|access[_-]?token|auth(?:orization)?|key|secret|token)=)[^&#\s]*/gi;
+    var BEARER_PATTERN = /\b(Bearer\s+)[A-Za-z0-9._~+\/-]+=*/gi;
+
+    function sanitizeMessage(value) {
+        var message = String(value === undefined || value === null ? '' : value)
+            .replace(SECRET_QUERY_PATTERN, '$1[REDACTED]')
+            .replace(BEARER_PATTERN, '$1[REDACTED]');
+        if (message.length > MAX_DIAGNOSTIC_LENGTH) {
+            return message.slice(0, MAX_DIAGNOSTIC_LENGTH) + '…[truncated]';
+        }
+        return message;
+    }
     function AppError(code, userMessage, details) {
         details = details || {};
-        Error.call(this, details.technicalMessage || userMessage || code);
+        var safeUserMessage = sanitizeMessage(userMessage || '処理に失敗しました。');
+        var safeTechnicalMessage = sanitizeMessage(details.technicalMessage || safeUserMessage || code);
+        Error.call(this, safeTechnicalMessage);
         this.name = 'AppError';
+        this.message = safeTechnicalMessage;
         this.code = code || 'UNEXPECTED_ERROR';
-        this.userMessage = userMessage || '処理に失敗しました。';
-        this.technicalMessage = details.technicalMessage || this.message;
+        this.userMessage = safeUserMessage;
+        this.technicalMessage = safeTechnicalMessage;
         this.retryable = details.retryable === true;
         this.phase = details.phase || 'unknown';
         this.runId = details.runId || '';
@@ -67,6 +83,8 @@
         AppError: AppError,
         create: create,
         normalize: normalize,
-        serialize: serialize
+        serialize: serialize,
+        sanitizeMessage: sanitizeMessage,
+        MAX_DIAGNOSTIC_LENGTH: MAX_DIAGNOSTIC_LENGTH
     };
 }));

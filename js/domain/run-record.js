@@ -1,8 +1,10 @@
 (function (root, factory) {
-    var api = factory(root);
+    var errors = root.AppErrors;
+    if (typeof module === 'object' && module.exports) errors = errors || require('../core/app-errors.js');
+    var api = factory(root, errors);
     if (typeof module === 'object' && module.exports) module.exports = api;
     root.RunRecord = api;
-}(typeof globalThis !== 'undefined' ? globalThis : this, function (root) {
+}(typeof globalThis !== 'undefined' ? globalThis : this, function (root, AppErrors) {
     'use strict';
 
     var SCHEMA_VERSION = 1;
@@ -81,7 +83,7 @@
         api = api || {};
         return {
             endpointId: api.endpointId || 'sondehub',
-            resolvedBaseUrl: api.resolvedBaseUrl || '',
+            resolvedBaseUrl: AppErrors ? AppErrors.sanitizeMessage(api.resolvedBaseUrl || '') : String(api.resolvedBaseUrl || '').slice(0, 1000),
             timeoutMs: finite(api.timeoutMs),
             maxHttpAttempts: finite(api.maxHttpAttempts),
             concurrency: finite(api.concurrency),
@@ -95,8 +97,8 @@
         var source = error instanceof Error ? error : (typeof error === 'object' ? error : { message: String(error) });
         return {
             code: source.code || defaults.code || 'UNEXPECTED_ERROR',
-            userMessage: source.userMessage || defaults.userMessage || source.message || '処理に失敗しました。',
-            technicalMessage: source.technicalMessage || source.message || String(error),
+            userMessage: AppErrors ? AppErrors.sanitizeMessage(source.userMessage || defaults.userMessage || source.message || '処理に失敗しました。') : String(source.userMessage || defaults.userMessage || source.message || '処理に失敗しました。').slice(0, 1000),
+            technicalMessage: AppErrors ? AppErrors.sanitizeMessage(source.technicalMessage || source.message || String(error)) : String(source.technicalMessage || source.message || error).slice(0, 1000),
             retryable: source.retryable === true || defaults.retryable === true,
             phase: source.phase || defaults.phase || 'unknown',
             runId: source.runId || defaults.runId || '',

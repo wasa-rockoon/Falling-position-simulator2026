@@ -13,6 +13,9 @@ FallOnly_*.csv
 *.log
 npm-debug.log*
 coverage/
+test-results/
+playwright-report/
+blob-report/
 .DS_Store
 Thumbs.db
 ~$*

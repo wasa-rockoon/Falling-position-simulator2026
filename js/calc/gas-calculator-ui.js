@@ -166,6 +166,8 @@
 
     function close() {
         element('gas_calculator_modal').hidden = true;
+        var opener = element('open_gas_calculator_btn');
+        if (opener) opener.focus();
     }
 
     function applyToPrediction() {

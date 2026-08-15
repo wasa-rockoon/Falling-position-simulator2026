@@ -518,10 +518,10 @@
 
 
     <!-- 自動探索モーダル -->
-    <div id="auto_search_modal" class="auto-search-modal" style="display:none; position:fixed; left:50%; top:50%; transform:translate(-50%,-50%); background:var(--bg-panel); border:1px solid var(--border-color); padding:20px; z-index:10010; width:720px; max-width:95vw; box-shadow:0 8px 32px rgba(0,0,0,0.4); border-radius:10px;">
+    <div id="auto_search_modal" class="auto-search-modal" role="dialog" aria-modal="true" aria-labelledby="auto_search_title" aria-hidden="true" style="display:none; position:fixed; left:50%; top:50%; transform:translate(-50%,-50%); background:var(--bg-panel); border:1px solid var(--border-color); padding:20px; z-index:10010; width:720px; max-width:95vw; box-shadow:0 8px 32px rgba(0,0,0,0.4); border-radius:10px;">
         <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--border-color); padding-bottom:12px; margin-bottom:12px;">
-            <h3 style="margin:0; font-size:18px;">放球自動探索 (多段フィルタリング)</h3>
-            <button id="auto_close_x" style="background:transparent; border:none; font-size:20px; cursor:pointer;">&times;</button>
+            <h3 id="auto_search_title" style="margin:0; font-size:18px;">放球自動探索 (多段フィルタリング)</h3>
+            <button id="auto_close_x" type="button" aria-label="放球自動探索を閉じる" style="background:transparent; border:none; font-size:20px; cursor:pointer;">&times;</button>
         </div>
 
         <!-- ステップインジケーター -->

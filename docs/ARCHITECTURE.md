@@ -1,54 +1,109 @@
 # アーキテクチャ
 
-## 目的
+## 目的と境界
 
-このアプリは、高高度気球の放球条件からTawhiri予測を取得し、飛行経路と着地点を地図上で確認するためのブラウザアプリです。通常予測に加え、愛媛向け13条件比較、時間・地点の自動探索、気球ガス計算、API予算付き不確実性解析を一つの画面で扱います。
+Falling Position Simulator 2026は、高高度気球の放球・飛行・回収計画を支援するクライアントサイド中心のWebアプリです。Tawhiriの予測精度そのものを実装するのではなく、入力、API負荷制御、複数条件の編成、地図・グラフ表示、保存、再開、出力を担当します。
 
-## 構成
+## 読込と初期化
 
-- `index.html`: 入力フォーム、地図、結果パネルの静的な骨格。インラインJavaScriptは置きません。
-- `js/core/` と `js/domain/`: RunRecord、実行履歴、設定、IndexedDB/localStorage、通知、画面全体の初期化とPWA登録。`AppShell.registerInitializer()` が読み込み済み機能を優先度順に一度だけ初期化します。
-- `js/pred/pred-api-client.js`: API URLの解決、キュー、間隔制御、タイムアウト、再試行、3時間キャッシュ、同一リクエスト統合。
-- `js/pred/pred-job-store.js`: 自動探索と不確実性解析の再開用スナップショット。
-- `js/pred/pred-new.js`: 既存の通常予測・愛媛13条件比較・地図描画との接続。
-- `js/pred/auto-search*.js`: 自動探索の純粋ロジックとUI/実行制御。
-- `js/pred/uncertainty-*.js`: Sobol/LHS/モンテカルロ、分布変換、逐次停止、解析UI/実行制御。
-- `js/calc/balloon-gas.js`: 2025年版計算シートに合わせた純粋計算。
-- `js/calc/gas-calculator-*.js`: ガス計算画面とシミュレータ入力への反映。
-- `js/geo/land-sea-classifier.js`: 固定版の陸域・湖沼GeoJSONを使い、Polygonの穴、MultiPolygon、測地距離、4値のLandSeaResultを返す純粋分類器。
-- `js/pred/landsea.js`: 既存機能向けの互換ファサード。大量実行を含めBigDataCloud/Overpassへ通信しません。
-- `data/land-sea-datasets.json`: 判定データの版、SHA-256、出典、利用条件、範囲、既知制約。
+`index.html` は画面骨格とローカルスクリプトの読込順だけを持ち、インラインJavaScriptは置きません。`js/core/app-shell.js` が一つの `DOMContentLoaded` 入口を所有し、各機能は `AppShell.registerInitializer(name, callback, priority)` で一度だけ初期化されます。
 
-- `js/pred/launch-window.js`: Open-Meteoを用いた放球ウィンドウ評価。
-- `ports.json`: KMLから生成した支援地点22件と実回収地点8件。探索距離には支援地点だけを使います。
-- `sw.js`: `npm run build:sw` がHTMLとローカル資産から生成するService Worker。
+主要な依存順は次のとおりです。
 
-## 状態管理
+```text
+AppStorage / AppErrors / RunRecord
+              ↓
+RunRepository / SettingsRepository / AppShell
+              ↓
+PredictionApi / RequestContext / PredictionRunner
+              ↓
+通常予測・愛媛・自動探索・不確実性解析
+              ↓
+地図・RESULTS・履歴・CSV/KML
+```
 
-| 状態 | 保存場所 | 用途 |
+## モジュール
+
+| 領域 | 主なファイル | 責務 |
 |---|---|---|
-| 通常フォーム前回値・プリセット | localStorage | 次回起動時の入力復元、名前付き設定 |
-| 保存した放球地点 | Cookie（既存Jookie） | 既存機能との互換維持 |
-| UIテーマ・サイドバー・ガス設定 | localStorage | 軽量な画面設定 |
-| 全実行種別のRunRecord・履歴 | IndexedDB | 通常、愛媛、自動探索、不確実性解析の共通保存・再開・ピン留め |
-| 愛媛モード旧履歴 | localStorage | 既存データを削除せずRunRecordへ一度だけコピー |
-| API応答 | メモリ + IndexedDB | 3時間TTL、同じ条件の再通信を防止 |
-| 自動探索ジョブ | IndexedDB | 候補完了ごとに保存、中断・再読込後に再開 |
-| 不確実性解析ジョブ | IndexedDB | サンプル完了ごとに保存、中断・再読込後に再開 |
-| 実行中の通常/愛媛予測 | ページ内メモリ | 地図レイヤーと現在の予測結果 |
+| Core | `js/core/app-shell.js` | 初期化、サイドバー、PWA更新 |
+| 保存 | `app-storage.js`, `run-repository.js`, `settings-repository.js` | IndexedDB/localStorage、履歴、互換移行 |
+| ドメイン | `js/domain/run-record.js` | 共通RunRecord v1、状態遷移、正規化 |
+| API | `pred-api-client.js`, `request-context.js` | URL固定、キュー、再試行、予算、キャッシュ、診断 |
+| 実行 | `prediction-runner.js` | API応答をプロバイダ非依存形式へ正規化 |
+| 通常予測 | `pred-new.js` | 既存フォームとの互換入口、RunRecord開始境界 |
+| 描画 | `prediction-renderer.js`, `prediction-results-ui.js` | 軌跡、着地点、指標、結果操作 |
+| 愛媛 | `ehime-controller.js`, `variant-profile-registry.js` | 13条件、統計、比較、旧履歴互換 |
+| 探索 | `auto-search-core.js`, `auto-search.js` | 3段階探索、見積り、中断・再開、自動保存 |
+| 不確実性 | `uncertainty-core.js`, `uncertainty-analysis.js` | サンプリング、逐次停止、楕円、KDE、地図 |
+| ガス | `js/calc/balloon-gas.js`, `gas-calculator-ui.js` | 純粋計算、計算シートUI、SETTINGS反映 |
+| 海陸 | `land-sea-classifier.js`, `landsea.js` | 固定版GeoJSON分類と旧呼出互換 |
+| 表示 | `results-workspace.js`, `pred-chart*.js` | RESULTSタブ、診断、履歴、最大5系列 |
+| 出力 | `export-service.js`, `history-controller.js` | CSV/KML、履歴再表示、再実行準備 |
 
-API URLは実行ごとの設定としてクライアントへ渡し、共有グローバルを書き換えません。中断は進行中の1リクエストまたは1候補を完了した境界で停止します。
+`pred-new.js` はAPI、愛媛制御、描画、履歴、出力を直接抱えず、既存フォームと分割済みサービスを接続する互換層です。
 
-画面初期化は `app-shell.js` の `DOMContentLoaded` 一箇所だけを入口にします。各機能は名前付き初期化処理として登録され、重複登録と二重実行を防止します。
+## RunRecordと状態遷移
 
-## 外部通信
+全実行種別は `single`、`ehime_ensemble`、`auto_search`、`uncertainty` のRunRecordへ正規化します。主な状態は次のとおりです。
 
-- Tawhiri/SondeHub: 飛行予測。
-- Open-Meteo: 自動探索の降水・地上風と放球ウィンドウ。
-- 海陸判定: Natural Earth陸域と国土数値情報W09-05湖沼の固定版をローカル利用。外部判定APIへの通信なし。
+```text
+draft → running → completed / partial / failed / cancelled
+                    ↑
+          pause_requested → paused → running
+```
 
-- 地図タイル: 表示済みタイルを最大500件までオフライン用に保存。
+RunRecordは入力、API接続先、進捗、軌跡、着地点、指標、警告、再開スナップショット、データ出典を保持します。履歴画面は実行種別に依存せず、地図再表示、CSV/KML、再実行準備、固定、削除を提供します。旧愛媛履歴は削除せず一度だけ共通履歴へコピーします。
 
-Service WorkerはAPI応答をキャッシュしません。予測APIのTTL管理は `pred-api-client.js` に一本化しています。オフラインでは画面と保存済みジョブ・表示済み地図タイルを開けますが、新しい気象・飛行予測は取得できません。
+## 状態の保存先
 
-海陸判定は全機能で同じ決定論的分類器を使用します。結果は `land`、`sea`、`inland_water`、`unknown`、信頼度、判定元、海岸距離、データ版を保持します。内水面は海上率へ含めず、データ境界・範囲外・読込失敗はunknownのまま扱います。
+| 状態 | 保存先 | ライフサイクル |
+|---|---|---|
+| 前回設定・プリセット・UI設定 | localStorage | 軽量、即時保存 |
+| 旧保存地点 | Cookie | 互換維持 |
+| RunRecordと履歴 | IndexedDB | 完了・失敗を含む永続履歴 |
+| 自動探索・不確実性ジョブ | IndexedDB | 候補/サンプル境界ごとに自動保存 |
+| API応答 | メモリ + IndexedDB | TTL 3時間、LRU 500、永続2500件 |
+| 実行中レイヤー・グラフ | ページ内メモリ | 表示クリアと履歴削除を分離 |
+
+中断要求は実行中の通信を強制破棄せず、現在の単位を保存したあと次を開始しない方式です。
+
+## API負荷制御
+
+`PredictionClient` は接続先ごとの同時数と最小間隔を持ちます。RequestContextは実行開始時に接続先URLを固定するため、別実行が共有グローバルURLを書き換える競合はありません。
+
+- SondeHub: 同時1件、最小900ms
+- Localhost: 同時2件、最小100ms
+- Custom/Open-Meteo: 同時1件、設定された最小間隔
+- 429、5xx、タイムアウト、通信TypeErrorを上限内で再試行
+- 同一URLの進行中要求を統合
+- HTTP試行数は再試行を含めて予算へ計上
+
+自動探索は時刻を外側、地点を内側に並べ、複数地点を公平に進めます。不確実性解析は地点ごとのラウンドロビンで1サンプルずつ進め、1地点の連続失敗が他地点を止めない構造です。
+
+## 海陸判定
+
+`js/geo/land-sea-classifier.js` は同梱したNatural Earth陸域と国土数値情報W09-05湖沼を読み、Polygonの穴とMultiPolygonを含むPoint-in-Polygon、測地海岸距離を計算します。結果は分類、信頼度、判定元、距離、データ版、理由を持ちます。
+
+実行時にBigDataCloud/Overpassへ通信しないため、大量処理でも同じ入力は同じ結果になります。範囲外、データ未読込、境界が判断不能な場合は推測せず `unknown` です。
+
+## エラーと診断
+
+利用者向けメッセージと技術診断を分離します。診断のURLクエリに含まれるkey/token/secretとBearer値はマスクし、保存・イベント・コンソールへ渡す技術メッセージは1000文字へ制限します。巨大なAPI応答本文やError causeを履歴・診断イベントへ保存しません。
+
+## PWA
+
+`scripts/build-service-worker.mjs` はHTMLのローカル依存、地理データ、画像から内容ハッシュ付き `sw.js` を生成します。
+
+- アプリシェル: stale-while-revalidate
+- 画面遷移: network-first、失敗時はキャッシュ
+- 地図タイル: cache-first、最大500件
+- 予測・気象API: Service Worker対象外
+- activate時:現行アプリキャッシュとタイル以外の旧キャッシュを削除
+
+## 検証層
+
+- Nodeテスト: 純粋計算、保存、状態遷移、API負荷、静的品質、PWA生成物
+- Playwright: 固定APIによる主要6フロー、モバイル、キーボード、PWAオフライン
+- GitHub Actions: build、生成物差分、Nodeテスト、Chromium E2E
+- 手動確認: 実API、予測妥当性、実端末表示、Service Worker更新通知
