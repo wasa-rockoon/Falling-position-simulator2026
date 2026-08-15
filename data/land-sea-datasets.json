@@ -1,10 +1,11 @@
 {
   "schemaVersion": 1,
-  "version": "jp-ne10m-d606b972-w09-05-07cdd494-v1",
+  "version": "jp-ne10m-8339b513-w09-05-07cdd494-v1",
+  "checksumFormat": "sha256-lf-normalized-text",
   "coverage": [122, 20.009711005000042, 153.98560631600003, 46],
   "land": {
     "file": "data/land_japan_raw.geojson",
-    "sha256": "d606b97268e312aeaa254169fb7aeb8898c772877957f6b5ac994d74b7a03b62",
+    "sha256": "8339b513fb63ec4bbbd92bb92707888551ad8ae3f008d1ed3818f027db588a1b",
     "dataset": "Natural Earth ne_10m_land, Japan-region clip",
     "sourceUrl": "https://www.naturalearthdata.com/downloads/10m-physical-vectors/10m-land/",
     "license": "Public domain",

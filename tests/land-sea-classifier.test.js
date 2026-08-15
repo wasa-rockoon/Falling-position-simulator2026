@@ -7,6 +7,10 @@ const LandSeaClassifier = require('../js/geo/land-sea-classifier.js');
 
 const root = path.resolve(__dirname, '..');
 const readJson = (relative) => JSON.parse(fs.readFileSync(path.join(root, relative), 'utf8'));
+const readCanonicalText = (relative) => Buffer.from(
+    fs.readFileSync(path.join(root, relative), 'utf8').replace(/\r\n/g, '\n'),
+    'utf8'
+);
 
 function realClassifier() {
     return LandSeaClassifier.create({
@@ -36,7 +40,7 @@ test('fixed regional points classify deterministically with one data version', (
         assert.deepEqual(second, first, `${label} changed between calls`);
         if (expected !== 'unknown') versions.add(first.dataVersion);
     }
-    assert.deepEqual([...versions], ['jp-ne10m-d606b972-w09-05-07cdd494-v1']);
+    assert.deepEqual([...versions], ['jp-ne10m-8339b513-w09-05-07cdd494-v1']);
 });
 
 test('polygon holes, multipolygons and exact boundaries have explicit outcomes', () => {
@@ -72,8 +76,9 @@ test('legacy water conversion never counts inland water as sea', () => {
 
 test('dataset hashes and attribution match the manifest', () => {
     const manifest = readJson('data/land-sea-datasets.json');
+    assert.equal(manifest.checksumFormat, 'sha256-lf-normalized-text');
     for (const dataset of [manifest.land, manifest.inlandWater]) {
-        const bytes = fs.readFileSync(path.join(root, dataset.file));
+        const bytes = readCanonicalText(dataset.file);
         assert.equal(crypto.createHash('sha256').update(bytes).digest('hex'), dataset.sha256, dataset.file);
         assert.ok(dataset.sourceUrl);
         assert.ok(dataset.license);

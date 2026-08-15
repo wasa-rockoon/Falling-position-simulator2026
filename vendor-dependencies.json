@@ -1,7 +1,8 @@
 {
   "schemaVersion": 1,
   "generatedAt": "2026-08-09",
-  "notes": "Browser libraries are intentionally vendored so the application shell can start offline. sha256 values pin the exact checked-in bytes.",
+  "notes": "Browser libraries are intentionally vendored so the application shell can start offline. sha256 values pin LF-normalized text content across platforms.",
+  "checksumFormat": "sha256-lf-normalized-text",
   "dependencies": [
     {
       "name": "jQuery",
@@ -10,7 +11,7 @@
       "license": "MIT",
       "source": "https://jquery.com/",
       "runtime": true,
-      "sha256": "4fe68fa216176e6d1f4580e924bafecc9f519984ecc06b1a840a08b0d88c95de"
+      "sha256": "160a426ff2894252cd7cebbdd6d6b7da8fcd319c65b70468f10b6690c45d02ef"
     },
     {
       "name": "jQuery UI",
@@ -19,7 +20,7 @@
       "license": "MIT",
       "source": "https://jqueryui.com/",
       "runtime": true,
-      "sha256": "2ad4f5d82e27b67e902b6e50cdac99e7f7ffda9ccad7f950dc4526ea41fb4776"
+      "sha256": "55accff7b642c2d7a402cbe03c1494c0f14a76bc03dee9d47d219562b6a152a5"
     },
     {
       "name": "Leaflet",
@@ -28,7 +29,7 @@
       "license": "BSD-2-Clause",
       "source": "https://leafletjs.com/",
       "runtime": true,
-      "sha256": "20ef2c3770056c07c99ebdeef9e1ef64682de0362c49c16205f942df2f1404d9"
+      "sha256": "08d9beedcdba0d34c219142433dbe9eda3fce641c532ab3d3213c4bb2b45f9f4"
     },
     {
       "name": "Moment.js",
@@ -46,7 +47,7 @@
       "license": "MIT",
       "source": "https://www.chartjs.org/",
       "runtime": true,
-      "sha256": "11b5a05821e9238322e18d37ed5afb8a04f21686cd340812c2591decdf55aea0"
+      "sha256": "d2af8974e95271638772e9e9524db5b9a6f58d6ec2d5d781400447b4a31c681e"
     },
     {
       "name": "html2canvas",
@@ -55,7 +56,7 @@
       "license": "MIT",
       "source": "https://html2canvas.hertzen.com/",
       "runtime": true,
-      "sha256": "4917b15ac829f7546ab1c053b06499786b45a053169f31f436c16c8eb821414e"
+      "sha256": "e87e550794322e574a1fda0c1549a3c70dae5a93d9113417a429016838eab8cb"
     },
     {
       "name": "Tipsy",
@@ -64,7 +65,7 @@
       "license": "upstream MIT; verify before redistribution outside this project",
       "source": "https://github.com/jaz303/tipsy",
       "runtime": true,
-      "sha256": "828b6c84702e5bd6ebec5d72a4d3a1bedc65f3e290421d1502ee076f824ba207"
+      "sha256": "0e53466218d7ff174e0a083ecce89b1c090c67ccbe55775eddca03e930ff9e35"
     },
     {
       "name": "Jookie",
@@ -73,7 +74,7 @@
       "license": "MIT",
       "source": "file header",
       "runtime": true,
-      "sha256": "716681e5749bd922caf72ecb952372b684fa4ed0365bb1c87846d89e2860e5e9"
+      "sha256": "a81758eaf54e5a06124a889f5c4f88b074d67028ddf6957b7766a703d59b61c8"
     },
     {
       "name": "jQuery Form Plugin",
@@ -82,7 +83,7 @@
       "license": "MIT OR GPL-2.0-or-later",
       "source": "http://malsup.com/jquery/form/",
       "runtime": false,
-      "sha256": "5c625fb1633765fa8a48362fd5a4f1a2b9d4fea481b01aca1ee8a0d66de3b1ff"
+      "sha256": "33fe94ea6f1ac47c417b26ed69ec9e03a7d18f2d42c0031940ee0c714ae79249"
     }
   ]
 }
