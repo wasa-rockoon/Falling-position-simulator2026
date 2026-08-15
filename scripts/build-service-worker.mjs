@@ -26,6 +26,11 @@ function normalizeAsset(asset) {
     return normalized === '' ? './' : `./${normalized}`;
 }
 
+function hashableContent(relativeFile, bytes) {
+    const textExtensions = new Set(['.html', '.css', '.js', '.json', '.geojson', '.txt', '.md', '.xml', '.kml', '.svg']);
+    if (!textExtensions.has(path.extname(relativeFile).toLowerCase())) return bytes;
+    return Buffer.from(bytes.toString('utf8').replace(/\r\n/g, '\n'), 'utf8');
+}
 const html = await fs.readFile(path.join(projectRoot, 'index.html'), 'utf8');
 const assets = new Set([
     './',
@@ -52,7 +57,8 @@ const appShellHash = createHash('sha256');
 for (const asset of appShell) {
     const relativeFile = asset === './' ? 'index.html' : asset.slice(2);
     appShellHash.update(asset);
-    appShellHash.update(await fs.readFile(path.join(projectRoot, relativeFile)));
+    const bytes = await fs.readFile(path.join(projectRoot, relativeFile));
+    appShellHash.update(hashableContent(relativeFile, bytes));
 }
 const cacheVersion = appShellHash.digest('hex').slice(0, 12);
 

@@ -22,6 +22,12 @@ function appShellAssets() {
     return JSON.parse(match[1]);
 }
 
+function hashableContent(relativeFile) {
+    const bytes = fs.readFileSync(path.join(root, relativeFile));
+    const textExtensions = new Set(['.html', '.css', '.js', '.json', '.geojson', '.txt', '.md', '.xml', '.kml', '.svg']);
+    if (!textExtensions.has(path.extname(relativeFile).toLowerCase())) return bytes;
+    return Buffer.from(bytes.toString('utf8').replace(/\r\n/g, '\n'), 'utf8');
+}
 function pngSize(relativeFile) {
     const data = fs.readFileSync(path.join(root, relativeFile));
     assert.equal(data.subarray(1, 4).toString('ascii'), 'PNG');
@@ -52,7 +58,7 @@ test('service worker cache version matches current app-shell contents', () => {
     for (const asset of appShellAssets()) {
         const relativeFile = asset === './' ? 'index.html' : asset.slice(2);
         hash.update(asset);
-        hash.update(fs.readFileSync(path.join(root, relativeFile)));
+        hash.update(hashableContent(relativeFile));
     }
     assert.equal(version[1], hash.digest('hex').slice(0, 12));
     assert.match(serviceWorker, /TILE_CACHE_NAME = CACHE_PREFIX \+ 'tiles-v1'/);
