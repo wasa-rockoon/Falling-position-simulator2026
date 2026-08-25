@@ -2,13 +2,12 @@
 'use strict';
 
 var CACHE_PREFIX = 'wasa-predictor-';
-var CACHE_VERSION = '4e1e6c365da5';
+var CACHE_VERSION = '2838e14387a8';
 var APP_CACHE_NAME = CACHE_PREFIX + 'app-' + CACHE_VERSION;
 var TILE_CACHE_NAME = CACHE_PREFIX + 'tiles-v1';
 var TILE_CACHE_LIMIT = 500;
 var APP_SHELL = [
     "./",
-    "./css/gas-calculator.css",
     "./css/images/layers-2x.png",
     "./css/images/layers.png",
     "./css/images/marker-icon-2x.png",
@@ -65,9 +64,6 @@ var APP_SHELL = [
     "./images/target-yellow.png",
     "./images/tipsy.gif",
     "./index.html",
-    "./js/calc/balloon-gas.js",
-    "./js/calc/gas-calculator-template.js",
-    "./js/calc/gas-calculator-ui.js",
     "./js/chart.min.js",
     "./js/colour-map.js",
     "./js/core/app-errors.js",

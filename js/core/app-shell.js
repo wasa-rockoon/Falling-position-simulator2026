@@ -293,11 +293,76 @@
         }
         enablePanelDrag(ensemblePanel, ensemblePanel && ensemblePanel.querySelector('.ensemble-stats-header'), function () { return root.innerWidth > 768; });
 
-
+        var metrics = document.getElementById('scenario_info_floating_container');
+        var metricsAnchor = document.getElementById('metrics_restore_anchor');
+        var popoutMetrics = document.getElementById('popout_metrics_btn');
+        function updateMetricsButton(floating) {
+            if (!popoutMetrics) return;
+            popoutMetrics.textContent = floating ? 'RESULTSへ戻す' : '外に出す';
+            popoutMetrics.setAttribute('aria-pressed', floating ? 'true' : 'false');
+            popoutMetrics.title = floating ? 'シナリオ概要をRESULTSへ戻す' : 'シナリオ概要を地図上に表示';
+        }
+        function restoreMetrics() {
+            if (!metrics || !metricsAnchor || !metricsAnchor.parentNode) return;
+            metricsAnchor.parentNode.insertBefore(metrics, metricsAnchor);
+            metrics.classList.remove('floating-metrics-mode');
+            metrics.style.left = '';
+            metrics.style.top = '';
+            updateMetricsButton(false);
+        }
+        function floatMetrics() {
+            if (!metrics || root.innerWidth <= 768) return;
+            document.body.appendChild(metrics);
+            metrics.classList.add('floating-metrics-mode');
+            updateMetricsButton(true);
+        }
+        if (popoutMetrics) {
+            popoutMetrics.addEventListener('click', function () {
+                if (metrics && metrics.classList.contains('floating-metrics-mode')) restoreMetrics();
+                else floatMetrics();
+            });
+        }
+        enablePanelDrag(metrics, metrics && metrics.querySelector('.scenario-summary-drag-handle'), function () {
+            return root.innerWidth > 768 && metrics.classList.contains('floating-metrics-mode');
+        });
+        root.addEventListener('resize', function () {
+            if (!metrics) return;
+            if (root.innerWidth <= 768 && metrics.classList.contains('floating-metrics-mode')) restoreMetrics();
+            if (popoutMetrics) popoutMetrics.hidden = root.innerWidth <= 768;
+        });
+        if (popoutMetrics) popoutMetrics.hidden = root.innerWidth <= 768;
     }
 
     function registerServiceWorker() {
         if (!('serviceWorker' in navigator)) return;
+        var localHost = root.location && (
+            root.location.hostname === 'localhost' ||
+            root.location.hostname === '127.0.0.1' ||
+            root.location.hostname === '::1' ||
+            root.location.hostname === '[::1]'
+        );
+        var localPwaEnabled = localHost && root.location.search && new URLSearchParams(root.location.search).get('pwa') === '1';
+        if (localHost && !localPwaEnabled) {
+            // Development files change independently. A cached shell can otherwise
+            // combine old and new modules and silently stop prediction rendering.
+            root.addEventListener('load', function () {
+                navigator.serviceWorker.getRegistrations().then(function (registrations) {
+                    return Promise.all(registrations.map(function (registration) { return registration.unregister(); }));
+                }).catch(function (error) {
+                    report(error, 'service-worker.local-unregister');
+                });
+                if (root.caches && typeof root.caches.keys === 'function') {
+                    root.caches.keys().then(function (keys) {
+                        return Promise.all(keys.filter(function (key) {
+                            return key.indexOf('wasa-predictor-') === 0;
+                        }).map(function (key) { return root.caches.delete(key); }));
+                    }).catch(function (error) {
+                        report(error, 'service-worker.local-cache-clear');
+                    });
+                }
+            }, { once: true });
+            return;
+        }
         var reloadForUpdate = false;
 
         function offerUpdate(registration) {
@@ -354,7 +419,7 @@
         }
         var mobileNav = document.getElementById('mobile_nav');
         if (mobileNav) mobileNav.setAttribute('aria-label', '\u30e2\u30d0\u30a4\u30eb\u64cd\u4f5c');
-        ['run_batch_btn', 'run_auto_search_btn'].forEach(function (id) {
+        ['run_auto_search_btn'].forEach(function (id) {
             var button = document.getElementById(id);
             if (button) button.setAttribute('type', 'button');
         });

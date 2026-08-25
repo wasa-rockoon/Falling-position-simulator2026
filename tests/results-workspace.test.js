@@ -20,21 +20,24 @@ test('RESULTS is split into overview, charts and common history views', () => {
     assert.match(css, /\.run-history-list/);
 });
 
-test('diagnostics is global and obsolete floating and form-hide controls are absent', () => {
+test('diagnostics is global, form hiding is absent, and scenario summary can pop out', () => {
     const settingsStart = index.indexOf('id="panel-settings"');
     const settingsEnd = index.indexOf('<!-- /panel-settings -->');
     const diagnostics = index.indexOf('id="scenario_template"');
     assert.ok(diagnostics > settingsEnd, 'diagnostics must not be nested in SETTINGS');
     assert.ok(settingsStart >= 0 && settingsEnd > settingsStart);
     assert.doesNotMatch(index, /id="showHideForm"/);
-    assert.doesNotMatch(index, /id="popout_metrics_btn"/);
+    assert.match(index, /id="popout_metrics_btn"/);
+    assert.match(index, /id="metrics_restore_anchor"/);
     assert.match(index, /id="diagnostics_toggle"/);
 });
 
 test('planning actions use one UI class and export labels are unambiguous', () => {
-    for (const id of ['run_pred_btn', 'run_batch_btn', 'run_auto_search_btn', 'open_gas_calculator_btn', 'open_uncertainty_btn']) {
+    for (const id of ['run_pred_btn', 'run_auto_search_btn', 'open_gas_calculator_btn', 'open_uncertainty_btn']) {
         assert.match(index, new RegExp(`id="${id}" class="[^"]*app-action-btn`));
     }
+    assert.doesNotMatch(index, /id="run_batch_btn"/);
+    assert.match(index, /id="open_gas_calculator_btn"[^>]*disabled[^>]*>ガス・破裂高度計算（準備中）</);
     assert.doesNotMatch(index, /CSV再出力/);
     assert.match(index, />CSV出力</);
 });

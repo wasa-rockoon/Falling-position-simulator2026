@@ -85,10 +85,27 @@ function clearEhimeHistoryLayers() {
         }
         delete ehime_history_layers[key];
     });
-    currentEhimeReplayHistoryId = null;
     renderEhimeHistoryPanel();
 }
 
+function setEhimeReplayClearButtonVisible(visible) {
+    var button = document.getElementById('clear_replayed_history');
+    if (button) button.hidden = !visible;
+}
+
+function clearEhimeHistoryReplay() {
+    if (!currentEhimeReplayHistoryId) {
+        setEhimeReplayClearButtonVisible(false);
+        if (typeof showToast === 'function') showToast('再表示中の履歴はありません', 'info', 1600);
+        return false;
+    }
+    if (typeof clearMapItems === 'function') clearMapItems();
+    currentEhimeReplayHistoryId = null;
+    setEhimeReplayClearButtonVisible(false);
+    renderEhimeHistoryPanel();
+    if (typeof showToast === 'function') showToast('再表示した結果を地図から消しました。履歴は保持されています。', 'info', 1800);
+    return true;
+}
 function buildEhimeVariantDiffLabel(baseSettings, rowSettings, label) {
     if (label === 'BASE') return '-';
     if (!baseSettings || !rowSettings) return '';
@@ -507,6 +524,7 @@ function renderEhimeHistoryToResultPanels(item) {
     }
 
     currentEhimeReplayHistoryId = getEhimeHistoryRecordId(item);
+    setEhimeReplayClearButtonVisible(true);
 }
 
 // Global registry for Ehime snapshots to support popup buttons
@@ -726,6 +744,7 @@ function restoreEhimeHistoryAsCurrentRun(item) {
     updateEhimeSummaryFromStore();
     refreshEhimePanel();
     currentEhimeReplayHistoryId = getEhimeHistoryRecordId(item);
+    setEhimeReplayClearButtonVisible(true);
     syncEhimeHistoryNavButtons();
 
     if (typeof item.meanLat === 'number' && typeof item.meanLng === 'number' && map && typeof map.setView === 'function') {
@@ -749,7 +768,9 @@ function restoreEhimeHistoryAsCurrentRun(item) {
 }
 
 function clearEhimeHistoryCache() {
+    if (currentEhimeReplayHistoryId) clearEhimeHistoryReplay();
     clearEhimeHistoryLayers();
+    currentEhimeReplayHistoryId = null;
     saveEhimeHistoryCache([]);
     renderEhimeHistoryPanel();
 }

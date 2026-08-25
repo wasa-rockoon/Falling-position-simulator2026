@@ -18,6 +18,11 @@
     var sharedClients = new Map();
     var cacheStore = AppStorage ? AppStorage.createStore('predictionCache') : null;
 
+    function isLocalDevelopmentServer() {
+        var host = root.location && root.location.hostname;
+        return host === 'localhost' || host === '127.0.0.1' || host === '::1' || host === '[::1]';
+    }
+
     function resolveApiUrl(source, customUrl) {
         if (source === 'local') return '/api/v1/';
         if (source === 'custom') {
@@ -25,7 +30,7 @@
             if (!normalized) throw new Error('カスタムAPI URLを入力してください。');
             return normalized;
         }
-        return SONDEHUB_URL;
+        return isLocalDevelopmentServer() ? '/api/sondehub/' : SONDEHUB_URL;
     }
 
     function normalizeSource(source) {

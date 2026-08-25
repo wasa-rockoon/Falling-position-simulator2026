@@ -935,6 +935,7 @@
         setTimeout(function () { $('#auto_search_mode').trigger('focus'); }, 0);
         await loadMarinePoints();
         if (state.phase > 0 && state.status !== 'idle') {
+            await populateSites(state.configuration ? state.configuration.selectedSites : []);
             renderResults();
             return;
         }

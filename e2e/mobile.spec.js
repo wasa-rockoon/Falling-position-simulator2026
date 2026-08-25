@@ -16,9 +16,6 @@ test('モバイルで主要ダイアログが画面内に収まりキーボー�
     await expect(autoDialog).toBeHidden();
     await expect(page.locator('#run_auto_search_btn')).toBeFocused();
 
-    await page.locator('#open_gas_calculator_btn').click();
-    await expect(page.getByRole('dialog', { name: 'ガス・破裂高度計算' })).toBeVisible();
-    await page.keyboard.press('Escape');
-    await expect(page.locator('#gas_calculator_modal')).toBeHidden();
-    await expect(page.locator('#open_gas_calculator_btn')).toBeFocused();
+    await expect(page.locator('#open_gas_calculator_btn')).toBeDisabled();
+    await expect(page.locator('#mobile_nav_gas')).toBeDisabled();
 });

@@ -11,7 +11,7 @@ test('PWAシェルは更新後も一度だけ起動しオフライン再読込�
         else await route.abort('blockedbyclient');
     });
 
-    await page.goto('/');
+    await page.goto('/?pwa=1');
     await page.evaluate(async () => {
         const registration = await navigator.serviceWorker.ready;
         if (!registration.active) throw new Error('Service Worker did not activate');

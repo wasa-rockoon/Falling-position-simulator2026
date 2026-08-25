@@ -21,6 +21,14 @@ test('愛媛13条件を完了し複数系列を保存する', async ({ app }) =>
     await expect(page.locator('#ehime_dlcsv')).toBeVisible();
     await expect.poll(() => app.apiCalls.filter((url) => url.includes('/api/v1/')).length).toBe(13);
     await expect(page.locator('#results_status_badge')).toHaveText('完了');
+
+    const legacyHistory = page.locator('#ehime_history_panel_result');
+    await legacyHistory.locator('.ehime-history-replay').first().evaluate((button) => button.click());
+    await expect.poll(() => page.evaluate(() => Boolean(window.currentEhimeReplayHistoryId))).toBe(true);
+    await expect(page.locator('#clear_replayed_history')).toBeVisible();
+    await page.locator('#clear_replayed_history').click();
+    await expect.poll(() => page.evaluate(() => Boolean(window.currentEhimeReplayHistoryId))).toBe(false);
+    await expect.poll(() => page.evaluate(() => Object.keys(window.ehime_predictions || {}).length)).toBe(0);
 });
 
 test('自動探索を候補境界で中断し再開する', async ({ app }) => {
@@ -51,17 +59,11 @@ test('自動探索を候補境界で中断し再開する', async ({ app }) => {
     await expect.poll(() => page.evaluate(() => window.__autoSearch.getState().status)).toBe('ready');
 });
 
-test('ガス計算結果をSETTINGSへ反映する', async ({ app }) => {
+test('未完成のガス計算は公開画面から起動できない', async ({ app }) => {
     const { page } = app;
-    await app.setBaseSettings('single');
-    await page.locator('#open_gas_calculator_btn').click();
-    await expect(page.getByRole('dialog', { name: 'ガス・破裂高度計算' })).toBeVisible();
-    await expect(page.locator('#gas_result_volume')).not.toHaveText('-');
-    await page.locator('#gas_ascent_rate').fill('5.5');
-    await page.locator('#gas_apply_to_prediction').click();
-    await expect(page.locator('#gas_calculator_modal')).toBeHidden();
-    await expect(page.locator('#ascent')).toHaveValue('5.50');
-    await expect(page.locator('#open_gas_calculator_btn')).toBeFocused();
+    await expect(page.locator('#open_gas_calculator_btn')).toBeDisabled();
+    await expect(page.locator('#open_gas_calculator_btn')).toContainText('準備中');
+    await expect(page.locator('#gas_calculator_modal')).toHaveCount(0);
 });
 
 test('不確実性解析を完了し密度等高線を地図表示する', async ({ app }) => {
@@ -83,7 +85,22 @@ test('不確実性解析を完了し密度等高線を地図表示する', async
     await expect.poll(() => page.evaluate(() => window.UncertaintyAnalysis.getState().siteRuns[0].observations.filter((row) => !row.error).length)).toBe(8);
 });
 
-test('共通履歴から地図再表示とCSV出力ができる', async ({ app }) => {
+test('シナリオ概要を地図上へ出してRESULTSへ戻せる', async ({ app }) => {
+    const { page } = app;
+    await page.locator('.sidebar-tab[data-panel="panel-results"]').click();
+    const summary = page.locator('#scenario_info_floating_container');
+    const toggle = page.locator('#popout_metrics_btn');
+    await toggle.click();
+    await expect(summary).toHaveClass(/floating-metrics-mode/);
+    await expect(toggle).toHaveText('RESULTSへ戻す');
+    await expect.poll(() => summary.evaluate((element) => element.parentElement === document.body)).toBe(true);
+    await toggle.click();
+    await expect(summary).not.toHaveClass(/floating-metrics-mode/);
+    await expect(toggle).toHaveText('外に出す');
+    await expect.poll(() => summary.evaluate((element) => element.parentElement && element.parentElement.id)).toBe('results_view_overview');
+});
+
+test('共通履歴の地図表示を解除でき、履歴削除時にも表示が残らない', async ({ app }) => {
     const { page } = app;
     await app.setBaseSettings('single');
     await page.locator('#run_pred_btn').click();
@@ -92,9 +109,26 @@ test('共通履歴から地図再表示とCSV出力ができる', async ({ app }
     await page.locator('[data-results-view="history"]').click();
     const history = page.locator('.run-history-item').first();
     await expect(history).toBeVisible();
+    const runId = await history.getAttribute('data-run-id');
+
+    await history.getByRole('button', { name: '地図表示' }).click();
+    await expect(history.getByRole('button', { name: '地図から消す' })).toBeVisible();
+    await expect.poll(() => page.evaluate((id) => window.HistoryController.isVisible(id), runId)).toBe(true);
+
+    await history.getByRole('button', { name: '地図から消す' }).click();
+    await expect(history.getByRole('button', { name: '地図表示' })).toBeVisible();
+    await expect.poll(() => page.evaluate((id) => window.HistoryController.isVisible(id), runId)).toBe(false);
+
     await history.getByRole('button', { name: '地図表示' }).click();
     const downloadPromise = page.waitForEvent('download');
     await history.getByRole('button', { name: 'CSV', exact: true }).click();
     const download = await downloadPromise;
-    expect(download.suggestedFilename()).toMatch(/\.csv$/i);
+    expect(download.suggestedFilename()).toMatch(/.csv$/i);
+
+    const remove = history.locator('.result-text-button-danger');
+    await remove.click();
+    await expect(remove).toHaveText('もう一度押して削除');
+    await remove.click();
+    await expect(history).toBeHidden();
+    await expect.poll(() => page.evaluate((id) => window.HistoryController.isVisible(id), runId)).toBe(false);
 });

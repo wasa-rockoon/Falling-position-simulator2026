@@ -38,7 +38,7 @@ function resolveTawhiriApiUrl() {
     var apiSourceEl = $('#api_source');
     var customUrlEl = $('#api_custom_url');
     if (!apiSourceEl.length) {
-        return "https://api.v2.sondehub.org/tawhiri";
+        return (typeof PredictionApi !== 'undefined' && typeof PredictionApi.resolveApiUrl === 'function') ? PredictionApi.resolveApiUrl('sondehub') : "https://api.v2.sondehub.org/tawhiri";
     }
 
     var source = apiSourceEl.val() || 'sondehub';
@@ -55,7 +55,7 @@ function resolveTawhiriApiUrl() {
         return customUrl;
     }
 
-    return "https://api.v2.sondehub.org/tawhiri";
+    return (typeof PredictionApi !== 'undefined' && typeof PredictionApi.resolveApiUrl === 'function') ? PredictionApi.resolveApiUrl('sondehub') : "https://api.v2.sondehub.org/tawhiri";
 }
 
 function createPredictionRequestContext(options) {
@@ -405,6 +405,7 @@ function shouldValidateSondeHubTimeWindow(apiSource) {
 function runPrediction() {
     // Read the user-supplied parameters and request a prediction.
     $('#error_window').hide();
+    if (typeof showToast === 'function') showToast('予測を開始しました。', 'info', 1800);
 
     if (typeof validateAllFields === 'function' && !validateAllFields()) {
         throwError('入力値に不正があります。赤字の項目を修正してください。');

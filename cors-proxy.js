@@ -14,6 +14,7 @@
  */
 
 const http = require('http');
+const https = require('https');
 const fs = require('fs');
 const path = require('path');
 
@@ -78,6 +79,33 @@ function proxyToTawhiri(req, res) {
     req.pipe(proxyReq);
 }
 
+function proxyToSondeHub(req, res) {
+    const reqUrl = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
+    const options = {
+        hostname: 'api.v2.sondehub.org',
+        port: 443,
+        path: '/tawhiri' + reqUrl.search,
+        method: req.method,
+        headers: { Accept: 'application/json' }
+    };
+
+    const proxyReq = https.request(options, (proxyRes) => {
+        res.setHeader('Access-Control-Allow-Origin', '*');
+        res.writeHead(proxyRes.statusCode, proxyRes.headers);
+        proxyRes.pipe(res);
+    });
+
+    proxyReq.on('error', (err) => {
+        console.error(`[SondeHub Proxy Error] ${err.message}`);
+        res.writeHead(502, {
+            'Content-Type': 'application/json; charset=utf-8',
+            'Access-Control-Allow-Origin': '*'
+        });
+        res.end(JSON.stringify({ error: { description: `SondeHub APIへ接続できません: ${err.message}` } }));
+    });
+
+    req.pipe(proxyReq);
+}
 function serveStaticFile(req, res) {
     const reqUrl = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
     let pathname = decodeURIComponent(reqUrl.pathname);
@@ -127,6 +155,11 @@ const server = http.createServer((req, res) => {
         return;
     }
 
+    if (req.url.startsWith('/api/sondehub/')) {
+        console.log(`[SondeHub Proxy] ${req.method} ${req.url}`);
+        proxyToSondeHub(req, res);
+        return;
+    }
     if (req.url.startsWith('/api/')) {
         console.log(`[Proxy] ${req.method} ${req.url} -> ${TAWHIRI_HOST}:${TAWHIRI_PORT}`);
         proxyToTawhiri(req, res);

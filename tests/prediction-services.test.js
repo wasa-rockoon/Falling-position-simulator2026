@@ -73,7 +73,9 @@ test('MapLayerRegistry owns visibility and group cleanup', () => {
     const registry = new MapLayerRegistry.Registry(map);
     registry.register('one', layer, { group: 'history' });
     assert.equal(registry.get('one'), layer);
+    assert.equal(registry.isVisible('one'), true);
     registry.setVisible('one', false);
+    assert.equal(registry.isVisible('one'), false);
     registry.clearGroup('history');
     assert.deepEqual(calls.map((entry) => entry[0]), ['add', 'remove', 'remove']);
     assert.equal(registry.get('one'), null);

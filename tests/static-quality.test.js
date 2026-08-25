@@ -107,7 +107,7 @@ test('planning feature UI stays consistent and exposes map results', () => {
     const autoSearchSource = read('js/pred/auto-search.js');
 
     assert.match(html, /id="run_auto_search_btn" class="app-action-btn"/);
-    assert.doesNotMatch(html, /id="popout_metrics_btn"/);
+    assert.match(html, /id="popout_metrics_btn"/);
     assert.match(html, /id="results_view_overview"/);
     assert.match(html, /id="auto_results_count"/);
     assert.match(html, /id="auto_download_btn"[^>]*>CSV出力</);
@@ -153,7 +153,10 @@ test('overlapping planning features route to their consolidated workflows', () =
     const autoSearch = read('js/pred/auto-search.js');
     const launchWindow = read('js/pred/launch-window.js');
     const predictionEvents = read('js/pred/pred-event.js');
-    assert.match(html, /id="run_batch_btn"[^>]+showAllSitesAutoSearchPreset/);
+    assert.doesNotMatch(html, /id="run_batch_btn"/);
+    assert.match(html, /id="run_auto_search_btn"[^>]+showAutoSearchModal/);
+    assert.match(html, /id="open_gas_calculator_btn"[^>]*disabled/);
+    assert.doesNotMatch(html, new RegExp('js/calc/gas-calculator-ui\\.js'));
     assert.match(html, /id="launch_window_run_btn"[^>]*>時間帯を比較</);
     assert.doesNotMatch(html, /id="launch_window_panel"|id="burst-calc-wrapper"|js\/calc\/calc\.js/);
     assert.match(autoSearch, /function showAllSitesPreset/);

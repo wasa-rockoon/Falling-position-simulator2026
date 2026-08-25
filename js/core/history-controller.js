@@ -48,6 +48,15 @@
 
     function show(runId) { return getRecord(runId).then(showRecord); }
 
+    function hide(runId) {
+        if (!layerRegistry) return false;
+        return layerRegistry.setVisible('history:' + runId, false);
+    }
+
+    function isVisible(runId) {
+        return Boolean(layerRegistry && layerRegistry.isVisible('history:' + runId));
+    }
+
     function exportRecord(runId, format) {
         return getRecord(runId).then(function (record) { return root.ExportService.exportRun(record, format); });
     }
@@ -94,5 +103,5 @@
         });
     }
 
-    return { getRecord: getRecord, show: show, showRecord: showRecord, exportRecord: exportRecord, loadSettings: loadSettings, resume: resume, prepareRerun: prepareRerun, applyToSettings: applyToSettings };
+    return { getRecord: getRecord, show: show, showRecord: showRecord, hide: hide, isVisible: isVisible, exportRecord: exportRecord, loadSettings: loadSettings, resume: resume, prepareRerun: prepareRerun, applyToSettings: applyToSettings };
 }));

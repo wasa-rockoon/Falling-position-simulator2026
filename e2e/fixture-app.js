@@ -119,7 +119,7 @@ const test = base.extend({
         });
 
         await page.goto('/');
-        await page.waitForFunction(() => Boolean(window.AppShell && window.PredictionRunner && document.getElementById('gas_calculator_modal') && document.getElementById('uncertainty_modal')));
+        await page.waitForFunction(() => Boolean(window.AppShell && window.PredictionRunner && document.getElementById('uncertainty_modal')));
 
         await use({
             page,

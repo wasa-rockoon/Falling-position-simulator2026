@@ -7,6 +7,16 @@
 - Windows PowerShell（PWAアイコン・jQuery UI画像を再生成する場合のみ）
 - ローカルAPIを使う場合はTawhiriサーバー
 
+## 公開版と現地PCの使い分け
+
+| 環境 | 目的 | 利用するAPI | Localhost API |
+|---|---|---|---|
+| GitHub Pages | メンバー共有、通常予測、結果・履歴の確認 | SondeHub（標準）またはHTTPS/CORS対応Custom API | 使用不可 |
+| 現地PCのローカル起動 | 実験当日の主系、大量探索、不確実性解析 | ローカルTawhiriを推奨、SondeHubは予備 | 使用可能 |
+
+Localhost (Docker)とcors-proxy.jsは**開発・現地PC専用**です。GitHub PagesはNode.jsを実行できないため、公開URLでLocalhost APIを選択してもローカルTawhiriへは接続できません。
+
+
 ## セットアップと起動
 
 ```powershell
@@ -71,7 +81,11 @@ npm run ci
 
 ## CI
 
-`.github/workflows/ci.yml` はpushとpull requestで以下を実行します。
+**CI（Continuous Integration）**は、コード変更のたびにGitHubが自動で行う品質検査です。公開やデプロイを行うものではありません。ローカルPCではたまたま動いても、別OSやまっさらな環境で壊れる問題を早期に見つけます。
+
+**E2E（End-to-End）**は、Chromiumで実際の画面操作を行う自動試験です。ボタン、ダイアログ、地図、履歴、PWAまでを一連の利用者操作として確認します。実APIの代わりに固定応答を使うため、実API・実気象・実回収判断は手動確認チェックリストで別途確認します。
+
+.github/workflows/ci.yml は対象ブランチへのpushとpull requestで以下を実行します。
 
 1. `npm ci`
 2. `npm run build`
@@ -138,6 +152,15 @@ node scripts/build-inland-water.mjs C:\path\to\W09-05-g.xml data\inland_water_ja
 9. 対象ブランチへpushしGitHub Actions成功を確認
 
 `node_modules/`、Playwrightレポート、生成CSV、ログ、Office一時ファイル、調査資料はコミットしません。
+
+## 公開前のPages確認
+
+- Pages公開元が暫定dev/kotakiか正式masterかを記録する。
+- 公開URLをHTTPSで開き、index.html、CSS、JavaScript、GeoJSON、画像に404がないことを確認する。
+- 公開ページではSondeHub (Public)で通常予測を1件だけ実行する。
+- 公開ページでLocalhost (Docker)を実運用に使わない。ローカルTawhiriが必要な探索・解析は現地PCでnode cors-proxy.jsから行う。
+- Service Worker更新後は、更新通知または強制再読み込みで新しい版を確認する。
+- Pagesの公開元をmasterへ切り替える直前に、master対象のCIが成功することを確認する。
 
 ## 障害切り分け
 

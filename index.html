@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="theme-color" content="#0b5fa5">
-    <meta name="description" content="WASA balloon flight, landing, gas, automatic search and uncertainty planning tool">
+    <meta name="description" content="WASA balloon flight, landing, automatic search and uncertainty planning tool">
     <title>WASA / 気球実験用 予測ツール</title>
 
 
@@ -18,7 +18,7 @@
     <link href="css/jquery-ui.css" rel="stylesheet">
     <link href="css/predictor.css" rel="stylesheet">
     <link href="css/predictor-mobile.css" rel="stylesheet" media="(max-width: 768px)">
-    <link href="css/gas-calculator.css" rel="stylesheet">
+
     <link href="css/uncertainty.css" rel="stylesheet">
 
     <!-- Core Libraries -->
@@ -71,9 +71,7 @@
     <script src="js/pred/pred-chart.js" type="text/javascript"></script>
     <script src="js/pred/ehime-enhancements.js" type="text/javascript"></script>
     <script src="js/pred/launch-window.js" type="text/javascript"></script>
-    <script src="js/calc/balloon-gas.js" type="text/javascript"></script>
-    <script src="js/calc/gas-calculator-template.js" type="text/javascript"></script>
-    <script src="js/calc/gas-calculator-ui.js" type="text/javascript"></script>
+
     <script src="js/pred/uncertainty-core.js" type="text/javascript"></script>
     <script src="js/pred/uncertainty-template.js" type="text/javascript"></script>
     <script src="js/pred/uncertainty-analysis.js" type="text/javascript"></script>
@@ -201,9 +199,9 @@
                                 </select>
                             </div>
 
-                            <!-- バースト計算機リンク -->
+                            <!-- ガス計算は公開準備中 -->
                             <div class="form-links">
-                                <a id="burst-calc-show" class="tipsyLink" title="ガス量・上昇速度・破裂高度をまとめて計算">ガス・破裂高度計算を開く</a>
+                                <span id="burst-calc-show" class="feature-unavailable" aria-disabled="true">ガス・破裂高度計算（準備中）</span>
                             </div>
 
                             <!-- 下降速度 -->
@@ -270,9 +268,8 @@
                             <!-- 実行・計画機能 -->
                             <div class="form-actions" aria-label="予測・計画機能">
                                 <button type="button" name="submit" id="run_pred_btn" class="app-action-btn app-action-primary" onclick="runPrediction();">予測を実行</button>
-                                <button type="button" id="run_batch_btn" class="app-action-btn" onclick="showAllSitesAutoSearchPreset();">全地点を自動探索</button>
                                 <button type="button" id="run_auto_search_btn" class="app-action-btn" onclick="showAutoSearchModal();">放球自動探索</button>
-                                <button type="button" id="open_gas_calculator_btn" class="app-action-btn">ガス・破裂高度計算</button>
+                                <button type="button" id="open_gas_calculator_btn" class="app-action-btn" disabled aria-disabled="true" title="現在は実装中のため利用できません">ガス・破裂高度計算（準備中）</button>
                                 <button type="button" id="open_uncertainty_btn" class="app-action-btn">不確実性解析</button>
                             </div>
                         </div>
@@ -300,7 +297,10 @@
 
                     <section id="results_view_overview" class="results-view active" data-results-panel="overview" role="tabpanel">
                         <section id="scenario_info_floating_container" class="result-section-card" aria-labelledby="scenario_overview_heading">
-                            <h2 id="scenario_overview_heading">シナリオ概要</h2>
+                            <div class="result-section-heading-row scenario-summary-drag-handle">
+                                <h2 id="scenario_overview_heading">シナリオ概要</h2>
+                                <button type="button" id="popout_metrics_btn" class="result-text-button" aria-pressed="false" title="シナリオ概要を地図上に表示">外に出す</button>
+                            </div>
                             <span id="cursor_info">現在のマウス位置:
                                 緯度: <span id="cursor_lat">?</span>
                                 経度: <span id="cursor_lon">?</span>
@@ -322,6 +322,7 @@
                                 最終実行（JST）: <span id="run_time">?</span> / 使用モデル: <span id="dataset">?</span>
                             </span>
                         </section>
+                        <div id="metrics_restore_anchor" aria-hidden="true"></div>
 
                         <section class="result-section-card" aria-labelledby="result_actions_heading">
                             <h2 id="result_actions_heading">結果操作</h2>
@@ -337,6 +338,7 @@
                                 <button type="button" class="result-action" id="showHideChart" onclick="toggleChart()">高度グラフ</button>
                                 <button type="button" class="result-action" id="showHideWindChart" onclick="toggleWindChart()">風速グラフ</button>
                                 <button type="button" class="result-action" id="showHideDebug">診断ログ</button>
+                                <button type="button" class="result-action" id="clear_replayed_history" onclick="clearEhimeHistoryReplay()" hidden>再表示を消す</button>
                                 <button type="button" class="result-action" id="coord_format_toggle" title="緯度経度表示形式を切替">座標形式切替</button>
                                 <button type="button" class="result-action" id="about_window_show">このツールについて</button>
                             </div>
@@ -685,7 +687,7 @@
         <button data-target="input_form">設定</button>
         <button data-target="scenario_info">情報</button>
         <button data-target="ensemble_stats_panel" id="mobile_nav_ehime">統計</button>
-        <button type="button" id="mobile_nav_gas">ガス計算</button>
+        <button type="button" id="mobile_nav_gas" disabled aria-disabled="true" title="現在は実装中のため利用できません">ガス計算（準備中）</button>
         <button type="button" id="mobile_dark_mode_toggle" data-theme-toggle="true" title="ダークモード切替">テーマ</button>
     </nav>
     <!-- トーストコンテナ -->

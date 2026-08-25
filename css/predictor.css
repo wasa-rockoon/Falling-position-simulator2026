@@ -720,7 +720,6 @@ body:not(.sidebar-open) #app-sidebar { transform: translateX(100%); }
 #run_pred_btn:active { transform: translateY(0); box-shadow: var(--shadow-sm); }
 
 /* 計画・解析機能ボタン */
-#run_batch_btn,
 #run_auto_search_btn,
 #open_gas_calculator_btn,
 #open_uncertainty_btn {
@@ -738,7 +737,6 @@ body:not(.sidebar-open) #app-sidebar { transform: translateX(100%); }
   cursor: pointer;
   transition: background var(--transition-fast), border-color var(--transition-fast), transform var(--transition-fast), box-shadow var(--transition-fast);
 }
-#run_batch_btn:hover,
 #run_auto_search_btn:hover,
 #open_gas_calculator_btn:hover,
 #open_uncertainty_btn:hover {
@@ -747,7 +745,6 @@ body:not(.sidebar-open) #app-sidebar { transform: translateX(100%); }
   box-shadow: var(--shadow-sm);
   transform: translateY(-1px);
 }
-#run_batch_btn:active,
 #run_auto_search_btn:active,
 #open_gas_calculator_btn:active,
 #open_uncertainty_btn:active { transform: translateY(0); }
@@ -845,6 +842,46 @@ body:not(.sidebar-open) #app-sidebar { transform: translateX(100%); }
   border: 0;
   border-top: 1px solid var(--border-color);
   margin: var(--space-xs) 0;
+}
+#scenario_info_floating_container.floating-metrics-mode {
+  position: fixed;
+  top: 20px;
+  left: 60px;
+  z-index: 1400;
+  width: min(340px, calc(100vw - 80px));
+  max-height: calc(100vh - 40px);
+  overflow: auto;
+  padding: var(--space-md);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: var(--bg-panel);
+  box-shadow: var(--shadow-lg);
+  pointer-events: auto;
+}
+#scenario_info_floating_container.floating-metrics-mode .scenario-summary-drag-handle {
+  cursor: grab;
+  user-select: none;
+}
+#metrics_restore_anchor {
+  display: none;
+}
+.feature-unavailable {
+  display: inline-block;
+  color: var(--text-secondary);
+  cursor: not-allowed;
+}
+.app-action-btn:disabled,
+#open_gas_calculator_btn:disabled,
+#mobile_nav_gas:disabled {
+  opacity: 0.58;
+  cursor: not-allowed;
+  transform: none !important;
+  box-shadow: none !important;
+}
+.app-action-btn:disabled:hover,
+#open_gas_calculator_btn:disabled:hover {
+  border-color: var(--border-color) !important;
+  background: var(--color-surface) !important;
 }
 img.handle {
   position: relative;
@@ -1238,7 +1275,7 @@ table#trails th { background-color: #6666ff; color: white; }
   .preset-controls { margin-bottom: 8px; }
   #input_form .form-actions { margin-top: 10px; }
   #run_pred_btn { padding: 8px 16px !important; font-size: 14px !important; }
-  #run_batch_btn { padding: 6px 12px !important; font-size: 12px !important; }
+
 }
 
 
@@ -1279,7 +1316,6 @@ table#trails th { background-color: #6666ff; color: white; }
 .form-actions #run_pred_btn { grid-column: 1 / -1; }
 #open_uncertainty_btn { grid-column: auto; }
 .form-actions .app-action-btn,
-#run_batch_btn,
 #run_auto_search_btn,
 #open_gas_calculator_btn,
 #open_uncertainty_btn {
@@ -1306,7 +1342,6 @@ table#trails th { background-color: #6666ff; color: white; }
   transition: transform var(--transition-fast), border-color var(--transition-fast), background var(--transition-fast), box-shadow var(--transition-fast);
 }
 .form-actions .app-action-btn:hover,
-#run_batch_btn:hover,
 #run_auto_search_btn:hover,
 #open_gas_calculator_btn:hover,
 #open_uncertainty_btn:hover {

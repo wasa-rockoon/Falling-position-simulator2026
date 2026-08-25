@@ -25,6 +25,11 @@
         return entry && entry.layer || null;
     };
 
+    Registry.prototype.isVisible = function (id) {
+        var entry = this.entries.get(id);
+        return Boolean(entry && entry.visible);
+    };
+
     Registry.prototype.setVisible = function (id, visible) {
         var entry = this.entries.get(id);
         if (!entry) return false;

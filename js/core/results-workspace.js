@@ -189,6 +189,7 @@
         clearDeleteConfirmation(item.runId, button);
         button.disabled = true;
         try {
+            if (root.HistoryController && typeof root.HistoryController.hide === 'function') root.HistoryController.hide(item.runId);
             await root.RunRepository.remove(item.runId);
             if (root.showToast) root.showToast('実行履歴を削除しました。', 'info', 1800);
             await refreshHistory();
@@ -229,7 +230,29 @@
             return button;
         }
         if (root.HistoryController) {
-            addHistoryAction('地図表示', function () { return root.HistoryController.show(item.runId); }, '保存した結果を地図に表示しました。');
+            var mapToggle = appendText(actions, 'button', 'result-text-button', root.HistoryController.isVisible(item.runId) ? '地図から消す' : '地図表示');
+            mapToggle.type = 'button';
+            mapToggle.setAttribute('aria-pressed', root.HistoryController.isVisible(item.runId) ? 'true' : 'false');
+            mapToggle.addEventListener('click', async function () {
+                mapToggle.disabled = true;
+                try {
+                    if (root.HistoryController.isVisible(item.runId)) {
+                        root.HistoryController.hide(item.runId);
+                        if (root.showToast) root.showToast('保存した結果を地図から消しました。履歴は保持されています。', 'info', 1800);
+                    } else {
+                        await root.HistoryController.show(item.runId);
+                        if (root.showToast) root.showToast('保存した結果を地図に表示しました。', 'info', 1800);
+                    }
+                    var visible = root.HistoryController.isVisible(item.runId);
+                    mapToggle.textContent = visible ? '地図から消す' : '地図表示';
+                    mapToggle.setAttribute('aria-pressed', visible ? 'true' : 'false');
+                } catch (error) {
+                    report(error, 'results.history.map');
+                    if (root.showToast) root.showToast(error.message || '履歴を地図で操作できませんでした。', 'warning', 2600);
+                } finally {
+                    mapToggle.disabled = false;
+                }
+            });
             addHistoryAction('CSV', function () { return root.HistoryController.exportRecord(item.runId, 'csv'); });
             addHistoryAction('KML', function () { return root.HistoryController.exportRecord(item.runId, 'kml'); });
             if (isActiveStatus(item.status)) addHistoryAction('再開', function () { return root.HistoryController.resume(item.runId); });

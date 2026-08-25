@@ -4,7 +4,7 @@
 
 気球・高高度プラットフォームの飛行経路と着地点を予測し、放球時刻、回収、安全性を検討するためのシングルページWebアプリです。
 
-通常予測、愛媛気球実験用13条件比較、放球自動探索、ガス・破裂高度計算、不確実性解析、実行履歴を一つの地図上で扱います。
+通常予測、愛媛気球実験用13条件比較、放球自動探索、不確実性解析、実行履歴を一つの地図上で扱います。ガス・破裂高度計算は計算ロジックを保持していますが、公開UIは完成まで一時的に無効です。
 
 公開予定（GitHub Pages）: **https://wasa-rockoon.github.io/Falling-position-simulator2026/**
 
@@ -52,7 +52,7 @@
 - 通常予測、落下のみ予測、時間別予測
 - 愛媛気球実験用13条件の比較
 - 地点×時刻の放球自動探索
-- 2025年版ガス計算シートに基づくヘリウム量・純浮力・ボンベ・破裂高度計算
+- 2025年版ガス計算シートに基づく計算ロジック（公開UIは完成まで一時無効）
 - Monte Carlo、Latin Hypercube、Sobolによる不確実性解析
 - 正規分布・Weibull分布を使った入力変動
 - 着地点群、95%確率楕円、KDE密度等高線の地図表示
@@ -71,7 +71,12 @@
 https://wasa-rockoon.github.io/Falling-position-simulator2026/
 ```
 
-現在のリポジトリには検証用CIがありますが、GitHub Pagesへのデプロイ設定は別途必要です。公開版では既定の`SondeHub (Public)`を利用します。
+現在のリポジトリには検証用CIがありますが、GitHub Pagesへのデプロイ設定は別途必要です。公開版では既定のSondeHub (Public)を利用します。
+
+> [!WARNING]
+> Localhost (Docker)は**開発・現地PC専用**です。GitHub Pagesではcors-proxy.jsやローカルTawhiriを実行できないため、公開ページからLocalhost APIを使うことはできません。公開ページではSondeHub、またはHTTPSかつCORS対応のCustom APIを選択してください。
+
+公開初期はdev/kotakiをPagesの公開元にして確認でき、後で同じURLのまま公開元をmasterへ切り替えられます。正式公開前にmasterへCI対象を切り替え、公開URLで通常予測・PWA・履歴を確認してください。
 
 ### ローカルで画面を開く
 
@@ -159,7 +164,10 @@ node cors-proxy.js
 
 ## 7. ガス・破裂高度計算
 
-2025年版の気球ガス計算シートをもとに、次を計算します。
+> [!NOTE]
+> 計算ロジックとテストは保持していますが、共同実験向け公開版では未完成機能として起動ボタンを一時的に無効化しています。
+
+2025年版の気球ガス計算シートをもとに、次を計算する機能を開発中です。
 
 - ヘリウム必要量
 - 純浮力・上昇速度
@@ -167,7 +175,7 @@ node cors-proxy.js
 - 準静的・断熱モデルによる充填計画
 - 気球条件ごとの破裂高度推定
 
-計算結果は確認後に`SETTINGS`へ反映できます。元の計算シートで係数が定義されていない条件は、推測値を作らず未対応として表示します。
+完成後は、計算結果を確認してからSETTINGSへ反映できる予定です。元の計算シートで係数が定義されていない条件は、推測値を作らず未対応として扱います。
 
 ## 8. 不確実性解析
 
@@ -280,9 +288,13 @@ npm run test:e2e    # 固定APIによるChromium E2E
 npm run ci          # build、Nodeテスト、E2Eをまとめて実行
 ```
 
-E2Eは公開APIへ通信せず、固定レスポンスで通常予測、愛媛13条件、自動探索、ガス計算、不確実性解析、履歴、モバイル、PWAを検証します。
+E2Eは公開APIへ通信せず、固定レスポンスで通常予測、愛媛13条件、自動探索、不確実性解析、履歴、モバイル、PWAを検証し、ガス計算が公開画面で無効であることも確認します。
 
-GitHub ActionsのCIはpushとPull Requestでビルド、生成物差分、Nodeテスト、Chromium E2Eを実行します。CIは品質確認であり、GitHub Pagesへのデプロイ処理ではありません。
+GitHub Actionsの**CI**は、pushやPull RequestのたびにGitHub上のまっさらなLinux環境で品質を確認する自動検査です。npm run buildで必要な生成物を確認し、Nodeテストで計算・保存・API負荷制御などを検査します。
+
+**E2E（End-to-End test）**は、実際にChromiumで画面を開き、通常予測、愛媛13条件、自動探索、不確実性解析、履歴、モバイル、PWAの一連の操作を自動で確認するブラウザ試験です。外部APIは固定レスポンスに差し替えるため、実APIの可用性や予測精度は別途手動確認が必要です。
+
+CIは品質確認であり、GitHub Pagesへのデプロイ処理ではありません。
 
 PWAアイコンとjQuery UI画像を再生成する場合だけWindows PowerShellが必要です。
 
@@ -315,4 +327,4 @@ npm run build:ui-assets:windows
 
 ## English Summary
 
-Falling Position Simulator 2026 is a static, browser-based planning tool for high-altitude balloon flights. It visualizes Tawhiri/SondeHub trajectories and landing points, compares 13 fixed Ehime experiment variants, searches launch windows across sites and times, calculates balloon gas and burst altitude, and performs uncertainty analysis using Monte Carlo, Latin Hypercube, or Sobol sampling. Results, resumable jobs, diagnostics, and exports are stored locally in the browser. The public application is intended for GitHub Pages; Node.js and `cors-proxy.js` are required only for local development or a local Tawhiri instance.
+Falling Position Simulator 2026 is a static, browser-based planning tool for high-altitude balloon flights. It visualizes Tawhiri/SondeHub trajectories and landing points, compares 13 fixed Ehime experiment variants, searches launch windows across sites and times, retains work-in-progress balloon gas calculations behind a disabled public UI, and performs uncertainty analysis using Monte Carlo, Latin Hypercube, or Sobol sampling. Results, resumable jobs, diagnostics, and exports are stored locally in the browser. The public application is intended for GitHub Pages; Node.js and `cors-proxy.js` are required only for local development or a local Tawhiri instance.
