@@ -37,12 +37,21 @@ document.body.insertAdjacentHTML('beforeend', `
 </form>
 <div class="gas-calculator-results" aria-live="polite">
 <p id="gas_calculator_error" class="gas-calculator-error" hidden></p>
-<div class="gas-result-summary"><div><span>総重量</span><strong id="gas_result_total_mass">-</strong></div><div><span>純浮力</span><strong id="gas_result_pure_lift">-</strong></div><div><span>全浮力</span><strong id="gas_result_total_lift">-</strong></div><div><span>必要ガス量</span><strong id="gas_result_volume">-</strong></div><div><span>推奨破裂高度</span><strong id="gas_result_burst">-</strong></div><div><span>密度差</span><strong>1.1138 kg/m³</strong></div></div>
+<div class="gas-result-summary"><div><span>総重量</span><strong id="gas_result_total_mass">-</strong></div><div><span>純浮力</span><strong id="gas_result_pure_lift">-</strong></div><div><span>全浮力</span><strong id="gas_result_total_lift">-</strong></div><div><span>必要ガス量</span><strong id="gas_result_volume">-</strong></div><div><span>選択破裂高度</span><strong id="gas_result_burst">-</strong></div><div><span>密度差</span><strong>1.1138 kg/m³</strong></div></div>
 <p id="gas_cylinder_warning" class="gas-calculator-warning" hidden>4本では不足する過程があります。</p>
 <details open><summary>充填過程の比較</summary><div class="gas-table-scroll"><table><thead><tr><th>過程</th><th>指数 n</th><th>使用本数</th><th>最終使用ボンベ残圧</th></tr></thead><tbody id="gas_process_result_body"></tbody></table></div></details>
 <details><summary id="gas_cylinder_detail_title">ボンベごとの使用量・残圧</summary><div class="gas-table-scroll"><table><thead><tr><th>本</th><th>状態</th><th>充填可能量</th><th>使用量</th><th>終了圧</th></tr></thead><tbody id="gas_cylinder_result_body"></tbody></table></div></details>
-<details open><summary>破裂高度4方式の比較</summary><div class="gas-table-scroll"><table><thead><tr><th>形状</th><th>判定基準</th><th>破裂高度</th></tr></thead><tbody id="gas_burst_result_body"></tbody></table></div><p class="gas-calculator-note">予測への反映値は「球近似・直径判定」です。計算値にはモデル誤差があるため、運用マージンを別途確保してください。</p></details>
-<button id="gas_apply_to_prediction" type="button">上昇速度・推奨破裂高度を予測条件へ反映</button>
+<details open><summary>破裂高度4方式の比較</summary>
+<label class="gas-burst-method-select">予測へ反映する判定方式
+<select id="gas_burst_method">
+<option value="ellipsoidThickness">楕円体・膜厚</option>
+<option value="ellipsoidLength">楕円体・長さ</option>
+<option value="ellipsoidDiameter">楕円体・径</option>
+<option value="sphereDiameter" selected>球近似・直径（既定）</option>
+</select>
+</label>
+<div class="gas-table-scroll"><table><thead><tr><th>形状</th><th>判定基準</th><th>破裂高度</th></tr></thead><tbody id="gas_burst_result_body"></tbody></table></div><p class="gas-calculator-note">選択した方式の値を予測条件へ反映します。計算値にはモデル誤差があるため、運用マージンを別途確保してください。</p></details>
+<button id="gas_apply_to_prediction" type="button">上昇速度・選択した破裂高度を予測条件へ反映</button>
 </div></div></section></div>`);
 }
 root.GasCalculatorTemplate={mount:mount};

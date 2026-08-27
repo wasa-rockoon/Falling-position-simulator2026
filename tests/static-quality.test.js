@@ -153,6 +153,8 @@ test('overlapping planning features route to their consolidated workflows', () =
     const autoSearch = read('js/pred/auto-search.js');
     const launchWindow = read('js/pred/launch-window.js');
     const predictionEvents = read('js/pred/pred-event.js');
+    const gasTemplate = read('js/calc/gas-calculator-template.js');
+    const gasUi = read('js/calc/gas-calculator-ui.js');
     assert.doesNotMatch(html, /id="run_batch_btn"/);
     assert.match(html, /id="run_auto_search_btn"[^>]+showAutoSearchModal/);
     assert.doesNotMatch(html, /id="open_gas_calculator_btn"[^>]*disabled/);
@@ -162,7 +164,11 @@ test('overlapping planning features route to their consolidated workflows', () =
     assert.match(autoSearch, /function showAllSitesPreset/);
     assert.match(autoSearch, /function showWeatherComparisonPreset/);
     assert.match(launchWindow, /showAutoSearchWeatherPreset/);
-    assert.match(predictionEvents, /GasCalculatorUI\.open/);
+    assert.match(predictionEvents, /GasCalculatorUI[.]open/);
+    assert.match(gasTemplate, /id="gas_burst_method"/);
+    assert.match(gasTemplate, /value="sphereDiameter" selected/);
+    assert.doesNotMatch(gasTemplate, /推奨破裂高度|直径（推奨）/);
+    assert.match(gasUi, /selectedBurstKm/);
 });
 test('uncertainty analysis owns and restores its JST launch datetime', () => {
     const template = read('js/pred/uncertainty-template.js');

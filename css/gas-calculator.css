@@ -289,7 +289,25 @@
 .gas-cylinder-grid-head { color: var(--app-muted, #5f6673); font-size: 0.78rem; font-weight: 700; text-align: center; }
 #gas_normal_fields[hidden], #gas_verification_fields[hidden] { display: none; }
 #gas_normal_fields, #gas_verification_fields { display: grid; gap: 0.65rem; }
-.gas-calculator-results tr.is-recommended td { background: rgba(0, 118, 255, 0.09); font-weight: 700; }
+.gas-calculator-results tr.is-recommended td,
+.gas-calculator-results tr.is-selected td { background: rgba(0, 118, 255, 0.09); font-weight: 700; }
+.gas-burst-method-select {
+    display: grid;
+    gap: 5px;
+    margin: 10px 0 4px;
+    color: var(--text-secondary, #596579);
+    font-size: 11px;
+}
+.gas-burst-method-select select {
+    box-sizing: border-box;
+    width: 100%;
+    min-height: 34px;
+    padding: 6px 8px;
+    color: var(--text-primary, #162033);
+    background: var(--bg-input, #fff);
+    border: 1px solid var(--border-color, #cdd5e0);
+    border-radius: 6px;
+}
 #burst-calc-show[role="button"] { cursor: pointer; color: #0673e8; text-decoration: underline; text-underline-offset: 2px; }
 #burst-calc-show[role="button"]:focus-visible { outline: 2px solid #0673e8; outline-offset: 3px; }
 @media (max-width: 768px) {
