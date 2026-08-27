@@ -37,7 +37,8 @@ test('planning actions use one UI class and export labels are unambiguous', () =
         assert.match(index, new RegExp(`id="${id}" class="[^"]*app-action-btn`));
     }
     assert.doesNotMatch(index, /id="run_batch_btn"/);
-    assert.match(index, /id="open_gas_calculator_btn"[^>]*disabled[^>]*>ガス・破裂高度計算（準備中）</);
+    assert.match(index, /id="open_gas_calculator_btn"[^>]*>ガス・破裂高度計算</);
+    assert.doesNotMatch(index, /id="open_gas_calculator_btn"[^>]*disabled/);
     assert.doesNotMatch(index, /CSV再出力/);
     assert.match(index, />CSV出力</);
 });

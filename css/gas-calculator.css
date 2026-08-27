@@ -248,3 +248,56 @@
         grid-template-columns: 1fr;
     }
 }
+
+.gas-calculator-inputs,
+.gas-calculator-inputs fieldset,
+.gas-calculator-inputs fieldset > * {
+    min-width: 0;
+}
+
+/* The mode blocks are nested form sections, so they must span the outer
+   fieldset before arranging their own fields. */
+#gas_normal_fields,
+#gas_verification_fields {
+    grid-column: 1 / -1;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+#gas_normal_fields .gas-calculator-note,
+#gas_verification_fields .gas-calculator-note {
+    grid-column: 1 / -1;
+}
+
+/* Cylinder rows belong inside one fieldset. Keep every row full-width while
+   leaving the two settings below it side-by-side on desktop. */
+.gas-calculator-inputs fieldset.gas-cylinder-fieldset {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.gas-cylinder-grid {
+    display: grid;
+    grid-column: 1 / -1;
+    grid-template-columns: 2.5rem minmax(6rem, 1fr) minmax(8rem, 1fr);
+    gap: 0.55rem;
+    align-items: center;
+    width: 100%;
+    min-width: 0;
+    margin-bottom: 0.45rem;
+    box-sizing: border-box;
+}
+.gas-cylinder-grid input { width: 100%; }
+.gas-cylinder-grid-head { color: var(--app-muted, #5f6673); font-size: 0.78rem; font-weight: 700; text-align: center; }
+#gas_normal_fields[hidden], #gas_verification_fields[hidden] { display: none; }
+#gas_normal_fields, #gas_verification_fields { display: grid; gap: 0.65rem; }
+.gas-calculator-results tr.is-recommended td { background: rgba(0, 118, 255, 0.09); font-weight: 700; }
+#burst-calc-show[role="button"] { cursor: pointer; color: #0673e8; text-decoration: underline; text-underline-offset: 2px; }
+#burst-calc-show[role="button"]:focus-visible { outline: 2px solid #0673e8; outline-offset: 3px; }
+@media (max-width: 768px) {
+    #gas_normal_fields,
+    #gas_verification_fields,
+    .gas-calculator-inputs fieldset.gas-cylinder-fieldset {
+        grid-template-columns: 1fr;
+    }
+
+    .gas-cylinder-grid { grid-template-columns: 2rem minmax(5rem, 1fr) minmax(7rem, 1fr); }
+}

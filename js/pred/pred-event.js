@@ -33,7 +33,9 @@ function EH_BurstCalc() {
         event.preventDefault();
         if (window.GasCalculatorUI && typeof window.GasCalculatorUI.open === 'function') window.GasCalculatorUI.open();
     });
-    $('#burst-calc-show').hover(
+    $('#burst-calc-show').off('keydown.gasCalculator').on('keydown.gasCalculator', function (event) {
+        if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); $(this).trigger('click'); }
+    });    $('#burst-calc-show').hover(
         function () { $('#ascent,#burst').css('background-color', '#AACCFF'); },
         function () { $('#ascent,#burst').css('background-color', ''); }
     );

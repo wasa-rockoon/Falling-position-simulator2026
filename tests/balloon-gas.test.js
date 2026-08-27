@@ -1,61 +1,41 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const gas = require('../js/calc/balloon-gas.js');
-
-function close(actual, expected, tolerance, label) {
-    assert.ok(Math.abs(actual - expected) <= tolerance, `${label}: ${actual} != ${expected}`);
-}
-
-test('2025 workbook defaults reproduce lift and gas volume', () => {
+function close(actual, expected, tolerance, label) { assert.ok(Math.abs(actual - expected) <= tolerance, `${label}: ${actual} != ${expected}`); }
+test('2026 Python defaults reproduce lift and helium volume with density 1.1138', () => {
     const result = gas.calculate({});
-    close(result.totalMassKg, 6.726, 1e-12, 'total mass');
-    close(result.pureLiftKg, 2.870705947, 1e-9, 'pure lift');
-    close(result.totalLiftKg, 9.596705947, 1e-9, 'total lift');
-    close(result.gasVolumeL, 9456.498573, 1e-6, 'gas volume');
+    assert.equal(gas.DENSITY_DIFFERENCE_KG_M3, 1.1138);
+    close(result.totalMassKg, 3.335, 1e-12, 'total mass');
+    close(result.pureLiftKg, 2.321026744363245, 1e-12, 'pure lift');
+    close(result.totalLiftKg, 5.6560267443632455, 1e-12, 'total lift');
+    close(result.gasVolumeL, 5579.397220573637, 1e-9, 'gas volume');
 });
-
-test('2025 workbook defaults reproduce quasi-static cylinder plan', () => {
-    const result = gas.calculate({ cylinderProcess: 'quasi-static' });
-    close(result.cylinders.workbookEquivalentCount, 1.472566074, 1e-9, 'cylinder count');
-    assert.equal(result.cylinders.cylinders[0].status, 'full');
-    assert.equal(result.cylinders.cylinders[1].status, 'partial');
-    close(result.cylinders.cylinders[1].residualPressureMpa, 7.478588173, 1e-9, 'residual pressure');
+test('2026 model returns three gas processes', () => {
+    const result = gas.calculate({ polytropicN: 1.3 });
+    close(result.gasModels.quasiStatic.workbookEquivalentCount, 0.8688238040054539, 1e-12, 'quasi-static');
+    close(result.gasModels.polytropic.workbookEquivalentCount, 0.8903149861487479, 1e-12, 'polytropic');
+    close(result.gasModels.adiabatic.workbookEquivalentCount, 0.9294186585460487, 1e-12, 'adiabatic');
+    assert.equal(result.gasModels.quasiStatic.cylinders[0].residualPressureMpa, 2.01);
+    assert.equal(result.gasModels.polytropic.cylinders[0].residualPressureMpa, 1.12);
+    assert.equal(result.gasModels.adiabatic.cylinders[0].residualPressureMpa, 0.55);
 });
-
-test('2025 workbook defaults reproduce adiabatic cylinder plan', () => {
-    const result = gas.calculate({ cylinderProcess: 'adiabatic' });
-    close(result.cylinders.workbookEquivalentCount, 1.575268057, 1e-9, 'cylinder count');
-    close(result.cylinders.cylinders[0].capacityL, 6003.104381, 1e-6, 'first capacity');
-    close(result.cylinders.cylinders[1].residualPressureMpa, 3.966501206, 1e-9, 'residual pressure');
+test('polytropic endpoints equal quasi-static and adiabatic capacities', () => {
+    const iso = gas.calculate({ polytropicN: 1 });
+    close(iso.gasModels.polytropic.cylinders[0].capacityL, iso.gasModels.quasiStatic.cylinders[0].capacityL, 1e-9, 'n=1');
+    const adi = gas.calculate({ polytropicN: gas.HELIUM_GAMMA });
+    close(adi.gasModels.polytropic.cylinders[0].capacityL, adi.gasModels.adiabatic.cylinders[0].capacityL, 1e-9, 'n=gamma');
 });
-
-test('2025 workbook defaults reproduce all six burst estimates', () => {
-    const result = gas.calculate({});
-    assert.deepEqual(result.burst.methods, {
-        ellipsoidMembrane: 27.8,
-        ellipsoidEquivalentDiameter: 31.25,
-        ellipsoidLength: 25.5,
-        ellipsoidDiameter: 34.05,
-        sphereMembrane: 33.5,
-        sphereDiameter: 31.25
-    });
-    assert.equal(result.burst.recommendedMethod, 'sphereDiameter');
-    assert.equal(result.burst.recommendedKm, 31.25);
+test('2026 model exposes only four retained burst criteria', () => {
+    assert.deepEqual(gas.calculate({}).burst.methods, { ellipsoidThickness: 28.65, ellipsoidLength: 26.45, ellipsoidDiameter: 35.1, sphereDiameter: 32.25 });
 });
-
-test('unsupported 1200 g lift coefficient is reported instead of invented', () => {
-    assert.throws(() => gas.calculate({ balloonMassG: 1200 }), /1200 g/);
+test('1200 g remains unavailable until its ascent coefficient is known', () => { assert.throws(() => gas.calculate({ balloonMassG: 1200 }), /未確定/); });
+test('four cylinders accept independent pressure and volume values', () => {
+    const result = gas.calculate({ cylinders: [{id:'1',volumeL:47,pressureMpa:14},{id:'2',volumeL:47,pressureMpa:12},{id:'3',volumeL:40,pressureMpa:10},{id:'4',volumeL:47,pressureMpa:8}] });
+    assert.notEqual(result.gasModels.polytropic.cylinders[0].capacityL, result.gasModels.polytropic.cylinders[1].capacityL);
+    assert.equal(result.gasModels.polytropic.cylinders[2].volumeL, 40);
 });
-
 test('cylinder shortage is explicit', () => {
-    const result = gas.calculateCylinderPlan(10000, {
-        cylinderCount: 1,
-        cylinderVolumeL: 47,
-        cylinderPressureMpa: 14,
-        targetCylinderPressureMpa: 0.2,
-        pressureHpa: 1010,
-        cylinderProcess: 'quasi-static'
-    });
+    const result = gas.calculateCylinderPlan(30000, { cylinderProcess:'polytropic', cylinders:[1,2,3,4].map(id => ({id:String(id),volumeL:47,pressureMpa:14})) });
     assert.equal(result.insufficient, true);
     assert.ok(result.remainingGasL > 0);
 });

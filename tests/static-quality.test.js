@@ -155,8 +155,8 @@ test('overlapping planning features route to their consolidated workflows', () =
     const predictionEvents = read('js/pred/pred-event.js');
     assert.doesNotMatch(html, /id="run_batch_btn"/);
     assert.match(html, /id="run_auto_search_btn"[^>]+showAutoSearchModal/);
-    assert.match(html, /id="open_gas_calculator_btn"[^>]*disabled/);
-    assert.doesNotMatch(html, new RegExp('js/calc/gas-calculator-ui\\.js'));
+    assert.doesNotMatch(html, /id="open_gas_calculator_btn"[^>]*disabled/);
+    assert.match(html, new RegExp('js/calc/gas-calculator-ui\\.js'));
     assert.match(html, /id="launch_window_run_btn"[^>]*>時間帯を比較</);
     assert.doesNotMatch(html, /id="launch_window_panel"|id="burst-calc-wrapper"|js\/calc\/calc\.js/);
     assert.match(autoSearch, /function showAllSitesPreset/);

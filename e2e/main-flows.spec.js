@@ -59,11 +59,18 @@ test('自動探索を候補境界で中断し再開する', async ({ app }) => {
     await expect.poll(() => page.evaluate(() => window.__autoSearch.getState().status)).toBe('ready');
 });
 
-test('未完成のガス計算は公開画面から起動できない', async ({ app }) => {
+test('2026年版ガス計算を実行し予測条件へ反映する', async ({ app }) => {
     const { page } = app;
-    await expect(page.locator('#open_gas_calculator_btn')).toBeDisabled();
-    await expect(page.locator('#open_gas_calculator_btn')).toContainText('準備中');
-    await expect(page.locator('#gas_calculator_modal')).toHaveCount(0);
+    await page.locator('#open_gas_calculator_btn').click();
+    await expect(page.getByRole('dialog', { name: 'ガス・破裂高度計算' })).toBeVisible();
+    await expect(page.locator('#gas_process_result_body tr')).toHaveCount(3);
+    await expect(page.locator('#gas_burst_result_body tr')).toHaveCount(4);
+    await page.locator('#gas_cylinder_2_pressure').fill('12');
+    await expect(page.locator('#gas_result_volume')).not.toHaveText('-');
+    const expectedBurst = await page.locator('#gas_result_burst').textContent();
+    await page.locator('#gas_apply_to_prediction').click();
+    await expect(page.locator('#gas_calculator_modal')).toBeHidden();
+    expect(Number(await page.locator('#burst').inputValue())).toBe(Math.round(Number.parseFloat(expectedBurst) * 1000));
 });
 
 test('不確実性解析を完了し密度等高線を地図表示する', async ({ app }) => {

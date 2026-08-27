@@ -20,6 +20,7 @@
     <link href="css/predictor-mobile.css" rel="stylesheet" media="(max-width: 768px)">
 
     <link href="css/uncertainty.css" rel="stylesheet">
+    <link href="css/gas-calculator.css" rel="stylesheet">
 
     <!-- Core Libraries -->
     <script src="js/jquery-3.3.1.min.js"></script>
@@ -75,6 +76,9 @@
     <script src="js/pred/uncertainty-core.js" type="text/javascript"></script>
     <script src="js/pred/uncertainty-template.js" type="text/javascript"></script>
     <script src="js/pred/uncertainty-analysis.js" type="text/javascript"></script>
+    <script src="js/calc/balloon-gas.js" type="text/javascript"></script>
+    <script src="js/calc/gas-calculator-template.js" type="text/javascript"></script>
+    <script src="js/calc/gas-calculator-ui.js" type="text/javascript"></script>
     <script src="js/colour-map.js" type="text/javascript"></script>
 
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
@@ -199,9 +203,8 @@
                                 </select>
                             </div>
 
-                            <!-- ガス計算は公開準備中 -->
                             <div class="form-links">
-                                <span id="burst-calc-show" class="feature-unavailable" aria-disabled="true">ガス・破裂高度計算（準備中）</span>
+                                <span id="burst-calc-show" role="button" tabindex="0">ガス・破裂高度計算</span>
                             </div>
 
                             <!-- 下降速度 -->
@@ -269,7 +272,7 @@
                             <div class="form-actions" aria-label="予測・計画機能">
                                 <button type="button" name="submit" id="run_pred_btn" class="app-action-btn app-action-primary" onclick="runPrediction();">予測を実行</button>
                                 <button type="button" id="run_auto_search_btn" class="app-action-btn" onclick="showAutoSearchModal();">放球自動探索</button>
-                                <button type="button" id="open_gas_calculator_btn" class="app-action-btn" disabled aria-disabled="true" title="現在は実装中のため利用できません">ガス・破裂高度計算（準備中）</button>
+                                <button type="button" id="open_gas_calculator_btn" class="app-action-btn">ガス・破裂高度計算</button>
                                 <button type="button" id="open_uncertainty_btn" class="app-action-btn">不確実性解析</button>
                             </div>
                         </div>
@@ -687,7 +690,7 @@
         <button data-target="input_form">設定</button>
         <button data-target="scenario_info">情報</button>
         <button data-target="ensemble_stats_panel" id="mobile_nav_ehime">統計</button>
-        <button type="button" id="mobile_nav_gas" disabled aria-disabled="true" title="現在は実装中のため利用できません">ガス計算（準備中）</button>
+        <button type="button" id="mobile_nav_gas">ガス計算</button>
         <button type="button" id="mobile_dark_mode_toggle" data-theme-toggle="true" title="ダークモード切替">テーマ</button>
     </nav>
     <!-- トーストコンテナ -->
