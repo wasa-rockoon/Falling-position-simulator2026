@@ -57,6 +57,48 @@
         return rowsToCsv(['series', 'latitude', 'longitude', 'altitude_m', 'datetime_utc'], trajectoryRows(trajectory));
     }
 
+    function autoSearchCsv(candidates) {
+        var modeLabels = {
+            fast: '高速探索（粗探索で除外）',
+            full: '全候補精密探索（粗探索で除外しない）',
+            ranked: '段階的精密探索（良い候補から実行）'
+        };
+        var rows = (candidates || []).map(function (candidate) {
+            return {
+                timeJst: candidate.timeJst,
+                site: candidate.site,
+                mode: modeLabels[candidate.mode] || candidate.mode,
+                ascentRate: candidate.ascentRate,
+                descentRate: candidate.descentRate,
+                burstAltitude: candidate.burstAltitude,
+                precipitationMm: candidate.precipitationMm,
+                windSpeedMs: candidate.windSpeedMs,
+                coarseReason: candidate.coarseReason,
+                seaPct: candidate.seaPct,
+                maxOffshoreKm: Number.isFinite(Number(candidate.maxOffshoreKm)) ? Number(candidate.maxOffshoreKm).toFixed(1) : '',
+                supportName: candidate.supportName,
+                supportDistanceKm: Number.isFinite(Number(candidate.supportDistanceKm)) ? Number(candidate.supportDistanceKm).toFixed(1) : '',
+                supportHasHistory: candidate.supportHasHistory ? 'あり' : 'なし'
+            };
+        });
+        return rowsToCsv([
+            { key: 'timeJst', label: '日時(JST)' },
+            { key: 'site', label: '地点' },
+            { key: 'mode', label: '探索モード' },
+            { key: 'ascentRate', label: '上昇速度(m/s)' },
+            { key: 'descentRate', label: '下降速度(m/s)' },
+            { key: 'burstAltitude', label: '破裂高度(m)' },
+            { key: 'precipitationMm', label: '降水量(mm)' },
+            { key: 'windSpeedMs', label: '地上風速(m/s)' },
+            { key: 'coarseReason', label: '粗探索結果' },
+            { key: 'seaPct', label: '海落ち率(%)' },
+            { key: 'maxOffshoreKm', label: '最大沖合距離(km)' },
+            { key: 'supportName', label: '最寄り回収協力先' },
+            { key: 'supportDistanceKm', label: '協力先距離(km)' },
+            { key: 'supportHasHistory', label: '回収実績あり' }
+        ], rows);
+    }
+
     function xml(value) {
         return String(value == null ? '' : value).replace(/[&<>"']/g, function (character) {
             return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&apos;' }[character];
@@ -110,6 +152,9 @@
         if (format === 'kml') {
             return download(runKml(record), base + '.kml', 'application/vnd.google-earth.kml+xml;charset=utf-8');
         }
+        if (record.type === 'auto_search') {
+            return download(autoSearchCsv(record.output && record.output.candidates), base + '.csv', 'text/csv;charset=utf-8');
+        }
         return download(runLandingCsv(record), base + '.csv', 'text/csv;charset=utf-8');
     }
 
@@ -118,6 +163,7 @@
         rowsToCsv: rowsToCsv,
         trajectoryRows: trajectoryRows,
         trajectoryCsv: trajectoryCsv,
+        autoSearchCsv: autoSearchCsv,
         trajectoryKml: trajectoryKml,
         runKml: runKml,
         runLandingCsv: runLandingCsv,

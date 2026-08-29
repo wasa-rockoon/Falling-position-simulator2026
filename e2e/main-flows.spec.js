@@ -22,7 +22,7 @@ test('愛媛13条件を完了し複数系列を保存する', async ({ app }) =>
     await expect.poll(() => app.apiCalls.filter((url) => url.includes('/api/v1/')).length).toBe(13);
     await expect(page.locator('#results_status_badge')).toHaveText('完了');
 
-    const legacyHistory = page.locator('#ehime_history_panel_result');
+    const legacyHistory = page.locator('#ehime_history_panel');
     await legacyHistory.locator('.ehime-history-replay').first().evaluate((button) => button.click());
     await expect.poll(() => page.evaluate(() => Boolean(window.currentEhimeReplayHistoryId))).toBe(true);
     await expect(page.locator('#clear_replayed_history')).toBeVisible();
@@ -59,20 +59,71 @@ test('自動探索を候補境界で中断し再開する', async ({ app }) => {
     await expect.poll(() => page.evaluate(() => window.__autoSearch.getState().status)).toBe('ready');
 });
 
+test('自動探索履歴のCSVは保存された探索候補を出力する', async ({ app }) => {
+    const { page } = app;
+    await page.evaluate(async () => {
+        const record = window.RunRecord.create({
+            id: 'e2e_auto_search_csv',
+            type: 'auto_search',
+            status: 'completed',
+            title: '放球自動探索',
+            output: {
+                candidates: [{
+                    timeJst: '2026/08/27 13:25',
+                    site: '南レク松軒山公園',
+                    mode: 'full',
+                    ascentRate: 5,
+                    descentRate: 5,
+                    burstAltitude: 30000,
+                    seaPct: 85,
+                    maxOffshoreKm: 8.65,
+                    supportName: '柏島漁港',
+                    supportDistanceKm: 9.4,
+                    supportHasHistory: true
+                }]
+            }
+        });
+        await window.RunRepository.save(record);
+    });
+
+    await page.locator('.sidebar-tab[data-panel="panel-results"]').click();
+    await page.locator('[data-results-view="history"]').click();
+    const history = page.locator('.run-history-item[data-run-id="e2e_auto_search_csv"]');
+    await expect(history).toBeVisible();
+    await expect(history.getByRole('button', { name: '地図表示' })).toHaveCount(0);
+    await expect(history.getByRole('button', { name: 'KML', exact: true })).toHaveCount(0);
+
+    const downloadPromise = page.waitForEvent('download');
+    await history.getByRole('button', { name: 'CSV', exact: true }).click();
+    const download = await downloadPromise;
+    const stream = await download.createReadStream();
+    const chunks = [];
+    for await (const chunk of stream) chunks.push(chunk);
+    const csv = Buffer.concat(chunks).toString('utf8');
+    expect(csv).toContain('日時(JST),地点,探索モード');
+    expect(csv).toContain('南レク松軒山公園,全候補精密探索（粗探索で除外しない）');
+    expect(csv).toContain('85,8.7,柏島漁港,9.4,あり');
+});
 test('2026年版ガス計算を実行し予測条件へ反映する', async ({ app }) => {
     const { page } = app;
     await page.locator('#open_gas_calculator_btn').click();
     await expect(page.getByRole('dialog', { name: 'ガス・破裂高度計算' })).toBeVisible();
     await expect(page.locator('#gas_process_result_body tr')).toHaveCount(3);
     await expect(page.locator('#gas_burst_result_body tr')).toHaveCount(4);
+    await expect(page.locator('#gas_burst_method')).toHaveValue('sphereDiameter');
+    await page.locator('#gas_burst_method').selectOption('ellipsoidLength');
+    await expect(page.locator('#gas_burst_result_body tr[data-burst-method="ellipsoidLength"]')).toHaveClass(/is-selected/);
+    await expect(page.locator('#gas_burst_result_body tr[data-burst-method="sphereDiameter"]')).not.toHaveClass(/is-selected/);
     await page.locator('#gas_cylinder_2_pressure').fill('12');
     await expect(page.locator('#gas_result_volume')).not.toHaveText('-');
     const expectedBurst = await page.locator('#gas_result_burst').textContent();
     await page.locator('#gas_apply_to_prediction').click();
     await expect(page.locator('#gas_calculator_modal')).toBeHidden();
     expect(Number(await page.locator('#burst').inputValue())).toBe(Math.round(Number.parseFloat(expectedBurst) * 1000));
+    await page.locator('#open_gas_calculator_btn').click();
+    await expect(page.locator('#gas_burst_method')).toHaveValue('ellipsoidLength');
+    await page.keyboard.press('Escape');
 });
-
 test('不確実性解析を完了し密度等高線を地図表示する', async ({ app }) => {
     const { page } = app;
     await app.setBaseSettings('single');

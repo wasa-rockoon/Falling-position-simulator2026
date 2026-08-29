@@ -17,7 +17,10 @@ test('RESULTS is split into overview, charts and common history views', () => {
     assert.match(index, /data-results-view="charts"/);
     assert.match(index, /data-results-view="history"/);
     assert.match(css, /\.results-view-tabs/);
-    assert.match(css, /\.run-history-list/);
+    assert.match(css, /[.]run-history-list/);
+    assert.doesNotMatch(index, /愛媛気球実験の旧履歴/);
+    assert.doesNotMatch(index, /id="run_history_refresh"/);
+    assert.match(fs.readFileSync(path.join(root, 'js/core/results-workspace.js'), 'utf8'), /item[.]type !== 'auto_search'/);
 });
 
 test('diagnostics is global, form hiding is absent, and scenario summary can pop out', () => {

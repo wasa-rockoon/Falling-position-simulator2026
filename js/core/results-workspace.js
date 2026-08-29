@@ -230,6 +230,7 @@
             return button;
         }
         if (root.HistoryController) {
+            var hasMapData = item.type !== 'auto_search';
             var mapToggle = appendText(actions, 'button', 'result-text-button', root.HistoryController.isVisible(item.runId) ? '地図から消す' : '地図表示');
             mapToggle.type = 'button';
             mapToggle.setAttribute('aria-pressed', root.HistoryController.isVisible(item.runId) ? 'true' : 'false');
@@ -253,8 +254,10 @@
                     mapToggle.disabled = false;
                 }
             });
+            if (!hasMapData) mapToggle.remove();
             addHistoryAction('CSV', function () { return root.HistoryController.exportRecord(item.runId, 'csv'); });
-            addHistoryAction('KML', function () { return root.HistoryController.exportRecord(item.runId, 'kml'); });
+            var kmlAction = addHistoryAction('KML', function () { return root.HistoryController.exportRecord(item.runId, 'kml'); });
+            if (!hasMapData) kmlAction.remove();
             if (isActiveStatus(item.status)) addHistoryAction('再開', function () { return root.HistoryController.resume(item.runId); });
             else addHistoryAction('再実行準備', function () { return root.HistoryController.prepareRerun(item.runId); }, '保存した条件をSETTINGSへ反映しました。');
         }

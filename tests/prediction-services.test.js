@@ -63,7 +63,16 @@ test('ExportService consistently escapes CSV and creates KML trajectories', () =
         { latitude: 32.9, longitude: 132.2, altitudeM: 0, timeUtc: '2026-08-15T02:00:00Z' }
     ] };
     assert.match(ExportService.trajectoryCsv(trajectory), /BASE,33,132,10/);
-    assert.match(ExportService.trajectoryKml(trajectory, 'test'), /132\.2,32\.9,0/);
+    assert.match(ExportService.trajectoryKml(trajectory, 'test'), /132[.]2,32[.]9,0/);
+    const autoSearchCsv = ExportService.autoSearchCsv([{
+        timeJst: '2026/08/27 13:25', site: '南レク松軒山公園', mode: 'full',
+        ascentRate: 5, descentRate: 5, burstAltitude: 30000, seaPct: 85,
+        maxOffshoreKm: 8.65, supportName: '柏島漁港', supportDistanceKm: 9.4,
+        supportHasHistory: true
+    }]);
+    assert.match(autoSearchCsv, /日時[(]JST[)],地点,探索モード/);
+    assert.match(autoSearchCsv, /南レク松軒山公園,全候補精密探索（粗探索で除外しない）/);
+    assert.match(autoSearchCsv, /85,8[.]7,柏島漁港,9[.]4,あり/);
 });
 
 test('MapLayerRegistry owns visibility and group cleanup', () => {

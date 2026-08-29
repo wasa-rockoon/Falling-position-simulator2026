@@ -863,23 +863,9 @@
 
     function downloadResultsCsv() {
         if (state.results.length === 0) return;
-        var headers = ['日時(JST)', '地点', '探索モード', '上昇速度(m/s)', '下降速度(m/s)', '破裂高度(m)', '降水量(mm)', '地上風速(m/s)', '粗探索結果', '海落ち率(%)', '最大沖合距離(km)', '最寄り回収協力先', '協力先距離(km)', '回収実績あり'];
-        var lines = [headers.map(root.ExportService.escapeCsv).join(',')];
-        state.results.forEach(function (row) {
-            lines.push([
-                row.timeJst, row.site, MODES[row.mode] ? MODES[row.mode].label : row.mode,
-                row.ascentRate, row.descentRate, row.burstAltitude, row.precipitationMm, row.windSpeedMs,
-                row.coarseReason, row.seaPct,
-                Number.isFinite(row.maxOffshoreKm) ? row.maxOffshoreKm.toFixed(1) : '',
-                row.supportName,
-                Number.isFinite(row.supportDistanceKm) ? row.supportDistanceKm.toFixed(1) : '',
-                row.supportHasHistory ? 'あり' : 'なし'
-            ].map(root.ExportService.escapeCsv).join(','));
-        });
-        if (!root.ExportService) throw new Error('ExportService is unavailable');
-        root.ExportService.download(lines.join('\r\n') + '\r\n', 'auto_search_results.csv', 'text/csv;charset=utf-8');
+        if (!root.ExportService || typeof root.ExportService.autoSearchCsv !== 'function') throw new Error('ExportService is unavailable');
+        root.ExportService.download(root.ExportService.autoSearchCsv(state.results) + '\r\n', 'auto_search_results.csv', 'text/csv;charset=utf-8');
     }
-
     function renderResults() {
         var container = $('#auto_results_list').empty();
         $('#auto_results_count').text(state.results.length + '件');
