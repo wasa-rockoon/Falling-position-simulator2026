@@ -15,8 +15,11 @@ document.body.insertAdjacentHTML('beforeend', `
 <div id="gas_normal_fields">
 <label>コンポーネント重量 (g)<input id="gas_component_mass" type="number" min="0" step="1" value="5900"></label>
 <label>その他重量 (g)<input id="gas_other_mass" type="number" min="0" step="1" value="550"></label>
-<label>終端速度<select id="gas_terminal_velocity"><option value="4.28">4.28 m/s（パラ 430 g）</option><option value="7.28">7.28 m/s（パラ 230 g）</option><option value="10.4">10.4 m/s（パラ 140 g）</option></select></label>
-<p class="gas-calculator-note">回収系重量: <strong id="gas_recovery_mass">835 g</strong>（パラシュート＋シーマーカー125 g＋Garmin等280 g）</p>
+<label>パラシュート設定<select id="gas_parachute_preset"><option value="wasa-4.28">WASA 4.28 m/s（430 g）</option><option value="wasa-7.28">WASA 7.28 m/s（230 g）</option><option value="wasa-10.4">WASA 10.4 m/s（140 g）</option><option value="custom">任意入力（他団体など）</option></select></label>
+<label>終端速度 (m/s)<input id="gas_terminal_velocity" type="number" min="0.01" step="0.01" value="4.28"></label>
+<label>パラシュート重量 (g)<input id="gas_parachute_mass" type="number" min="0" step="1" value="430"></label>
+<label>その他回収機器重量 (g)<input id="gas_recovery_equipment_mass" type="number" min="0" step="1" value="405"></label>
+<p class="gas-calculator-note">回収系合計: <strong id="gas_recovery_mass">835 g</strong>。他団体は「任意入力」を選び、パラシュートと付属機器の実測重量を入力してください。</p>
 </div>
 <div id="gas_verification_fields" hidden><label>気球以外の総重量 (g)<input id="gas_verification_other_mass" type="number" min="0" step="1" value="7155"></label><p class="gas-calculator-note">回収系を含む、気球本体以外の総重量を直接入力します。</p></div>
 <label>目標上昇速度 (m/s)<input id="gas_ascent_rate" type="number" min="0.1" step="0.1" value="6"></label>
@@ -51,7 +54,7 @@ document.body.insertAdjacentHTML('beforeend', `
 </select>
 </label>
 <div class="gas-table-scroll"><table><thead><tr><th>形状</th><th>判定基準</th><th>破裂高度</th></tr></thead><tbody id="gas_burst_result_body"></tbody></table></div><p class="gas-calculator-note">選択した方式の値を予測条件へ反映します。計算値にはモデル誤差があるため、運用マージンを別途確保してください。</p></details>
-<button id="gas_apply_to_prediction" type="button">上昇速度・選択した破裂高度を予測条件へ反映</button>
+<button id="gas_apply_to_prediction" type="button">上昇速度・終端速度・選択した破裂高度を予測条件へ反映</button>
 </div></div></section></div>`);
 }
 root.GasCalculatorTemplate={mount:mount};

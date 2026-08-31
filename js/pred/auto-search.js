@@ -55,6 +55,27 @@
     }
 
     var state = emptyState();
+    var activeRunPromise = null;
+    var activeAbortController = null;
+    var cancelRequested = false;
+
+    function activeSignal() {
+        return activeAbortController ? activeAbortController.signal : null;
+    }
+
+    function executionCancelled() {
+        var signal = activeSignal();
+        return cancelRequested || Boolean(signal && signal.aborted);
+    }
+
+    function cancelActiveRequests() {
+        cancelRequested = true;
+        if (activeAbortController) activeAbortController.abort();
+    }
+
+    function setNewSearchRunning(running) {
+        $('#auto_new_search_btn').text(running ? '中止して新規探索' : '新規探索').prop('disabled', false);
+    }
 
     function notify(message, type) {
         if (typeof root.showToast === 'function') root.showToast(message, type || 'info', 3200);
@@ -480,6 +501,7 @@
         var diagnostics = state.httpDiagnostics;
         diagnostics.lastLabel = 'weather:' + key;
         var pending = client.request(params, {
+            signal: activeSignal(),
             label: diagnostics.lastLabel,
             canAttempt: function () { return !attemptBudgetExhausted(); },
             onAttempt: function (attempt) {
@@ -557,6 +579,7 @@
             }
             var candidate = state.queue[state.phaseIndex];
             candidate.weather = candidate.weather || await evaluateWeather(candidate);
+            if (executionCancelled()) return;
             if (candidate.weather.ok && !state.p1Passed.some(function (item) { return item.id === candidate.id; })) state.p1Passed.push(candidate);
             state.done = state.phaseIndex + 1;
             await persistState();
@@ -597,7 +620,7 @@
     async function evaluateCoarse(candidate) {
         try {
             if (!root.PredictionRunner) throw new Error('PredictionRunner is unavailable');
-            var execution = await root.PredictionRunner.run(predictionParams(candidate), state.requestContext, { label: 'auto-coarse' });
+            var execution = await root.PredictionRunner.run(predictionParams(candidate), state.requestContext, { label: 'auto-coarse', signal: activeSignal() });
             var landing = execution.landing;
             var landSea = root.LandSea && typeof root.LandSea.classify === 'function'
                 ? root.LandSea.classify(landing.latitude, landing.longitude)
@@ -639,6 +662,7 @@
             }
             var candidate = state.p1Passed[state.phaseIndex];
             candidate.coarse = candidate.coarse || await evaluateCoarse(candidate);
+            if (executionCancelled()) return;
             if (!state.coarseCandidates.some(function (item) { return item.id === candidate.id; })) state.coarseCandidates.push(candidate);
             state.done = state.phaseIndex + 1;
             await persistState();
@@ -718,28 +742,42 @@
     function runFine(candidate, threshold) {
         return new Promise(function (resolve) {
             var expectedRunId = null;
+            var signal = activeSignal();
+            var settled = false;
             var timeout = root.setTimeout(function () {
-                $(document).off('ehime_run_complete', handler);
-                resolve({ ok: false, seaPct: 0, reason: 'timeout' });
+                finish({ ok: false, seaPct: 0, reason: 'timeout' });
             }, 20 * 60 * 1000);
+            function finish(result) {
+                if (settled) return;
+                settled = true;
+                root.clearTimeout(timeout);
+                $(document).off('ehime_run_complete', handler);
+                if (signal) signal.removeEventListener('abort', onAbort);
+                resolve(result);
+            }
+            function onAbort() {
+                finish({ ok: false, seaPct: 0, reason: 'cancelled' });
+            }
             function handler(_event, detail) {
                 if (expectedRunId && detail && detail.runId && detail.runId !== expectedRunId) return;
-                root.clearTimeout(timeout);
                 if (detail && detail.success === false) {
-                    $(document).off('ehime_run_complete', handler);
-                    resolve({ ok: false, seaPct: 0, reason: detail.interrupted ? 'interrupted' : 'all_variants_failed' });
+                    finish({ ok: false, seaPct: 0, reason: detail.interrupted ? 'interrupted' : 'all_variants_failed' });
                     return;
                 }
-                $(document).off('ehime_run_complete', handler);
-                resolve(summarizeFineResult(threshold));
+                finish(summarizeFineResult(threshold));
             }
             $(document).on('ehime_run_complete', handler);
+            if (signal) {
+                if (signal.aborted) {
+                    onAbort();
+                    return;
+                }
+                signal.addEventListener('abort', onAbort, { once: true });
+            }
             try {
-                expectedRunId = root.run13VariantEnsemble(predictionParams(candidate), state.requestConfig.baseUrl, state.requestContext, { suppressRunRecord: true });
+                expectedRunId = root.run13VariantEnsemble(predictionParams(candidate), state.requestConfig.baseUrl, state.requestContext, { suppressRunRecord: true, signal: signal });
             } catch (error) {
-                root.clearTimeout(timeout);
-                $(document).off('ehime_run_complete', handler);
-                resolve({ ok: false, seaPct: 0, reason: 'request_error', error: error.message });
+                finish({ ok: false, seaPct: 0, reason: 'request_error', error: error.message });
             }
         });
     }
@@ -770,6 +808,7 @@
             }
             var candidate = state.fineCandidates[state.phaseIndex];
             var fine = await runFine(candidate, threshold);
+            if (executionCancelled()) return;
             candidate.fine = fine;
             if (fine.ok && !state.results.some(function (result) { return result.id === candidate.id; })) {
                 var support = nearestSupport(fine.centroidLat, fine.centroidLon);
@@ -847,9 +886,16 @@
             notify('保存されたAPI設定を復元できません。', 'error');
             return;
         }
-        if (state.phase === 1) await runPhase1();
-        else if (state.phase === 2) await runPhase2();
-        else if (state.phase === 3) await runPhase3();
+        cancelRequested = false;
+        var controller = typeof root.AbortController === 'function' ? new root.AbortController() : null;
+        activeAbortController = controller;
+        try {
+            if (state.phase === 1) await runPhase1();
+            else if (state.phase === 2) await runPhase2();
+            else if (state.phase === 3) await runPhase3();
+        } finally {
+            if (activeAbortController === controller) activeAbortController = null;
+        }
     }
 
     function requestPause() {
@@ -916,7 +962,8 @@
         $('#auto_action_btn').text(state.status === 'completed' ? '完了' : (state.status === 'partial' ? 'API上限を増やして再開' : 'Phase ' + state.phase + ' 再開')).prop('disabled', state.status === 'completed');
     }
 
-    async function showModal() {
+    async function showModal(options) {
+        options = options || {};
         $('#auto_search_modal').show().attr('aria-hidden', 'false');
         setTimeout(function () { $('#auto_search_mode').trigger('focus'); }, 0);
         await loadMarinePoints();
@@ -925,8 +972,8 @@
             renderResults();
             return;
         }
-        var saved = jobStore ? await jobStore.load() : null;
-        if ((!saved || saved.version !== JOB_VERSION) && root.RunRepository) {
+        var saved = !options.skipRestore && jobStore ? await jobStore.load() : null;
+        if (!options.skipRestore && (!saved || saved.version !== JOB_VERSION) && root.RunRepository) {
             var activeRuns = await root.RunRepository.getActive('auto_search');
             var fallbackRuns = activeRuns.length ? activeRuns : await root.RunRepository.listRuns({ type: 'auto_search' });
             var latestRun = fallbackRuns[0];
@@ -993,11 +1040,23 @@
     }
     async function resetSearch() {
         var previousRunId = state.runId;
+        if (state.running || activeRunPromise) {
+            $('#auto_new_search_btn').text('中止中...').prop('disabled', true);
+            cancelActiveRequests();
+            if (activeRunPromise) {
+                try { await activeRunPromise; }
+                catch (error) {
+                    if (typeof root.reportNonFatalError === 'function') root.reportNonFatalError(error, 'auto-search.cancel-active');
+                }
+            }
+        }
         state = emptyState();
+        cancelRequested = false;
         weatherDayCache.clear();
         await clearPersistedState(previousRunId);
         $('#auto_results').hide();
-        await showModal();
+        setNewSearchRunning(false);
+        await showModal({ skipRestore: true });
     }
 
     function hideModal() {
@@ -1011,9 +1070,22 @@
         $(document).on('keydown.autoSearch', function (event) {
             if (event.key === 'Escape' && $('#auto_search_modal').is(':visible')) hideModal();
         });
-        $(document).on('click', '#auto_action_btn', function () {
-            if (state.phase === 0) configureSearch();
-            else runCurrentPhase();
+        $(document).on('click', '#auto_action_btn', async function () {
+            if (state.phase === 0) {
+                configureSearch();
+                return;
+            }
+            if (activeRunPromise) return;
+            setNewSearchRunning(true);
+            var promise = runCurrentPhase();
+            activeRunPromise = promise;
+            try { await promise; }
+            catch (error) {
+                if (!executionCancelled() && typeof root.reportNonFatalError === 'function') root.reportNonFatalError(error, 'auto-search.run');
+            } finally {
+                if (activeRunPromise === promise) activeRunPromise = null;
+                if (!cancelRequested) setNewSearchRunning(false);
+            }
         });
         $(document).on('click', '#auto_cancel_btn', requestPause);
         $(document).on('click', '#auto_close_btn, #auto_close_x', function () {

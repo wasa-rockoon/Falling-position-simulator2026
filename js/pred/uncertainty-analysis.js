@@ -7,6 +7,13 @@
     var availableSites = [];
     var sitesLoaded = false;
     var runningPromise = null;
+    var activeAbortController = null;
+    var cancelRequested = false;
+
+    function cancelActiveAnalysisRequests() {
+        cancelRequested = true;
+        if (activeAbortController) activeAbortController.abort();
+    }
     var initialized = false;
     var uncertaintyMapLayer = null;
     var uncertaintyEllipseLayer = null;
@@ -809,7 +816,8 @@
             control.disabled = configurationLocked;
         });
         if (state.status === 'partial' && state.partialReason === 'budget') element('uncertainty_call_limit').disabled = false;
-        element('uncertainty_new').disabled = state.status === 'running' || state.status === 'pausing';
+        element('uncertainty_new').disabled = false;
+        element('uncertainty_new').textContent = state.status === 'running' || state.status === 'pausing' ? '中止して新規解析' : '新規解析';
     }
 
     async function pauseAtBoundary(run) {
@@ -882,6 +890,7 @@
         await persist();
 
         while (true) {
+            if (cancelRequested || (activeAbortController && activeAbortController.signal.aborted)) return;
             var siteIndex = nextRunnableSiteIndex(state.currentSiteIndex);
             if (siteIndex < 0) break;
             if (diagnostics.httpAttempts >= state.configuration.callLimit) {
@@ -902,7 +911,8 @@
             state.attemptedCalls += 1;
             try {
                 var execution = await root.PredictionRunner.run(params, requestContext, {
-                    label: 'uncertainty:' + run.site.id + ':' + run.cursor
+                    label: 'uncertainty:' + run.site.id + ':' + run.cursor,
+                    signal: activeAbortController ? activeAbortController.signal : null
                 });
                 var response = execution.response;
                 var landing = { lat: execution.landing.latitude, lng: execution.landing.longitude, altitude: execution.landing.altitudeM, datetime: execution.landing.timeUtc || '' };
@@ -920,6 +930,7 @@
                 });
                 run.consecutiveErrors = 0;
             } catch (error) {
+                if (cancelRequested || (activeAbortController && activeAbortController.signal.aborted)) return;
                 run.observations.push({ index: run.cursor, error: error && error.message ? error.message : String(error) });
                 run.consecutiveErrors += 1;
                 if (typeof root.reportNonFatalError === 'function') root.reportNonFatalError(error, 'uncertainty.request');
@@ -985,15 +996,20 @@
                     run.consecutiveErrors = 0;
                 }
             });
-            runningPromise = executeAnalysis();
-            await runningPromise;
+            cancelRequested = false;
+            var controller = typeof root.AbortController === 'function' ? new root.AbortController() : null;
+            activeAbortController = controller;
+            var promise = executeAnalysis();
+            runningPromise = promise;
+            await promise;
         } catch (error) {
             state.status = state.siteRuns.length ? 'error' : 'idle';
             showError(error && error.message ? error.message : String(error));
             if (typeof root.reportNonFatalError === 'function') root.reportNonFatalError(error, 'uncertainty.start');
             renderResults();
         } finally {
-            runningPromise = null;
+            if (runningPromise === promise) runningPromise = null;
+            if (activeAbortController === controller) activeAbortController = null;
         }
     }
 
@@ -1005,8 +1021,18 @@
     }
 
     async function newAnalysis() {
-        if (state.status === 'running' || state.status === 'pausing') return;
         var previousRunId = state.runId;
+        if (state.status === 'running' || state.status === 'pausing' || runningPromise) {
+            element('uncertainty_new').textContent = '中止中...';
+            element('uncertainty_new').disabled = true;
+            cancelActiveAnalysisRequests();
+            if (runningPromise) {
+                try { await runningPromise; }
+                catch (error) {
+                    if (typeof root.reportNonFatalError === 'function') root.reportNonFatalError(error, 'uncertainty.cancel-active');
+                }
+            }
+        }
         if (previousRunId && root.RunRepository) {
             try {
                 var previous = await root.RunRepository.get(previousRunId);
@@ -1018,6 +1044,7 @@
             }
         }
         state = emptyState();
+        cancelRequested = false;
         clearUncertaintyMap();
         if (jobStore) await jobStore.clear();
         renderSiteChoices(['current']);

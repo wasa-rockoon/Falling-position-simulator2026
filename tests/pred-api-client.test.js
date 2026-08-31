@@ -76,6 +76,26 @@ test('stopAfterCurrent pauses before the next request', async () => {
     assert.equal(secondStarted, true);
 });
 
+test('an external AbortSignal stops an active HTTP request immediately', async () => {
+    const controller = new AbortController();
+    const client = new PredictionApi.PredictionClient({
+        source: 'custom',
+        baseUrl: 'https://example.test/tawhiri',
+        policy: { concurrency: 1, minIntervalMs: 0, timeoutMs: 10000, maxRetries: 0 },
+        fetchImpl: async (_url, options) => new Promise((_resolve, reject) => {
+            options.signal.addEventListener('abort', () => {
+                const error = new Error('aborted');
+                error.name = 'AbortError';
+                reject(error);
+            }, { once: true });
+        })
+    });
+    const pending = client.request({ launch_latitude: 33 }, { cache: false, signal: controller.signal });
+    await delay(0);
+    controller.abort();
+    await assert.rejects(pending, /aborted|中断/);
+    assert.equal(client.queue.snapshot().active, 0);
+});
 test('client caches identical successful requests', async () => {
     let calls = 0;
     const client = new PredictionApi.PredictionClient({

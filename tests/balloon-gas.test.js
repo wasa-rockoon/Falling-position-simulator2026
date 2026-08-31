@@ -39,3 +39,12 @@ test('cylinder shortage is explicit', () => {
     assert.equal(result.insufficient, true);
     assert.ok(result.remainingGasL > 0);
 });
+test('other organizations can enter independent parachute and recovery equipment masses', () => {
+    const result = gas.calculate({ parachuteMassG: 500, recoveryEquipmentMassG: 100, terminalVelocityMps: 6.5 });
+    assert.equal(result.recoveryMassG, 600);
+    close(result.totalMassKg, 3.1, 1e-12, 'custom recovery total mass');
+});
+test('legacy terminal velocity settings still restore the WASA parachute mass', () => {
+    const result = gas.calculate({ terminalVelocityMps: 7.28 });
+    assert.equal(result.recoveryMassG, 635);
+});

@@ -59,6 +59,53 @@ test('自動探索を候補境界で中断し再開する', async ({ app }) => {
     await expect.poll(() => page.evaluate(() => window.__autoSearch.getState().status)).toBe('ready');
 });
 
+test('完了済み自動探索から新規探索へ戻れる', async ({ app }) => {
+    const { page } = app;
+    await page.evaluate(async () => {
+        const snapshot = {
+            version: 2,
+            runId: 'e2e_completed_auto_search',
+            phase: 4,
+            status: 'completed',
+            running: false,
+            pauseRequested: false,
+            mode: 'fast',
+            queue: [],
+            p1Passed: [],
+            coarseCandidates: [],
+            fineCandidates: [],
+            results: [],
+            matches: {},
+            phaseIndex: 0,
+            total: 0,
+            done: 0,
+            configuration: {
+                startDate: '2026-09-01', startTime: '09:00', endDate: '2026-09-01', endTime: '09:00',
+                interval: 15, seaThreshold: 75, rainThreshold: 1, windThreshold: 10,
+                callLimit: 20, selectedSites: []
+            },
+            runSettings: {},
+            requestConfig: { source: 'local', baseUrl: '/api/v1/', customUrl: '' },
+            httpDiagnostics: { httpAttempts: 1, cacheHits: 0, retryCount: 0, failures: 0, lastLabel: '', lastError: null }
+        };
+        await window.RunRepository.save(window.RunRecord.create({
+            id: snapshot.runId,
+            type: 'auto_search',
+            status: 'completed',
+            title: '放球自動探索',
+            output: { resumeSnapshot: snapshot, candidates: [] }
+        }));
+    });
+
+    await page.locator('#run_auto_search_btn').click();
+    await expect.poll(() => page.evaluate(() => window.__autoSearch.getState().status)).toBe('completed');
+    await expect(page.locator('#auto_action_btn')).toHaveText('完了');
+    await page.locator('#auto_new_search_btn').click();
+    await expect.poll(() => page.evaluate(() => window.__autoSearch.getState().status)).toBe('idle');
+    await expect.poll(() => page.evaluate(() => window.__autoSearch.getState().phase)).toBe(0);
+    await expect(page.locator('#auto_action_btn')).toHaveText('条件確定・見積り');
+    await expect(page.locator('#auto_new_search_btn')).toHaveText('新規探索');
+});
 test('自動探索履歴のCSVは保存された探索候補を出力する', async ({ app }) => {
     const { page } = app;
     await page.evaluate(async () => {

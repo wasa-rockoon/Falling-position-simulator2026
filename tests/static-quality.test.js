@@ -166,9 +166,13 @@ test('overlapping planning features route to their consolidated workflows', () =
     assert.match(launchWindow, /showAutoSearchWeatherPreset/);
     assert.match(predictionEvents, /GasCalculatorUI[.]open/);
     assert.match(gasTemplate, /id="gas_burst_method"/);
+    assert.match(gasTemplate, /id="gas_parachute_preset"/);
+    assert.match(gasTemplate, /id="gas_parachute_mass"[^>]*type="number"/);
+    assert.match(gasTemplate, /id="gas_recovery_equipment_mass"[^>]*type="number"/);
     assert.match(gasTemplate, /value="sphereDiameter" selected/);
     assert.doesNotMatch(gasTemplate, /推奨破裂高度|直径（推奨）/);
     assert.match(gasUi, /selectedBurstKm/);
+    assert.match(gasUi, /descent[.]value=String\(lastResult[.]inputs[.]terminalVelocityMps\)/);
 });
 test('uncertainty analysis owns and restores its JST launch datetime', () => {
     const template = read('js/pred/uncertainty-template.js');
@@ -189,6 +193,21 @@ test('uncertainty spatial layers can be combined independently', () => {
     assert.match(analysis, /addOverlay\(uncertaintyDensityLayer, '不確実性: 密度等高線'\)/);
     assert.match(analysis, /root\.L\.polygon\(summary\.ellipse95\.coordinates/);
     assert.match(analysis, /root\.L\.polyline\(level\.segments/);
+});
+test('bulk workflows can abort the active request before starting a new job', () => {
+    const autoSearch = read('js/pred/auto-search.js');
+    const uncertainty = read('js/pred/uncertainty-analysis.js');
+    const ehime = read('js/pred/ehime-controller.js');
+    assert.match(autoSearch, /cancelActiveRequests\(\)[\s\S]*activeAbortController[.]abort\(\)/);
+    assert.match(autoSearch, /signal: activeSignal\(\)/);
+    assert.match(autoSearch, /await activeRunPromise/);
+    assert.match(autoSearch, /中止して新規探索/);
+    assert.match(autoSearch, /showModal\(\{ skipRestore: true \}\)/);
+    assert.match(uncertainty, /cancelActiveAnalysisRequests\(\)[\s\S]*activeAbortController[.]abort\(\)/);
+    assert.match(uncertainty, /signal: activeAbortController \? activeAbortController[.]signal : null/);
+    assert.match(uncertainty, /await runningPromise/);
+    assert.match(uncertainty, /中止して新規解析/);
+    assert.match(ehime, /signal: runtimeOptions[.]signal/);
 });
 test('bulk workflows share retry-inclusive workload control and resumable boundaries', () => {
     const html = read('index.html');

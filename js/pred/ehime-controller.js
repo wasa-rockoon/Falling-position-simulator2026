@@ -1270,7 +1270,7 @@ function runEhimePredictions(base_settings, extra_settings, requestContext, runt
         var variantSettings = Object.assign({}, variant.settings);
         var variantId = variant.id;
         ehime_predictions[variantId] = { settings: variantSettings, status: 'pending', label: variant.label };
-        requestTawhiriData(variantSettings, requestContext, { label: variantId })
+        requestTawhiriData(variantSettings, requestContext, { label: variantId, signal: runtimeOptions.signal })
             .then(function (data) {
                 if (!ehime_current || ehime_current.runId !== runId) return;
                 processEhimeResult(data, variantSettings, variantId, index, requestContext, runId);
