@@ -161,11 +161,13 @@ test('2026年版ガス計算を実行し予測条件へ反映する', async ({ a
     await page.locator('#gas_burst_method').selectOption('ellipsoidLength');
     await expect(page.locator('#gas_burst_result_body tr[data-burst-method="ellipsoidLength"]')).toHaveClass(/is-selected/);
     await expect(page.locator('#gas_burst_result_body tr[data-burst-method="sphereDiameter"]')).not.toHaveClass(/is-selected/);
+    await page.locator('#gas_terminal_velocity').fill('6.25');
     await page.locator('#gas_cylinder_2_pressure').fill('12');
     await expect(page.locator('#gas_result_volume')).not.toHaveText('-');
     const expectedBurst = await page.locator('#gas_result_burst').textContent();
     await page.locator('#gas_apply_to_prediction').click();
     await expect(page.locator('#gas_calculator_modal')).toBeHidden();
+    expect(Number(await page.locator('#drag').inputValue())).toBe(6.25);
     expect(Number(await page.locator('#burst').inputValue())).toBe(Math.round(Number.parseFloat(expectedBurst) * 1000));
     await page.locator('#open_gas_calculator_btn').click();
     await expect(page.locator('#gas_burst_method')).toHaveValue('ellipsoidLength');

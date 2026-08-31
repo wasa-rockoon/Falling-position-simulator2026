@@ -172,6 +172,7 @@ test('overlapping planning features route to their consolidated workflows', () =
     assert.match(gasTemplate, /value="sphereDiameter" selected/);
     assert.doesNotMatch(gasTemplate, /推奨破裂高度|直径（推奨）/);
     assert.match(gasUi, /selectedBurstKm/);
+    assert.match(gasUi, /descent=el\('drag'\)/);
     assert.match(gasUi, /descent[.]value=String\(lastResult[.]inputs[.]terminalVelocityMps\)/);
 });
 test('uncertainty analysis owns and restores its JST launch datetime', () => {
