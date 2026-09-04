@@ -38,5 +38,10 @@
         "altitude"  :   89.4,
         "latitude"  :   32.9676641,
         "longitude" :   132.6568765
+    },
+    "大月町総合グラウンド": {
+        "altitude"  :   66.0,
+        "latitude"  :   32.834393,
+        "longitude" :   132.712033
     }
 }

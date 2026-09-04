@@ -1,186 +1,376 @@
 /* Mobile specific overrides (<=768px) */
 /* Keep desktop appearance unchanged by scoping to max-width media (declared via link media attr) */
-html, body, #map_canvas { height:100%; }
-
-body.mobile-active-panel-open { overflow:hidden; }
-
-/* Hide floating boxes by default; show via JS when selected */
-.box { transition: transform .25s ease, opacity .25s ease; }
-.mobile-only { display:flex; }
-
-#mobile_nav { 
-  position:fixed; 
-  bottom:0; left:0; right:0; 
-  background:rgba(0,0,0,0.75); 
-  display:flex; 
-  gap:4px; 
-  padding:6px 6px calc(env(safe-area-inset-bottom,0) + 6px); 
-  z-index:2000; 
-  backdrop-filter: blur(6px);
+html,
+body,
+#map_canvas {
+  height: 100%;
+  /* モバイルではサイドバーレイアウトを無効化 — 地図を全幅に */
+  width: 100% !important;
 }
-#mobile_nav button { 
-  flex:1; 
-  background:#ffffffcc; 
-  border:1px solid #0070a3; 
-  border-radius:4px; 
-  font-size:12px; 
-  padding:6px 4px; 
-  font-weight:bold; 
+
+/* sidebar-open のマップ幅制限を無効化 */
+body.sidebar-open #map_canvas {
+  width: 100% !important;
 }
-#mobile_nav button.active { background:#0070a3; color:#fff; }
+
+/* モバイルではサイドバーのクロムを非表示にし、コンテナを透明オーバーレイに変換 */
+#app-sidebar {
+  position: static !important;
+  width: auto !important;
+  height: auto !important;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  overflow: visible !important;
+  transform: none !important;
+  display: contents !important;
+}
+
+#sidebar-toggle {
+  display: none !important;
+}
+
+.sidebar-tabs {
+  display: none !important;
+}
+
+.sidebar-content {
+  display: contents !important;
+}
+
+.sidebar-panel {
+  display: contents !important;
+}
+
+body.mobile-active-panel-open {
+  overflow: hidden;
+}
+
+.box {
+  transition: transform .25s ease, opacity .25s ease;
+}
+
+.mobile-only {
+  display: flex;
+}
+
+#mobile_nav {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: var(--bg-panel);
+  display: none;
+  gap: var(--space-xs);
+  padding: var(--space-sm) var(--space-sm) calc(env(safe-area-inset-bottom, 0) + var(--space-sm));
+  z-index: 2000;
+  border-top: 1px solid var(--border-color);
+  backdrop-filter: blur(12px);
+}
+
+#mobile_nav button {
+  flex: 1;
+  min-height: 44px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius-sm);
+  color: var(--text-primary);
+  font-size: 12px;
+  padding: var(--space-sm) var(--space-xs);
+  font-weight: 600;
+  box-shadow: var(--shadow-sm);
+}
+
+#mobile_nav button.active {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: var(--text-on-primary);
+}
 
 /* Adjust key panels to full-width sheets */
-#input_form, #scenario_info, #burst-calc-wrapper, #ehime_panel { 
-  /* Full width sheet styling for mobile */
-  position:fixed !important; /* ensure left/right/bottom take effect */
-  width:100dvw !important; /* dynamic viewport width (better with mobile browser UI) */
-  max-width:100% !important;
-  left:0 !important; 
-  right:0 !important; 
-  max-height:60%; 
-  bottom:48px; 
-  top:auto !important; 
-  margin:0 !important; 
-  padding-left:calc(env(safe-area-inset-left,0) + 8px);
-  padding-right:calc(env(safe-area-inset-right,0) + 8px);
-  box-sizing:border-box;
-  border-radius:12px 12px 0 0; 
-  box-shadow:0 -2px 10px rgba(0,0,0,0.3);
-  display:none; 
-  overflow:auto; 
+#input_form,
+#scenario_info,
+#burst-calc-wrapper,
+#ensemble_stats_panel {
+  position: fixed !important;
+  width: 100dvw !important;
+  max-width: 100% !important;
+  left: 0 !important;
+  right: 0 !important;
+  max-height: 80% !important;
+  bottom: 48px;
+  top: auto !important;
+  margin: 0 !important;
+  padding-left: calc(env(safe-area-inset-left, 0) + 8px) !important;
+  padding-right: calc(env(safe-area-inset-right, 0) + 8px) !important;
+  box-sizing: border-box;
+  border-radius: 12px 12px 0 0 !important;
+  box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.3) !important;
+  display: none;
+  overflow: auto;
+  background-color: var(--bg-panel) !important;
+  border: 1px solid var(--border-color) !important;
 }
-#scenario_info { max-height:50%; }
-#ehime_panel { max-height:65%; }
+
+#scenario_info {
+  max-height: 50%;
+}
+
+#ensemble_stats_panel {
+  max-height: 65%;
+}
 
 /* Drag handle larger for touch */
-img.handle { width:24px; height:auto; }
-
-/* Forms: stack cells */
-#launch-card td { display:block; width:100% !important; }
-#launch-card tr { display:block; margin-bottom:4px; }
-#launch-card input[type="text"], #launch-card select { width:100% !important; box-sizing:border-box; }
-
-/* Ehime variants table responsive */
-#ehime_variants_table { font-size:10px; }
-#ehime_variants_table thead { position:sticky; top:0; }
-#ehime_variants_table tbody td:nth-child(5),
-#ehime_variants_table tbody td:nth-child(6) { display:none; } /* hide lat/lon columns to save space */
-
-/* Mobile card list hidden by default; shown when JS detects narrow layout */
-#ehime_variants_mobile { display:none; margin-top:6px; }
-#ehime_variants_mobile .ehime-card { 
-  background:#ffffffdd; 
-  border:1px solid #aac; 
-  border-radius:6px; 
-  padding:6px 8px; 
-  margin-bottom:6px; 
-  font-size:11px; 
-  line-height:1.3em; 
-  position:relative;
+img.handle {
+  width: 24px;
+  height: auto;
 }
-#ehime_variants_mobile .ehime-card .swatch { 
-  width:14px; height:14px; border:1px solid #000; display:inline-block; margin-right:4px; vertical-align:middle; 
-}
-#ehime_variants_mobile .ehime-card .label { font-weight:bold; }
-#ehime_variants_mobile .ehime-card.base { border:1px solid #4477aa; box-shadow:0 0 0 1px #4477aa inset; }
-#ehime_variants_mobile .ehime-card.pending { opacity:0.6; }
-#ehime_variants_mobile .ehime-card.error { border-color:#c00; }
-#ehime_variants_mobile .ehime-card .meta { display:flex; flex-wrap:wrap; gap:4px 8px; margin-top:4px; }
-#ehime_variants_mobile .ehime-card .meta span { white-space:nowrap; }
-#ehime_variants_mobile .ehime-card .landsea-sea { color:#0074d9; font-weight:bold; }
 
-@media (max-width:600px){
-  #ehime_variants_table { display:none; }
-  #ehime_variants_mobile { display:block; }
+/* モバイルではドラッグ移動を無効化するため、ハンドル自体を隠す */
+#input_form img.handle,
+#scenario_info img.handle,
+#burst-calc-wrapper img.handle,
+#location_save img.handle,
+#location_save_local img.handle {
+  display: none !important;
+}
+
+/* =============================================
+   セマンティックフォーム用モバイルスタイル
+   ============================================= */
+
+.form-group {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 2px;
+}
+
+.form-group label {
+  flex: none;
+  max-width: none;
+  width: 100%;
+  margin-bottom: 2px;
+  white-space: normal;
+  overflow: visible;
+}
+
+.form-group .form-control,
+.form-group .form-inline-pair,
+.form-group .form-date-group {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+#launch-card input[type="text"],
+#launch-card select {
+  width: 100% !important;
+  box-sizing: border-box;
+  max-width: 100%;
+}
+
+/* インラインペアはモバイルでも横並び維持 */
+.form-inline-pair,
+.form-date-group {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.form-inline-pair input,
+.form-inline-pair select,
+.form-date-group input,
+.form-date-group select {
+  flex: 1;
+  min-width: 0;
+  width: auto !important;
+}
+
+/* アクションボタン */
+.form-actions {
+  grid-template-columns: 1fr;
+}
+
+.form-actions input,
+.form-actions button {
+  width: 100%;
+}
+
+#open_uncertainty_btn { grid-column: auto; }
+
+/* Ehime results table responsive */
+#ehime_results_table {
+  font-size: 10px;
+}
+
+#ehime_results_table thead {
+  position: sticky;
+  top: 0;
+}
+
+/* Mobile card list */
+#ehime_results_mobile {
+  display: none;
+  margin-top: 6px;
+}
+
+#ehime_results_mobile .ehime-card {
+  background: var(--bg-panel);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  padding: 6px 8px;
+  margin-bottom: 6px;
+  font-size: 11px;
+  line-height: 1.3em;
+  position: relative;
+}
+
+#ehime_results_mobile .ehime-card .swatch {
+  width: 14px;
+  height: 14px;
+  border: 1px solid #000;
+  display: inline-block;
+  margin-right: 4px;
+  vertical-align: middle;
+}
+
+#ehime_results_mobile .ehime-card .label {
+  font-weight: bold;
+}
+
+#ehime_results_mobile .ehime-card.base {
+  border: 1px solid var(--color-primary);
+  box-shadow: 0 0 0 1px var(--color-primary) inset;
+}
+
+#ehime_results_mobile .ehime-card.pending {
+  opacity: 0.6;
+}
+
+#ehime_results_mobile .ehime-card.error {
+  border-color: #c00;
+}
+
+#ehime_results_mobile .ehime-card .meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  margin-top: 4px;
+}
+
+#ehime_results_mobile .ehime-card .meta span {
+  white-space: nowrap;
+}
+
+#ehime_results_mobile .ehime-card .landsea-sea {
+  color: #0074d9;
+  font-weight: bold;
+}
+#ehime_results_mobile .ehime-card .landsea-land {
+  color: #34c759;
+  font-weight: bold;
+}
+#ehime_results_mobile .ehime-card .landsea-unknown {
+  color: #8e8e93;
+  font-weight: bold;
+}
+
+@media (max-width:600px) {
+  #ehime_results_table {
+    display: none;
+  }
+
+  #ehime_results_mobile {
+    display: block;
+  }
 }
 
 /* Hide desktop-only items */
 @media (max-width:768px) {
-  /* Map should remain visible under panels */
-  #mobile_nav { display:flex; }
-  .box { font-size:12px; }
+  #mobile_nav {
+    display: flex !important;
+  }
+
+  .box {
+    font-size: 12px;
+  }
 }
 
 /* Utility classes */
-.mobile-panel-open { display:block !important; }
-
-/* Smooth slide-up effect (translate when hidden) */
-#input_form, #scenario_info, #burst-calc-wrapper, #ehime_panel { transform:translateY(100%); opacity:0; }
-#input_form.mobile-panel-open, 
-#scenario_info.mobile-panel-open, 
-#burst-calc-wrapper.mobile-panel-open, 
-#ehime_panel.mobile-panel-open { transform:translateY(0); opacity:1; }
-
-/* Hide the mobile nav on larger screens (redundant via media attr but safe) */
-@media (min-width:769px) { #mobile_nav { display:none !important; } }
-
-/* --- Compact launch panel mode -------------------------------------------------
-  Automatically applied via JS on mobile. Shrinks spacing & reverts some stacking
-  so the form occupies less vertical space. */
-#input_form.compact { font-size:11px; line-height:1.25; }
-#input_form.compact #launch-card { border-collapse:collapse; }
-/* Revert block stacking to show two columns again where possible */
-#input_form.compact #launch-card tr { display:table-row; }
-#input_form.compact #launch-card td { display:table-cell; width:auto !important; padding:2px 4px; }
-/* Cells that intentionally span full width should still do so */
-#input_form.compact #launch-card td[colspan] { display:table-cell; width:100% !important; }
-/* Make inputs/selects use full width only when alone */
-#input_form.compact #launch-card td:last-child input[type="text"],
-#input_form.compact #launch-card td:last-child select { width:100%; box-sizing:border-box; }
-/* Pair latitude / longitude inputs tighter */
-#input_form.compact #launch-card #lat, 
-#input_form.compact #launch-card #lon { width:42%; min-width:0; }
-#input_form.compact #launch-card #lat { margin-right:2%; }
-/* Reduce spacing for action rows */
-#input_form.compact #launch-card tr td:first-child { white-space:nowrap; }
-#input_form.compact #run_pred_btn { padding:4px 10px; font-size:12px; }
-/* Ehime info row still readable */
-#input_form.compact #ehime_info_row { font-size:10px; }
-
-/* --- Custom mobile layout adjustments to prevent horizontal scroll ------------------
-   要望: 緯度/経度を 1/2 ずつ, 打ち上げ時刻 (時/分) を 1/2 ずつ, 日付 (日/月/年) を 1/3 ずつ。
-   既存のルール (#launch-card input[type="text"], #launch-card select { width:100%!important }) により
-   同一セル内で複数入力が横に並ぶ行でオーバーフローしていたため、ID 指定で上書き。
-*/
-/* 緯度 / 経度 */
-#launch-card #lat, 
-#launch-card #lon { 
-  width:40% !important; /* ほぼ 1/2。残り 2% は区切り文字用 */
-  display:inline-block; 
-  box-sizing:border-box; 
+.mobile-panel-open {
+  display: block !important;
 }
-#launch-card #lat { margin-right:2%; }
 
-/* 打ち上げ時刻 (時 / 分) */
-#launch-card #hour, 
-#launch-card #min { 
-  width:48% !important; 
-  display:inline-block; 
-  box-sizing:border-box; 
+/* Smooth slide-up effect */
+#input_form,
+#scenario_info,
+#burst-calc-wrapper,
+#ensemble_stats_panel {
+  transform: translateY(100%);
+  opacity: 0;
 }
-#launch-card #hour { margin-right:2%; }
 
-/* 打ち上げ日付 (日 / 月 / 年) */
-#launch-card #day, 
-#launch-card #month, 
-#launch-card #year { 
-  width:32% !important; /* 1/3 ずつ */
-  display:inline-block; 
-  box-sizing:border-box; 
+#input_form.mobile-panel-open,
+#scenario_info.mobile-panel-open,
+#burst-calc-wrapper.mobile-panel-open,
+#ensemble_stats_panel.mobile-panel-open {
+  transform: translateY(0);
+  opacity: 1;
 }
-#launch-card #day { margin-right:2%; }
-#launch-card #month { margin-right:2%; }
 
-/* Compact モードでも同様の比率を維持 (多少余白を減らす) */
-#input_form.compact #launch-card #lat, 
-#input_form.compact #launch-card #lon { width:45% !important; margin-right:0; }
-#input_form.compact #launch-card #lat { margin-right:4%; }
-#input_form.compact #launch-card #hour, 
-#input_form.compact #launch-card #min { width:46% !important; margin-right:0; }
-#input_form.compact #launch-card #hour { margin-right:4%; }
-#input_form.compact #launch-card #day, 
-#input_form.compact #launch-card #month, 
-#input_form.compact #launch-card #year { width:30% !important; margin-right:0; }
-#input_form.compact #launch-card #day { margin-right:4%; }
-#input_form.compact #launch-card #month { margin-right:3%; }
+/* Hide the mobile nav on larger screens */
+@media (min-width:769px) {
+  #mobile_nav {
+    display: none !important;
+  }
+}
 
+
+#mobile_dark_mode_toggle {
+  min-width: 64px;
+}
+
+/* --- Compact launch panel mode --- */
+#input_form.compact {
+  font-size: 11px;
+  line-height: 1.25;
+}
+
+#input_form.compact .form-group {
+  flex-direction: row;
+  align-items: center;
+  gap: 4px;
+}
+
+#input_form.compact .form-group label {
+  flex: 0 0 120px;
+  margin-bottom: 0;
+  white-space: nowrap;
+}
+
+#input_form.compact .form-group .form-control {
+  flex: 1;
+}
+
+#input_form.compact .form-inline-pair input,
+#input_form.compact .form-date-group input {
+  width: auto !important;
+}
+
+#input_form.compact .form-actions {
+  flex-direction: row;
+}
+
+#input_form.compact #run_pred_btn {
+  padding: 4px 10px;
+  font-size: 12px;
+}
+
+/* Improve touch targets */
+input[type="text"],
+select,
+input[type="button"] {
+  font-size: 16px;
+  padding: 8px;
+  margin: 2px 0;
+  box-sizing: border-box;
+}

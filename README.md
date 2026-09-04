@@ -1,294 +1,326 @@
-
 <div align="center">
 
-# Falling Position Simulator 2025
+# Falling Position Simulator 2026
 
-気球 / 高高度プラットフォームの飛行（上昇 → 破裂 → 下降）着地点を予測・可視化するシングルページ Web クライアント。Leaflet を用いて API から取得した飛行経路 / 着地点を地図上にレンダリングし、パラメータ感度 (Ehime 実験モード) を 13 バリアント同時比較します。
+気球・高高度プラットフォームの飛行経路と着地点を予測し、放球時刻、回収、安全性を検討するためのシングルページWebアプリです。
 
-👉 公開ページ (GitHub Pages): **https://wasa-rockoon.github.io/Falling-position-simulator2025/**
+通常予測、愛媛気球実験用13条件比較、放球自動探索、不確実性解析、実行履歴を一つの地図上で扱います。ガス・破裂高度計算では、2026年版モデルによる必要ガス量、ボンベ残圧、破裂高度を確認できます。
 
-<sub>静的ホスティングのみで動作。バックエンド (風予測 API) は外部サービスを利用します。</sub>
+公開予定（GitHub Pages）: **https://wasa-rockoon.github.io/Falling-position-simulator2026/**
+
+<sub>アプリ本体は静的ホスティングで動作し、飛行予測・気象・地図は外部サービスを利用します。</sub>
 
 </div>
 
 ---
 
+> [!IMPORTANT]
+> このアプリは計画支援ツールです。予測には気象モデル、入力値、機体特性に由来する不確実性があります。実運用では最新の気象情報、関係法令、現地状況、チームの安全基準を必ず併用してください。
+
 ## 目次
-1. [目的 / Overview](#1-目的--overview)
-2. [主な機能 (Features)](#2-主な機能-features)
-3. [デモ (Live Demo)](#3-デモ-live-demo)
-4. [動かし方 (Quick Start)](#4-動かし方-quick-start)
-5. [設定 / カスタマイズ (Configuration)](#5-設定--カスタマイズ-configuration)
-6. [画面と操作概要](#6-画面と操作概要)
-7. [パラメータ定義 (Flight Parameters)](#7-パラメータ定義-flight-parameters)
-8. [Ehime 気球実験モード (Multi-Variant Sensitivity)](#8-ehime-気球実験モード-ehime-balloon-experiment-mode)
-9. [データ / 判定ロジック](#9-データ--判定ロジック)
-10. [ディレクトリ構成](#10-ディレクトリ構成)
-11. [アーキテクチャ概要](#11-アーキテクチャ概要)
-12. [よくある質問 (FAQ)](#12-よくある質問-faq)
-13. [開発 / 貢献 (Contributing)](#13-開発--貢献-contributing)
-14. [テスト / 品質](#14-テスト--品質)
-15. [既知の制限事項 / Limitations](#15-既知の制限事項--limitations)
-16. [ライセンス](#16-ライセンス)
-17. [更新履歴 (Changelog)](#17-更新履歴-changelog)
-18. [English Extended Summary](#18-english-extended-summary)
 
----
+1. [目的](#1-目的)
+2. [主な機能](#2-主な機能)
+3. [公開版と起動方法](#3-公開版と起動方法)
+4. [画面と基本操作](#4-画面と基本操作)
+5. [予測モード](#5-予測モード)
+6. [放球自動探索](#6-放球自動探索)
+7. [ガス・破裂高度計算](#7-ガス破裂高度計算)
+8. [不確実性解析](#8-不確実性解析)
+9. [状態・履歴・出力](#9-状態履歴出力)
+10. [APIと大量実行](#10-apiと大量実行)
+11. [海陸判定と地点データ](#11-海陸判定と地点データ)
+12. [アーキテクチャとディレクトリ](#12-アーキテクチャとディレクトリ)
+13. [開発・テスト・CI](#13-開発テストci)
+14. [既知の制約](#14-既知の制約)
+15. [ドキュメントとライセンス](#15-ドキュメントとライセンス)
 
-## 1. 目的 / Overview
-高高度気球等の放球計画で「風予測と簡易物理モデル」に基づく着地点の見積もりと、不確実性（上昇・下降速度, 破裂高度の揺らぎ）が着地点分布へ与える影響を地図と数値で即時可視化することを目的としています。
+## 1. 目的
 
-## 2. 主な機能 (Features)
-* 標準シナリオ: 上昇 → 破裂 → 下降 1 本予測
-* Ehime 実験モード: 基準 + 12 感度バリアント (計 13) 並列実行・比較
-* 統計指標: 平均着地点 / 最大偏差距離 (km)
-* 陸 / 海 判定: 日本域 GeoJSON による簡易 Point-in-Polygon
-* マップ操作: ズーム / パン / ポップアップ / レイヤ切替 (OSM, Topo, Esri 画像 等)
-* KML / CSV 出力 (一部コード内フックあり)
-* モバイル向け UI (`predictor-mobile.css`)
-* 入力値永続化: Cookie によるフォーム値再利用 (`pred-cookie.js`)
-* 軽量構成: ビルド工程不要 (純静的アセット)
-* Leaflet + jQuery ベース (React / Vue などフレームワーク非依存)
+高高度気球等の放球計画で、風予測と飛行条件に基づく経路・着地点を可視化し、次の判断を支援します。
 
-## 3. デモ (Live Demo)
-GitHub Pages (静的フロント):
-https://wasa-rockoon.github.io/Falling-position-simulator2025/
+- いつ、どこから放球するか
+- 予測着地点が海上・陸上・内水面のどこになるか
+- 回収支援地点からどの程度離れるか
+- 上昇速度、下降速度、破裂高度の変動が結果へどう影響するか
+- 大量の候補を調べる場合に、API呼び出し数と所要時間がどの程度になるか
 
-> 注意: 風予測 API は外部サービス (Tawhiri / SondeHub) を利用します。CORS / 利用制限により本番デモで失敗する場合があります。
+飛行予測そのものはTawhiri/SondeHub等のAPIへ依頼し、本アプリは入力、負荷制御、複数条件の編成、表示、保存、再開、出力を担当します。
 
-## 4. 動かし方 (Quick Start)
-静的ファイルを配信するだけで動作します (ビルド不要)。
+## 2. 主な機能
 
-最短 (Python 簡易サーバ / PowerShell):
-```
-python -m http.server 8000
-```
-ブラウザ: http://localhost:8000/
+- 通常予測、落下のみ予測、時間別予測
+- 愛媛気球実験用13条件の比較
+- 地点×時刻の放球自動探索
+- 2026年版モデルによるガス量・3過程のボンベ残圧・破裂高度計算
+- Monte Carlo、Latin Hypercube、Sobolによる不確実性解析
+- 正規分布・Weibull分布を使った入力変動
+- 着地点群、95%確率楕円、KDE密度等高線の地図表示
+- 高度・水平風速グラフの最大5系列比較
+- 通常予測、愛媛13条件、自動探索、不確実性解析の共通履歴
+- 中断、再開、自動保存、CSV/KML出力
+- デスクトップ・モバイル対応、PWA、オフラインアプリシェル
 
-Node を使う場合:
-```
-npm i -g serve
-serve -l 8000 .
+## 3. 公開版と起動方法
+
+### GitHub Pages
+
+公開後はブラウザだけで利用できます。Node.jsのインストールは不要です。
+
+```text
+https://wasa-rockoon.github.io/Falling-position-simulator2026/
 ```
 
-Docker ワンライナー (任意):
-```
-docker run --rm -p 8000:80 -v ${PWD}:/usr/share/nginx/html:ro nginx:alpine
-```
+現在のリポジトリには検証用CIがありますが、GitHub Pagesへのデプロイ設定は別途必要です。公開版では既定のSondeHub (Public)を利用します。
 
-> API 呼び出しが失敗する場合はブラウザ DevTools の Network / Console を確認してください。
+> [!WARNING]
+> Localhost (Docker)は**開発・現地PC専用**です。GitHub Pagesではcors-proxy.jsやローカルTawhiriを実行できないため、公開ページからLocalhost APIを使うことはできません。公開ページではSondeHub、またはHTTPSかつCORS対応のCustom APIを選択してください。
 
-## 5. 設定 / カスタマイズ (Configuration)
-現状 .env / 設定ファイルは不要。主な調整点は JS 内定数です。
+### ローカルで画面を開く
 
-| 項目 | 位置 | 説明 | 変更例 |
-|------|------|------|--------|
-| 風予測 API ベース URL | `js/pred/pred-new.js` (`tawhiri_api`) | SondeHub Tawhiri エンドポイント | 自前 API に差替 |
-| 陸域 GeoJSON | `data/land_japan_raw.geojson` | 陸海判定ポリゴン | 全球 / 高解像度へ更新 |
-| UI 初期中心座標 | `pred-map.js` | Leaflet `setView` | 発射地域に合わせる |
-| バリアント許容幅 | `pred-new.js` (Ehime ロジック付近) | 感度解析の範囲 | 新しい ±幅に変更 |
+ローカル開発にはNode.js 20以上を使用します。
 
-> 派生プロジェクトで API 鍵が必要な場合は、ビルドステップ導入 (例: Vite / Webpack) して `.env` 埋め込みを推奨。
-
-## 6. 画面と操作概要
-1. 出発地点 / Launch 時刻などを入力
-2. 予測モードを選択: 標準 or 愛媛気球実験用
-3. 「予測」ボタンで API 呼び出し開始
-4. マップに BASE 軌跡 / 着地点マーカー (実験モードではバリアント群) が追加
-5. 情報パネルで進行状況・統計を確認
-
-## 7. パラメータ定義 (Flight Parameters)
-| パラメータ | 意味 | 単位 | 備考 |
-|------------|------|------|------|
-| Ascent Rate | 上昇平均速度 | m/s | 破裂高度到達まで一定仮定 |
-| Descent Rate | 下降平均速度 | m/s | パラシュート展開後一定仮定 |
-| Burst Altitude | 破裂高度 | m | 上昇フェーズ終了高度 |
-| Launch Time | 離陸時刻 | UTC/JST | 風予測参照時間 |
-| Start Lat/Lon | 離陸緯度経度 | deg | 入力地点 |
-
-## 8. Ehime 気球実験モード (Multi-Variant Sensitivity)
-下部セクション「愛媛気球実験モード」で詳細記述。ここでは概要のみ。
-
-| 特徴 | 内容 |
-|------|------|
-| バリアント数 | 13 (基準 + 単一変動 6 + 複合 6) |
-| 並列化 | ブラウザから非同期リクエスト並列送信 |
-| 指標 | 完了数 / 平均着地点 / 最大偏差 |
-| 目的 | 上昇, 下降, 破裂高度の不確実性が着地点に与える影響把握 |
-
-## 9. データ / 判定ロジック
-* 風 / 予測: 外部 API (Tawhiri via SondeHub) から取得（本リポジトリに風データは含まれない）
-* 陸海判定: `data/land_japan_raw.geojson` で簡易 Point-in-Polygon
-* カラーリング: `js/colour-map.js` によるカテゴリ割当
-* 時刻処理: `moment.js`
-* Cookie: `pred-cookie.js` (単純 key/value)
-
-### API 参考 (Tawhiri/SondeHub)
-`https://api.v2.sondehub.org/tawhiri` へクエリパラメータ (例: `?launch_lat=..&launch_lon=..&launch_datetime=..&ascent_rate=..&descent_rate=..&burst_altitude=..`) を送信。詳細仕様は公式ドキュメントを参照してください。高頻度アクセスは控えてください。
-
-> 将来的にレート制限 / キャッシュ層を追加する場合は Service Worker か軽量リバースプロキシ (Cloudflare Workers 等) を推奨。
-
-## 10. ディレクトリ構成
-```
-.
-├── index.html                # メインページ (フォーム + マップ領域)
-├── js/
-│   ├── pred/                 # 予測ロジック群 (UI / Map / Event / Mode)
-│   ├── calc/                 # 追加計算 (必要に応じ)
-│   └── ... 3rd party libs
-├── css/                      # スタイル (デスクトップ / モバイル)
-├── data/                     # GeoJSON (陸域)
-├── images/                   # UI アイコン / マーカー
-├── drift-api/ (stub)         # 将来の API 関連データ / 参考
-└── sites.json                # 既定地点 (推測)
+```powershell
+node cors-proxy.js
 ```
 
-## 11. アーキテクチャ概要
-| 層 | 技術 | 役割 |
-|----|------|------|
-| UI | HTML / CSS (Bootstrap / jQuery UI) | フォーム・ダイアログ・レイアウト |
-| Map | Leaflet | タイル, マーカー, ポップアップ表示 |
-| JS ロジック | `js/pred/*.js` | モード選択, API 呼び出し, 結果描画 |
-| 補助 | jQuery, moment.js | DOM 操作 / 日時処理 |
-| GeoData | GeoJSON (日本陸域) | 陸海判定 |
+起動ログに表示されたURL（既定は`http://localhost:3100/`）を開きます。3100番が使用中の場合は、最大20ポート先まで自動的に再試行します。
 
-主要ファイル (推測):
-* `pred-new.js`: 新 UI / Ehime モードロジック
-* `pred-map.js`: 地図初期化と描画
-* `pred-ui.js`: 入力フォーム連動
-* `pred-event.js`: イベントハンドラ集中管理
-* `pred-config.js`: 定数 / 設定
+### ローカルTawhiriを使う
 
-### エラー処理メモ
-* ネットワーク失敗時: コンソールへスタック / メッセージ表示
-* 部分成功: 成功分のみマッピング (失敗バリアントは再試行可)
-* フォームバリデーション: 最低限 (数値の範囲 / 未入力)
+画面で`Localhost (Docker)`を選ぶ場合、`cors-proxy.js`が同一オリジンの`/api/v1/`をローカルTawhiriへ転送します。
 
-## 12. よくある質問 (FAQ)
-Q. なぜ 13 バリアント?  
-A. 基準 + (単一パラメータ変動 6) + (2 パラメータ同符号組合せ 6) = 13。計算負荷と視認性のバランス。
+```powershell
+$env:TAWHIRI_HOST = 'localhost'
+$env:TAWHIRI_PORT = '8000'
+$env:PORT = '3100'
+node cors-proxy.js
+```
 
-Q. 平均 / 偏差を円で表示しない理由?  
-A. ビジュアル混雑を避け、数値集中による比較を優先。必要なら fork で再追加可能。
+`http://localhost:3100/__server-info`で配信元と転送先を確認できます。GitHub PagesではNode.jsサーバーを実行できないため、`Localhost`はローカル起動時専用です。
 
-Q. 海外放球に使える?  
-A. 陸海判定ポリゴンを差し替えれば可能。風予測 API 側の全球対応が前提。
+## 4. 画面と基本操作
 
-## 13. 開発 / 貢献 (Contributing)
-Issue / PR 歓迎。バグ報告には以下を含めてください:
-1. 再現手順 (最小)
-2. 入力パラメータ (Ascent / Descent / Burst / Launch 時刻)
-3. ブラウザ / OS バージョン
-4. コンソールログ (可能ならスクリーンショット)
+1. `SETTINGS`で放球地点、日時、上昇速度、下降速度、破裂高度等を入力します。
+2. 予測タイプとAPI接続先を選択します。
+3. `予測を実行`を押します。
+4. 地図で上昇・下降軌跡、破裂点、着地点を確認します。
+5. `RESULTS`で概要、グラフ、履歴、診断を確認します。
+6. 必要に応じてCSV/KMLを出力し、履歴から結果を再表示します。
 
-### 推奨ワークフロー
-1. Fork & ブランチ作成 (`feat/xxx` or `fix/yyy`)
-2. 変更 (JS / CSS) - コードスタイルは既存に倣う (Prettier 未導入)
-3. ローカルで簡易サーバ起動し挙動確認
-4. PR 作成 (変更概要 / Before-After スクリーンショット)
+フォーム値、プリセット、テーマは自動保存されます。画面上の表示を消しても、保存済み履歴は削除されません。
 
-### 改善アイデア (歓迎)
-* TypeScript 化 / モジュール分割
-* E2E テスト導入 (Playwright)
-* Service Worker キャッシュ
-* 陸域ポリゴン差し替え (全球対応)
-* UI アクセシビリティ向上 (ARIA, キーボード操作)
+## 5. 予測モード
 
-## 14. テスト / 品質
-現状自動テストは未整備。最低限次を手動確認してください:
-* 標準モード単一予測が成功する
-* Ehime モード 13 バリアントの完了カウンタが正しく増分
-* 平均着地点 / 最大偏差が NaN にならない
-* 陸海判定が表示される
+### 通常・落下のみ・時間別
 
-導入を検討している品質ゲート (提案):
-| 種類 | ツール案 |
-|------|----------|
-| Lint | ESLint (browser, jquery) |
-| Format | Prettier |
-| Unit | Vitest / Jest (計算ロジック抽出後) |
-| E2E | Playwright (入力～表示) |
+- 標準プロファイル: 上昇 → 破裂 → 下降
+- 落下のみ: 指定高度から下降する経路
+- 時間別: 複数の放球時刻を比較
 
-## 15. 既知の制限事項 / Limitations
-* 風予測 API 依存: オフラインでは利用不可
-* バリアント数固定: 動的な組合せ変更 UI なし
-* 陸海判定精度: 簡易ポリゴンによる低解像度判定
-* 時間解像度: API レスポンス仕様に依存 (補間未実装)
-* エラーハンドリング: 詳細リトライ戦略なし (手動再実行)
+主な入力値は次のとおりです。
 
-## 16. ライセンス
-本プロジェクトは GPLv3 ライセンスです。詳細は `LICENSE` を参照してください。
+| パラメータ | 意味 | 単位 |
+|---|---|---|
+| Launch latitude / longitude | 放球地点 | degree |
+| Launch altitude | 放球地点高度 | m |
+| Launch datetime | 放球日時（画面入力はJST） | date/time |
+| Ascent rate | 平均上昇速度 | m/s |
+| Descent rate | 平均下降速度 | m/s |
+| Burst altitude | 破裂高度 | m |
 
-## 17. 更新履歴 (Changelog)
-| 日付 | 変更 |
-|------|------|
-| 2025-09-10 | README 大幅改訂 (構成拡張, 設定 / 品質 / 制限追加) |
+### 愛媛気球実験用13条件
 
-## 18. English Extended Summary
-Falling Position Simulator 2025 is a lightweight static web client (Leaflet + jQuery) that visualizes predicted high-altitude balloon flights (ascent → burst → descent). In the Ehime Experiment mode it concurrently runs 13 sensitivity variants (single-parameter ± changes and paired combinations) against a Tawhiri/SondeHub prediction API, displaying each landing point plus aggregated mean landing coordinates and maximum deviation. Land/Sea classification is a simple point-in-polygon test over a Japan landmask GeoJSON. No build step required; just serve the static files. Suggested future improvements include TypeScript refactor, automated testing, global landmask, and offline caching. Licensed under GPLv3. Live demo: https://wasa-rockoon.github.io/Falling-position-simulator2025/
+基準条件と12の感度条件を実行し、着地点分布を比較します。
 
----
-
-## 愛媛気球実験モード (Ehime Balloon Experiment Mode)
-
-本フォークには観測実験向けの「愛媛気球実験用」予測モードが追加されています。標準プロファイル（上昇→破裂→下降）を基準に、主要パラメータの許容幅を同時に複数バリエーションで API へ投げ、着地点の分布と統計値を可視化します。
-
-### 許容幅 / マージン
-* 上昇速度 (Ascent Rate): 基準値 ±1 m/s
-* 下降速度 (Descent Rate): 基準値 ±3 m/s
-* 破裂高度 (Burst Altitude): +10% / -20%
-
-### 生成される 13 バリアントとラベル
-| ラベル | 変更内容 |
-|--------|----------|
-| BASE   | 基準 (変更なし) |
-| ASC- / ASC+ | 上昇 -1 / +1 m/s |
-| DES- / DES+ | 下降 -3 / +3 m/s |
+| ラベル | 基準からの変更 |
+|---|---|
+| BASE | 変更なし |
+| ASC- / ASC+ | 上昇速度 -1 / +1 m/s |
+| DES- / DES+ | 下降速度 -3 / +3 m/s |
 | BURST- / BURST+ | 破裂高度 -20% / +10% |
-| A-D- / A+D+ | 上昇±1 & 下降±3 (同符号) |
-| A-B- / A+B+ | 上昇±1 & 破裂高度 -20% / +10% |
-| D-B- / D+B+ | 下降±3 & 破裂高度 -20% / +10% |
+| A-D- / A+D+ | 上昇速度・下降速度を同時変更 |
+| A-B- / A+B+ | 上昇速度・破裂高度を同時変更 |
+| D-B- / D+B+ | 下降速度・破裂高度を同時変更 |
 
-（合計 1 + 12 = 13 バリアント）
+完了数、平均着地点、最大偏差、海上率を集計し、各系列の着地点・軌跡・高度・風速を比較できます。
 
-### 使い方
-1. 予測タイプで「愛媛気球実験用」を選択。
-2. 上昇速度 / 下降速度 / 破裂高度（標準プロファイル）を入力。
-3. 「予測実行」を押すと 13 件の API リクエストが並列実行され、着地点が順次表示。
-4. 情報行に以下が更新されます:
-	* 上昇/下降 許容範囲表示
-	* 破裂高度マージン (+10% / -20%)
-	* 完了数 / 総数
-	* 平均着地点 (全バリアント平均緯度経度)
-	* 最大偏差 (平均地点から最も遠い着地点までの距離 km)
+## 6. 放球自動探索
 
-### マップ表示の意味
-* カラフルな小円: 各バリアントの着地点（BASE はやや大きい）
-* BASE の軌跡: 標準条件の飛行経路
-* 平均着地点 / 最大偏差: いずれも現在はマップ図形を表示せず、パネル内数値のみ表示 (平均緯度経度, 最大偏差 km)。以前存在した青い平均マーカー・青/オレンジ破線円は削除しました。
+複数地点と時間帯を組み合わせ、海上率、雨量、風速、回収支援地点までの距離などから候補を探します。
 
-### ポップアップ
-任意の着地点マーカーをクリックすると:
-* 変更: 上昇/下降/破裂高度が基準からどの方向に変化したか（例: 上昇+1 m/s → 「上昇+1 m/s」）
-* 条件値（上昇速度, 下降速度, 破裂高度）
-* 着地点座標
-* 離陸時刻 (JST)
+| モード | 動作 |
+|---|---|
+| 高速 | 粗探索で条件を満たさない候補を除外してから精密探索 |
+| 全候補精密 | 粗探索の合否にかかわらず全候補を13条件で評価 |
+| 段階的 | 候補を除外せず、粗探索の見込み順に精密評価 |
 
-BASE のポップアップでは「変更: なし (基準)」と表示されます。
+- 海上率は「下限以上」で合格します。
+- 中断要求は進行中のAPI呼び出しまたは候補を完了した境界で反映し、次へ進みません。
+- 候補境界ごとに自動保存し、再読み込み後に再開できます。
+- 開始前に論理API要求数、再試行を含む最悪HTTP試行数、概算時間を表示します。
 
-### 結果の解釈
-* 平均着地点: 統計的中心（単純平均）。現状は数値のみ (マップ上マーカー非表示)。
-* 最大偏差: 平均地点から最遠バリアント着地点までの距離 (km)。視覚円は表示せず数値のみ。
-* 破裂高度影響: 破裂高度を含むバリアント (ラベルに B を含む) のばらつきは現在個別円を描かず、必要なら CSV へ出力後オフライン解析してください。
+## 7. ガス・破裂高度計算
 
-### 陸海判定 (Land / Sea Classification)
-Ehime バリエーション表の最終列は各バリアントの予測着地点が「陸」か「海」かを表示します。
+2025年版Excelを移植したコードを基礎に、`gas_calc_2026.py`の改良内容をブラウザ向けJavaScriptへ反映しています。
 
-* 判定データ: `data/land_japan_raw.geojson` (日本付近切り出し陸地ポリゴン) による単純 Point-in-Polygon 判定。
-* 表示: 「陸」= 通常色, 「海」= 水色強調, 読み込み中は「判定中」。
-* 制限: ポリゴン外の遠方 (海上含む) は "海" と判定される可能性が高い。微小島嶼など低解像度により陸を海と誤判定することがあります。厳密用途では高解像度海岸線や別ソースで再確認してください。
+- 密度差1.1138 kg/m³によるヘリウム必要量
+- 純浮力・目標上昇速度
+- 4本それぞれの容積、初期圧力、使用量、終了残圧
+- 準静的、ポリトロープ（初期値 n=1.3）、断熱の比較
+- 楕円体3方式と球直径方式による破裂高度
+- 4つの破裂判定方式から選択した破裂高度と上昇速度をSETTINGSへ反映（既定は球近似・直径）
 
-### English Summary
-The "Ehime Balloon Experiment" mode runs 13 parameter variants (ascent ±1 m/s, descent ±3 m/s, burst altitude +10% / -20%, and paired combinations) in parallel and plots each landing point (color-coded). The panel lists completed/total count, mean landing coordinates, and maximum deviation (km). Removed overlays (mean marker / dispersion circles) remain numeric-only for clarity. Land/Sea is a simple polygon test over a Japan land mask. Popups show parameter deltas vs BASE.
+入力値はブラウザへ自動保存されます。1200 g気球は上昇速度係数が未確定のため選択肢に表示せず、推測値は使用しません。
 
+## 8. 不確実性解析
 
+上昇速度、下降速度、破裂高度をサンプリングし、入力変動が着地点へ与える影響を調べます。
+
+- Monte Carlo
+- Latin Hypercube Sampling
+- Sobol系列
+- 正規分布
+- Weibull分布
+- 再現用シードによる同一サンプル生成
+- API予算に応じたサンプル数制御
+- Wilson区間と安定バッチによる逐次停止
+
+結果は着地点、95%確率楕円、KDE密度等高線を個別または重ねて地図表示できます。解析日時は不確実性解析画面で設定し、JSTとして保存・復元します。
+
+## 9. 状態・履歴・出力
+
+| データ | 保存先 | 内容 |
+|---|---|---|
+| フォーム値、プリセット、テーマ | localStorage | 即時自動保存、旧キー互換 |
+| 旧保存地点 | Cookie | 従来機能との互換 |
+| RunRecord、履歴 | IndexedDB | 全実行種別の共通履歴 |
+| 探索・解析ジョブ | IndexedDB | 中断・再開スナップショット |
+| API応答 | メモリ + IndexedDB | 3時間TTL、件数上限あり |
+| 表示中レイヤー・グラフ | ページ内メモリ | 表示クリアと履歴削除を分離 |
+
+履歴から再実行準備、固定、削除、種類別CSV出力ができます。軌跡・着地点を持つ履歴では地図再表示とKML出力も利用できます。旧愛媛履歴は削除せず、共通履歴へ互換移行します。
+
+## 10. APIと大量実行
+
+### 接続先
+
+- SondeHub/Tawhiri: 飛行予測
+- Localhost: ローカルTawhiri（`cors-proxy.js`経由）
+- Custom: ユーザー指定API。GitHub PagesではHTTPSかつCORS対応が必要
+- Open-Meteo: 自動探索の雨量・地上風
+- OpenStreetMap/OpenTopoMap/ArcGIS/Carto: 地図タイル
+
+予測APIクライアントは、同時数、最小間隔、タイムアウト、429/5xx/通信失敗の再試行、同一要求の統合、キャッシュを共通管理します。
+
+SondeHub公開APIは同時1件で実行し、300 HTTP試行を超える設定では警告します。数千回規模の探索・解析はローカルTawhiriを推奨します。API予算へ到達した場合は一部完了として保存し、上限を見直して再開できます。
+
+## 11. 海陸判定と地点データ
+
+海陸判定は外部判定APIを使用せず、同梱した固定版データから決定論的に計算します。
+
+- 陸域: Natural Earth `ne_10m_land`の日本域
+- 内水面: 国土数値情報W09-05湖沼データ
+- 結果: `land` / `sea` / `inland_water` / `unknown`
+
+内水面は海上率へ含めません。範囲外、境界、読込失敗は無理に海・陸へ変換せず`unknown`として扱います。データ版、出典、ライセンス、SHA-256は`data/land-sea-datasets.json`に記録しています。
+
+支援・回収地点は`漁船・回収地点位置関係マップ.kml`を正本とし、`ports.json`を生成します。支援地点と実回収地点は用途を分け、探索の最寄り支援距離には支援地点だけを使います。
+
+## 12. アーキテクチャとディレクトリ
+
+React/Vue等のフレームワークや本番バンドラーを使用せず、`index.html`からローカルJavaScriptを順番に読み込む構成です。旧CUSF由来の互換層を残しながら、保存、API、描画、履歴、計算を分割しています。
+
+```text
+.
+├── index.html                  # 画面骨格とスクリプト読込順
+├── manifest.json / sw.js      # PWAとオフラインアプリシェル
+├── cors-proxy.js              # ローカル開発サーバー・Tawhiri転送
+├── js/
+│   ├── core/                  # 初期化、保存、履歴、通知、出力
+│   ├── domain/                # 共通RunRecordスキーマ
+│   ├── pred/                  # 予測、探索、解析、描画、グラフ
+│   ├── calc/                  # ガス・浮力・破裂高度計算
+│   └── geo/                   # 決定論的な海陸分類
+├── css/                       # デスクトップ・モバイル・各機能UI
+├── images/                    # 地図マーカー・PWAアイコン
+├── data/                      # 固定版地理データとマニフェスト
+├── scripts/                   # データ・Service Worker生成、構文検査
+├── tests/                     # Node単体・統合テスト
+├── e2e/                       # 固定APIによるPlaywright E2E
+├── docs/                      # 設計・運用・手動確認資料
+└── .github/workflows/         # GitHub Actions CI
+```
+
+主要な依存順は次のとおりです。
+
+```text
+AppStorage / AppErrors / RunRecord
+              ↓
+RunRepository / SettingsRepository / AppShell
+              ↓
+PredictionApi / RequestContext / PredictionRunner
+              ↓
+通常予測・愛媛13条件・自動探索・不確実性解析
+              ↓
+地図・RESULTS・履歴・CSV/KML
+```
+
+## 13. 開発・テスト・CI
+
+依存関係を導入します。
+
+```powershell
+npm install
+npx playwright install chromium
+```
+
+主なコマンド:
+
+```powershell
+npm run build       # ports.json・sw.js生成、JavaScript構文検査
+npm test            # Node単体・統合テスト
+npm run test:e2e    # 固定APIによるChromium E2E
+npm run ci          # build、Nodeテスト、E2Eをまとめて実行
+```
+
+E2Eは公開APIへ通信せず、固定レスポンスで通常予測、愛媛13条件、自動探索、ガス計算、不確実性解析、履歴、モバイル、PWAを検証します。
+
+GitHub Actionsの**CI**は、pushやPull RequestのたびにGitHub上のまっさらなLinux環境で品質を確認する自動検査です。npm run buildで必要な生成物を確認し、Nodeテストで計算・保存・API負荷制御などを検査します。
+
+**E2E（End-to-End test）**は、実際にChromiumで画面を開き、通常予測、愛媛13条件、自動探索、不確実性解析、履歴、モバイル、PWAの一連の操作を自動で確認するブラウザ試験です。外部APIは固定レスポンスに差し替えるため、実APIの可用性や予測精度は別途手動確認が必要です。
+
+CIは品質確認であり、GitHub Pagesへのデプロイ処理ではありません。
+
+PWAアイコンとjQuery UI画像を再生成する場合だけWindows PowerShellが必要です。
+
+```powershell
+npm run build:icons:windows
+npm run build:ui-assets:windows
+```
+
+開発ルールは[CONTRIBUTING.md](CONTRIBUTING.md)を参照してください。
+
+## 14. 既知の制約
+
+- 新しい飛行予測・気象取得にはネットワークまたは起動済みローカルTawhiriが必要です。
+- GitHub Pagesでは`cors-proxy.js`とローカルTawhiri接続を利用できません。
+- オフラインではアプリシェル、保存履歴、表示済み地図タイルを利用できますが、新規予測はできません。
+- 海陸判定は固定データの解像度と範囲に依存し、微小島嶼や複雑な沿岸では`unknown`または誤差があり得ます。
+- 愛媛13条件は固定プロファイルです。任意の組合せは不確実性解析を使用してください。
+- 自動試験はChromiumと固定APIを対象とし、実APIの可用性・予測精度は手動確認が必要です。
+
+## 15. ドキュメントとライセンス
+
+- [アーキテクチャ](docs/ARCHITECTURE.md)
+- [開発・運用手順](docs/OPERATIONS.md)
+- [手動確認チェックリスト](docs/MANUAL_CHECKLIST.md)
+- [依存関係とライセンス](docs/DEPENDENCIES.md)
+
+本プロジェクトはGPLv3です。詳細は[LICENSE](LICENSE)を参照してください。第三者ライブラリは各ライセンスに従い、同梱物のバージョンとSHA-256は`vendor-dependencies.json`に記録しています。
+
+---
+
+## English Summary
+
+Falling Position Simulator 2026 is a static, browser-based planning tool for high-altitude balloon flights. It visualizes Tawhiri/SondeHub trajectories and landing points, compares 13 fixed Ehime experiment variants, searches launch windows across sites and times, includes 2026 helium-volume, cylinder-process, and burst-altitude calculations, and performs uncertainty analysis using Monte Carlo, Latin Hypercube, or Sobol sampling. Results, resumable jobs, diagnostics, and exports are stored locally in the browser. The public application is intended for GitHub Pages; Node.js and `cors-proxy.js` are required only for local development or a local Tawhiri instance.

@@ -24,47 +24,21 @@ function setupEventHandlers() {
 
     // Add the onmove event handler to the map canvas
     map.on('mousemove', function(event) {
-        showMousePos(event.latlng);
+        showMousePos(event.latlng.wrap());
     });
 }
 
 function EH_BurstCalc() {
-    // Activate the "use burst calc" links
-    $("#burst-calc-show").click(function() {
-        $("#burst-calc-wrapper").show();
+    $('#burst-calc-show').off('click.gasCalculator').on('click.gasCalculator', function (event) {
+        event.preventDefault();
+        if (window.GasCalculatorUI && typeof window.GasCalculatorUI.open === 'function') window.GasCalculatorUI.open();
     });
-    $("#burst-calc-show").hover(
-        function() {
-            $("#ascent,#burst").css("background-color", "#AACCFF");
-        },
-        function() {
-            $("#ascent,#burst").css("background-color", "");
-        });
-    $("#burst-calc-use").click(function() {
-        // Write the ascent rate and burst altitude to the launch card
-        $("#ascent").val($("#ar").html());
-        $("#burst").val($("#ba").html());
-        $("#burst-calc-wrapper").hide();
-    });
-    $("#burst-calc-close").click(function() {
-        // Close the burst calc without doing anything
-        $("#burst-calc-wrapper").hide();
-        $("#modelForm").show();
-    });
-    $("#burst-calc-advanced-show").click(function() {
-        // Show the burst calculator constants
-        // We use a callback function to fade in the new content to make
-        // sure the old content has gone, in order to create a smooth effect
-        $("#burst-calc").fadeOut('fast', function() {
-            $("#burst-calc-constants").fadeIn();
-        });
-    });
-    $("#burst-calc-advanced-hide").click(function() {
-        // Show the burst calculator constants
-        $("#burst-calc-constants").fadeOut('fast', function() {
-            $("#burst-calc").fadeIn();
-        });
-    });
+    $('#burst-calc-show').off('keydown.gasCalculator').on('keydown.gasCalculator', function (event) {
+        if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); $(this).trigger('click'); }
+    });    $('#burst-calc-show').hover(
+        function () { $('#ascent,#burst').css('background-color', '#AACCFF'); },
+        function () { $('#ascent,#burst').css('background-color', ''); }
+    );
 }
 
 function EH_NOTAMSettings() {
@@ -115,32 +89,47 @@ function EH_LaunchCard() {
 }
 
 function EH_ScenarioInfo() {
-    // Controls in the Scenario Information window
-    $("#showHideDebug").click(function() {
-        toggleWindow("scenario_template", "showHideDebug", "Show Debug", "Hide Debug");
-    });
-    $("#showHideDebug_status").click(function() {
-        toggleWindow("scenario_template", "showHideDebug", "Show Debug", "Hide Debug");
-    });
-    $("#showHideForm").click(function() {
-        toggleWindow("input_form", "showHideForm", "Show Launch Card",
-            "Hide Launch Card");
-    });
+    // RESULTS内タブと診断ログは ResultsWorkspace が一元管理する。
     $("#closeErrorWindow").click(function() {
         $("#error_window").fadeOut();
     });
 
     $("#about_window_show").click(function() {
+        var isMobile = window.matchMedia && window.matchMedia('(max-width: 768px)').matches;
+        var viewportW = Math.max(document.documentElement.clientWidth || 0, window.innerWidth || 0);
+        var viewportH = Math.max(document.documentElement.clientHeight || 0, window.innerHeight || 0);
+
         $("#about_window").dialog({
-            modal:true,
-            width:600,
-            height: $(document).height() - 200,
+            modal: true,
+            width: isMobile ? Math.min(viewportW - 16, 640) : 600,
+            height: isMobile ? Math.max(320, viewportH - 24) : Math.max(420, $(document).height() - 200),
+            maxHeight: isMobile ? Math.max(320, viewportH - 24) : undefined,
+            draggable: !isMobile,
+            resizable: false,
+            closeOnEscape: true,
+            position: { my: 'center top+8', at: 'center top', of: window },
             buttons: {
-                Close: function() {
-                        $(this).dialog('close');
-                    }
+                "閉じる": function() {
+                    $(this).dialog('close');
+                }
+            },
+            open: function() {
+                // モバイル時に閉じる操作が見切れないよう、本文側を確実にスクロール可能にする。
+                $(this).css({ 'overflow-y': 'auto' });
             }
         });
+    });
+
+    // 落下位置一覧の表示/非表示トグル
+    $("#toggle_pos_list").click(function () {
+        var el = $("#pos_list_container");
+        if (el.is(":visible")) {
+            el.hide();
+            $(this).text("落下位置一覧を表示");
+        } else {
+            el.show();
+            $(this).text("落下位置一覧を非表示");
+        }
     });
 
     // Coordinate format toggle (Decimal <-> DMS)

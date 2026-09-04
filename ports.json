@@ -1,0 +1,256 @@
+{
+  "schemaVersion": 1,
+  "source": "漁船・回収地点位置関係マップ.kml",
+  "supportPoints": [
+    {
+      "name": "くろはえまる渡船",
+      "lat": 33.229957,
+      "lon": 133.2500649,
+      "sourceFolder": "漁船（実績あり)",
+      "category": "marine_support",
+      "hasOperationalHistory": true
+    },
+    {
+      "name": "第二朝日丸",
+      "lat": 33.0667979,
+      "lon": 133.106902,
+      "sourceFolder": "漁船（実績あり)",
+      "category": "marine_support",
+      "hasOperationalHistory": true
+    },
+    {
+      "name": "丸西渡船",
+      "lat": 32.9390934,
+      "lon": 132.9927554,
+      "sourceFolder": "漁船（実績あり)",
+      "category": "marine_support",
+      "hasOperationalHistory": true
+    },
+    {
+      "name": "ひので渡船",
+      "lat": 32.938414,
+      "lon": 132.48296,
+      "sourceFolder": "漁船（実績あり)",
+      "category": "marine_support",
+      "hasOperationalHistory": true
+    },
+    {
+      "name": "釣船 武勝丸",
+      "lat": 33.0135288,
+      "lon": 133.0108978,
+      "sourceFolder": "漁船（実績あり)",
+      "category": "marine_support",
+      "hasOperationalHistory": true
+    },
+    {
+      "name": "柏島漁港ひろせさん",
+      "lat": 32.7690534,
+      "lon": 132.626587,
+      "sourceFolder": "漁船（実績あり)",
+      "category": "marine_support",
+      "hasOperationalHistory": true
+    },
+    {
+      "name": "沖吉丸 オーシャン",
+      "lat": 32.7737797,
+      "lon": 132.9657728,
+      "sourceFolder": "漁船(実績なし)",
+      "category": "marine_support",
+      "hasOperationalHistory": false
+    },
+    {
+      "name": "清水渡船",
+      "lat": 32.7723449,
+      "lon": 132.95498,
+      "sourceFolder": "漁船(実績なし)",
+      "category": "marine_support",
+      "hasOperationalHistory": false
+    },
+    {
+      "name": "宝洋丸",
+      "lat": 33.339674,
+      "lon": 133.226116,
+      "sourceFolder": "漁船(実績なし)",
+      "category": "marine_support",
+      "hasOperationalHistory": false
+    },
+    {
+      "name": "岡野渡船",
+      "lat": 32.7240467,
+      "lon": 133.0094655,
+      "sourceFolder": "漁船(実績なし)",
+      "category": "marine_support",
+      "hasOperationalHistory": false
+    },
+    {
+      "name": "漁栄丸(遊漁船・漁栄丸)/北代水産",
+      "lat": 32.7790533,
+      "lon": 132.9507444,
+      "sourceFolder": "漁船(実績なし)",
+      "category": "marine_support",
+      "hasOperationalHistory": false
+    },
+    {
+      "name": "ほてい渡船",
+      "lat": 32.9102672,
+      "lon": 132.5179673,
+      "sourceFolder": "漁船(実績なし)",
+      "category": "marine_support",
+      "hasOperationalHistory": false
+    },
+    {
+      "name": "えひめ渡船",
+      "lat": 32.937961,
+      "lon": 132.48311,
+      "sourceFolder": "漁船(実績なし)",
+      "category": "marine_support",
+      "hasOperationalHistory": false
+    },
+    {
+      "name": "ながはま渡船",
+      "lat": 32.938497,
+      "lon": 132.479986,
+      "sourceFolder": "漁船(実績なし)",
+      "category": "marine_support",
+      "hasOperationalHistory": false
+    },
+    {
+      "name": "末光渡船",
+      "lat": 32.940034,
+      "lon": 132.484152,
+      "sourceFolder": "漁船(実績なし)",
+      "category": "marine_support",
+      "hasOperationalHistory": false
+    },
+    {
+      "name": "あづまや渡船",
+      "lat": 32.916109,
+      "lon": 132.49806,
+      "sourceFolder": "漁船(実績なし)",
+      "category": "marine_support",
+      "hasOperationalHistory": false
+    },
+    {
+      "name": "いろは渡船",
+      "lat": 32.9148972,
+      "lon": 132.499585,
+      "sourceFolder": "漁船(実績なし)",
+      "category": "marine_support",
+      "hasOperationalHistory": false
+    },
+    {
+      "name": "なぎさ",
+      "lat": 32.9118655,
+      "lon": 132.5179954,
+      "sourceFolder": "漁船(実績なし)",
+      "category": "marine_support",
+      "hasOperationalHistory": false
+    },
+    {
+      "name": "松田渡船",
+      "lat": 33.0517866,
+      "lon": 132.4319725,
+      "sourceFolder": "漁船(実績なし)",
+      "category": "marine_support",
+      "hasOperationalHistory": false
+    },
+    {
+      "name": "赤松釣りセンター",
+      "lat": 33.1075448,
+      "lon": 132.4761514,
+      "sourceFolder": "漁船(実績なし)",
+      "category": "marine_support",
+      "hasOperationalHistory": false
+    },
+    {
+      "name": "田島渡船",
+      "lat": 33.1405434,
+      "lon": 132.4656205,
+      "sourceFolder": "漁船(実績なし)",
+      "category": "marine_support",
+      "hasOperationalHistory": false
+    },
+    {
+      "name": "レンタルボート清家",
+      "lat": 33.1421901,
+      "lon": 132.4546935,
+      "sourceFolder": "漁船(実績なし)",
+      "category": "marine_support",
+      "hasOperationalHistory": false
+    }
+  ],
+  "recoveryPoints": [
+    {
+      "name": "2023/9/20(陸上落下)",
+      "lat": 32.9514205,
+      "lon": 132.9858693,
+      "sourceFolder": "2023回収地点",
+      "category": "recovery_record",
+      "year": 2023,
+      "status": "landed_on_land"
+    },
+    {
+      "name": "2023/9/20(丸西渡船)",
+      "lat": 32.993391,
+      "lon": 133.039026,
+      "sourceFolder": "2023回収地点",
+      "category": "recovery_record",
+      "year": 2023,
+      "status": "recovered"
+    },
+    {
+      "name": "2023/9/22(クロハエ丸)",
+      "lat": 33.13824,
+      "lon": 133.26624,
+      "sourceFolder": "2023回収地点",
+      "category": "recovery_record",
+      "year": 2023,
+      "status": "recovered"
+    },
+    {
+      "name": "2023/9/22(クロハエ丸)",
+      "lat": 33.087528,
+      "lon": 133.177597,
+      "sourceFolder": "2023回収地点",
+      "category": "recovery_record",
+      "year": 2023,
+      "status": "recovered"
+    },
+    {
+      "name": "2023/9/23(陸上落下)",
+      "lat": 33.093235,
+      "lon": 133.060562,
+      "sourceFolder": "2023回収地点",
+      "category": "recovery_record",
+      "year": 2023,
+      "status": "landed_on_land"
+    },
+    {
+      "name": "2023/9/24(丸西渡船)",
+      "lat": 32.90621,
+      "lon": 133.321816,
+      "sourceFolder": "2023回収地点",
+      "category": "recovery_record",
+      "year": 2023,
+      "status": "recovered"
+    },
+    {
+      "name": "2025/9/10(釣船 武勝丸)(未回収)",
+      "lat": 33.399,
+      "lon": 133.499306,
+      "sourceFolder": "2025回収地点",
+      "category": "recovery_record",
+      "year": 2025,
+      "status": "unrecovered"
+    },
+    {
+      "name": "2025/9/12(柏島漁港ひろせさん)",
+      "lat": 32.6842,
+      "lon": 132.65053,
+      "sourceFolder": "2025回収地点",
+      "category": "recovery_record",
+      "year": 2025,
+      "status": "recovered"
+    }
+  ]
+}

@@ -1,0 +1,89 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-08-09",
+  "notes": "Browser libraries are intentionally vendored so the application shell can start offline. sha256 values pin LF-normalized text content across platforms.",
+  "checksumFormat": "sha256-lf-normalized-text",
+  "dependencies": [
+    {
+      "name": "jQuery",
+      "version": "3.3.1",
+      "file": "js/jquery-3.3.1.min.js",
+      "license": "MIT",
+      "source": "https://jquery.com/",
+      "runtime": true,
+      "sha256": "160a426ff2894252cd7cebbdd6d6b7da8fcd319c65b70468f10b6690c45d02ef"
+    },
+    {
+      "name": "jQuery UI",
+      "version": "1.12.1",
+      "file": "js/jquery-ui.min.js",
+      "license": "MIT",
+      "source": "https://jqueryui.com/",
+      "runtime": true,
+      "sha256": "55accff7b642c2d7a402cbe03c1494c0f14a76bc03dee9d47d219562b6a152a5"
+    },
+    {
+      "name": "Leaflet",
+      "version": "1.3.1",
+      "file": "js/leaflet.js",
+      "license": "BSD-2-Clause",
+      "source": "https://leafletjs.com/",
+      "runtime": true,
+      "sha256": "08d9beedcdba0d34c219142433dbe9eda3fce641c532ab3d3213c4bb2b45f9f4"
+    },
+    {
+      "name": "Moment.js",
+      "version": "2.24.0",
+      "file": "js/moment.js",
+      "license": "MIT",
+      "source": "https://momentjs.com/",
+      "runtime": true,
+      "sha256": "e22419e8154be2a34a950dbb4c4c448413751c53ef02f00c6c56af28aa2c4964"
+    },
+    {
+      "name": "Chart.js",
+      "version": "4.4.1",
+      "file": "js/chart.min.js",
+      "license": "MIT",
+      "source": "https://www.chartjs.org/",
+      "runtime": true,
+      "sha256": "d2af8974e95271638772e9e9524db5b9a6f58d6ec2d5d781400447b4a31c681e"
+    },
+    {
+      "name": "html2canvas",
+      "version": "1.4.1",
+      "file": "js/html2canvas.min.js",
+      "license": "MIT",
+      "source": "https://html2canvas.hertzen.com/",
+      "runtime": true,
+      "sha256": "e87e550794322e574a1fda0c1549a3c70dae5a93d9113417a429016838eab8cb"
+    },
+    {
+      "name": "Tipsy",
+      "version": "legacy snapshot (header absent)",
+      "file": "js/jquery.tipsy.js",
+      "license": "upstream MIT; verify before redistribution outside this project",
+      "source": "https://github.com/jaz303/tipsy",
+      "runtime": true,
+      "sha256": "0e53466218d7ff174e0a083ecce89b1c090c67ccbe55775eddca03e930ff9e35"
+    },
+    {
+      "name": "Jookie",
+      "version": "1.0",
+      "file": "js/jquery.jookie.js",
+      "license": "MIT",
+      "source": "file header",
+      "runtime": true,
+      "sha256": "a81758eaf54e5a06124a889f5c4f88b074d67028ddf6957b7766a703d59b61c8"
+    },
+    {
+      "name": "jQuery Form Plugin",
+      "version": "2.43",
+      "file": "js/jquery.form.js",
+      "license": "MIT OR GPL-2.0-or-later",
+      "source": "http://malsup.com/jquery/form/",
+      "runtime": false,
+      "sha256": "33fe94ea6f1ac47c417b26ed69ec9e03a7d18f2d42c0031940ee0c714ae79249"
+    }
+  ]
+}

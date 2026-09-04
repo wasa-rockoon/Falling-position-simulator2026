@@ -13,18 +13,9 @@
 
 // Initialise the UI - this must be called on document ready
 function initUI() {
-    // Make UI elements such as windows draggable
-    $("#input_form").draggable({containment: '#map_canvas', handle:
-        'img.handle', snap: '#map_canvas'});
-    $("#scenario_info").draggable({containment: '#map_canvas', handle:
-        'img.handle', snap: '#map_canvas'});
-    $("#location_save").draggable({containment: '#map_canvas', handle:
-        'img.handle', snap: '#map_canvas'});
-    $("#location_save_local").draggable({containment: '#map_canvas', handle:
-            'img.handle', snap: '#map_canvas'});
-    $("#burst-calc-wrapper").draggable({containment: '#map_canvas', handle:
-            'img.handle', snap: '#map_canvas'}); 
-    $("#ehime_panel").draggable({containment:'#map_canvas', handle:'img.handle', snap:'#map_canvas'});
+    // モバイルではドラッグを無効化し、パネルが画面外へ移動する不具合を防ぐ。
+    setupDraggablePanels();
+    $(window).on('resize', setupDraggablePanels);
     
     // Activate buttons to jqueryui styling
     $("#run_pred_btn").button();
@@ -33,6 +24,54 @@ function initUI() {
     $("#burst-calc-close").button();
     $("#burst-calc-advanced-show").button();
     $("#burst-calc-advanced-hide").button();
+
+    // 放球ウィンドウ分析UI初期化
+    if (typeof initLaunchWindowUI === 'function') {
+        initLaunchWindowUI();
+    }
+}
+
+function isMobileUIViewport() {
+    return window.matchMedia && window.matchMedia('(max-width: 768px)').matches;
+}
+
+function setupDraggablePanels() {
+    // サイドバー固定パネルはドラッグさせない（画面外へ消える不具合対策）
+    var anchoredIds = ['#input_form', '#scenario_info'];
+    var floatingIds = ['#location_save', '#location_save_local', '#burst-calc-wrapper'];
+    var shouldEnableFloating = !isMobileUIViewport();
+
+    anchoredIds.forEach(function(id) {
+        var el = $(id);
+        if (!el.length) return;
+
+        if (el.data('ui-draggable')) {
+            try { el.draggable('destroy'); } catch (_e) { if (typeof reportNonFatalError === 'function') reportNonFatalError(_e, 'non-fatal fallback'); }
+        }
+        el.css({ left: '', top: '' });
+    });
+
+    floatingIds.forEach(function(id) {
+        var el = $(id);
+        if (!el.length) return;
+
+        if (shouldEnableFloating) {
+            if (!el.data('ui-draggable')) {
+                el.draggable({
+                    containment: '#map_canvas',
+                    handle: 'img.handle',
+                    snap: '#map_canvas'
+                });
+            }
+            return;
+        }
+
+        if (el.data('ui-draggable')) {
+            try { el.draggable('destroy'); } catch (_e) { if (typeof reportNonFatalError === 'function') reportNonFatalError(_e, 'non-fatal fallback'); }
+        }
+        // fixed シートとして使うため、ドラッグ座標をクリア
+        el.css({ left: '', top: '' });
+    });
 }
 
 // Throw an error window containing <data> and a 'close' link
@@ -87,7 +126,7 @@ function cursorPredShow() {
     }
     $("#cursor_pred").show();
     $("#cursor_pred_lastrun").show();
-    $("#cursor_pred_links").show();
+    $("#cursor_pred_links").css("display", "grid");
 }
 
 // Append a line to the debug window and scroll the window to the bottom

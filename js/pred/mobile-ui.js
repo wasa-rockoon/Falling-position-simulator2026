@@ -14,7 +14,7 @@
   }
 
   function buildPanels(){
-    const panelIds = ['input_form','scenario_info','ehime_panel','burst-calc-wrapper'];
+    const panelIds = ['input_form','scenario_info','ensemble_stats_panel','burst-calc-wrapper'];
     panels = panelIds.reduce((acc,id)=>{ const el=document.getElementById(id); if(el) acc[id]=el; return acc;},{});
   }
   function closeAll(){
@@ -38,6 +38,8 @@
     nav = document.getElementById('mobile_nav');
     if(!nav) return;
     buildPanels();
+    // Ensure the Ehime (統計) button is visible on mobile
+    var ehimeBtn = document.getElementById('mobile_nav_ehime'); if(ehimeBtn) ehimeBtn.style.display = 'block';
     nav.addEventListener('click', function(e){
       var btn = e.target.closest && e.target.closest('button[data-target]');
       if(!btn) return;
@@ -88,10 +90,8 @@
     _rebind: function(){ buildPanels(); }
   };
 
-  // Init now (even on desktop so that later resize works)
-  document.addEventListener('DOMContentLoaded', init);
-  // Fallback if script loads after DOM
-  if(document.readyState === 'complete' || document.readyState === 'interactive') init();
+  // Initialise once through the central application registry.
+  window.AppShell.registerInitializer('mobile-ui', init, 70);
   // Initial compact application if already in mobile viewport
   if(mm.matches){
     var lf = document.getElementById('input_form'); if(lf) lf.classList.add(COMPACT_CLASS);

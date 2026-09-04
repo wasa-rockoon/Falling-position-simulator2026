@@ -1,0 +1,24 @@
+{
+  "name": "falling-position-simulator2026",
+  "version": "1.0.0",
+  "private": true,
+  "description": "WASA balloon landing prediction and launch planning tools",
+  "scripts": {
+    "build:data": "node scripts/build-marine-points.mjs",
+    "check": "node scripts/check-syntax.mjs",
+    "test": "node --test",
+    "test:unit": "node --test",
+    "test:e2e": "playwright test",
+    "build:icons:windows": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build-pwa-icons.ps1",
+    "build:ui-assets:windows": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build-ui-image-assets.ps1",
+    "build:sw": "node scripts/build-service-worker.mjs",
+    "build": "npm run build:data && npm run build:sw && npm run check",
+    "ci": "npm run build && npm test && npm run test:e2e"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.62.1"
+  }
+}
