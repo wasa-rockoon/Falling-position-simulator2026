@@ -78,6 +78,8 @@
         if (el) return el;
         el = document.createElement('div');
         el.id = id;
+        el.className = 'validation-error';
+        el.setAttribute('role', 'alert');
         el.style.color = '#dc2626';
         el.style.fontSize = '11px';
         el.style.marginTop = '2px';
@@ -95,6 +97,7 @@
         var msg = document.getElementById(msgId) || ensureValidationMessageEl(msgId);
         if (!msg.parentNode && inputEl.parentNode) {
             inputEl.parentNode.appendChild(msg);
+            inputEl.parentNode.classList.add('has-validation-message');
         }
 
         if (!isFinite(v) || v < rule.min || v > rule.max) {
@@ -127,7 +130,10 @@
                 burstEl.style.borderColor = '#dc2626';
                 var msgId = 'valid_burst';
                 var msg = document.getElementById(msgId) || ensureValidationMessageEl(msgId);
-                if (!msg.parentNode && burstEl.parentNode) burstEl.parentNode.appendChild(msg);
+                if (!msg.parentNode && burstEl.parentNode) {
+                    burstEl.parentNode.appendChild(msg);
+                    burstEl.parentNode.classList.add('has-validation-message');
+                }
                 msg.textContent = 'バースト/浮遊高度は打ち上げ高度より高くしてください';
                 msg.style.display = 'block';
             }

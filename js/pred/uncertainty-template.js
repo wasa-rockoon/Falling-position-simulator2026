@@ -107,9 +107,13 @@
                                     <label><input id="uncertainty_show_ellipse" type="checkbox" checked>95%楕円</label>
                                     <label><input id="uncertainty_show_density" type="checkbox">密度等高線</label>
                                 </div>
-                                <div class="uncertainty-result-actions">
-                                    <button id="uncertainty_map_view" type="button" disabled>地図で確認</button>
-                                    <button id="uncertainty_export" type="button" disabled>CSV出力</button>
+                                <div class="uncertainty-map-actions-block">
+                                    <div class="uncertainty-result-actions">
+                                        <button id="uncertainty_map_view" type="button" disabled>地図で確認</button>
+                                        <button id="uncertainty_map_clear" type="button" disabled>地図表示を消す</button>
+                                        <button id="uncertainty_export" type="button" disabled>CSV出力</button>
+                                    </div>
+                                    <p class="uncertainty-map-action-note">地図上の点・楕円・等高線だけを消します。解析結果と保存履歴は残ります。</p>
                                 </div>
                             </div>
                         </section>

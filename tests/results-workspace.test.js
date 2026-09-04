@@ -71,6 +71,7 @@ test('display clear preserves saved history and autosaved settings', () => {
     const source = fs.readFileSync(path.join(root, 'js/pred/ehime-enhancements.js'), 'utf8');
     const clearBody = source.match(/function clearAllPredictions\(\) \{([\s\S]*?)\n\}/)[1];
     assert.doesNotMatch(clearBody, /clearEhimeHistoryCache|RunRepository\.remove|localStorage\.removeItem/);
-    assert.match(clearBody, /clearPredictionCharts/);
-    assert.match(index, /保存履歴は保持/);
+    assert.match(clearBody, /MapDisplayController[.]clearAll/);
+    assert.doesNotMatch(clearBody, /clearPredictionCharts|pos_list_table|innerHTML/);
+    assert.match(index, /履歴・表・グラフ・設定は保持/);
 });

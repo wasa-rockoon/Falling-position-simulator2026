@@ -598,6 +598,19 @@
         setLayerVisibility(uncertaintyDensityLayer, Boolean(densityInput && densityInput.checked));
     }
 
+    function hideUncertaintyMapDisplay(options) {
+        [uncertaintyMapLayer, uncertaintyEllipseLayer, uncertaintyDensityLayer].forEach(function (layer) {
+            setLayerVisibility(layer, false);
+        });
+        if ((!options || options.source !== 'all') && root.showToast) root.showToast('不確実性解析の地図表示を消しました（解析結果は保持）', 'info', 3000);
+    }
+
+    function isUncertaintyMapVisible() {
+        return Boolean(root.map && [uncertaintyMapLayer, uncertaintyEllipseLayer, uncertaintyDensityLayer].some(function (layer) {
+            return layer && root.map.hasLayer(layer);
+        }));
+    }
+
     function clearUncertaintyMap() {
         [uncertaintyMapLayer, uncertaintyEllipseLayer, uncertaintyDensityLayer].forEach(function (layer) {
             if (layer) layer.clearLayers();
@@ -800,6 +813,7 @@
         var mapButton = element('uncertainty_map_view');
         mapButton.disabled = mappedSamples === 0;
         mapButton.textContent = mappedSamples ? '地図で確認（' + mappedSamples + '点）' : '地図で確認';
+        element('uncertainty_map_clear').disabled = mappedSamples === 0;
         var maximum = state.configuration && state.configuration.budget ? state.configuration.budget.maximumCalls : 0;
         var percent = maximum ? Math.min(100, state.attemptedCalls / maximum * 100) : 0;
         element('uncertainty_progress_bar').style.width = percent + '%';
@@ -1160,6 +1174,8 @@
         element('uncertainty_new').addEventListener('click', newAnalysis);
         element('uncertainty_sync_datetime').addEventListener('click', syncLaunchDateTimeFromSettings);
         element('uncertainty_map_view').addEventListener('click', function () { viewUncertaintyMap(); });
+        element('uncertainty_map_clear').addEventListener('click', function () { hideUncertaintyMapDisplay({ source: 'uncertainty' }); });
+        if (root.MapDisplayController) root.MapDisplayController.register('uncertainty', hideUncertaintyMapDisplay);
         ['uncertainty_show_points', 'uncertainty_show_ellipse', 'uncertainty_show_density'].forEach(function (id) {
             element(id).addEventListener('change', applyUncertaintyMapVisibility);
         });
@@ -1188,6 +1204,8 @@
         getState: function () { return state; },
         estimate: updateEstimate,
         viewMap: viewUncertaintyMap,
+        hideMap: hideUncertaintyMapDisplay,
+        isMapVisible: isUncertaintyMapVisible,
         clearMap: clearUncertaintyMap
     };
     root.AppShell.registerInitializer('uncertainty-analysis', init, 60);

@@ -57,6 +57,10 @@
         return Boolean(layerRegistry && layerRegistry.isVisible('history:' + runId));
     }
 
+    function clearDisplay() {
+        if (layerRegistry) layerRegistry.clear();
+    }
+
     function exportRecord(runId, format) {
         return getRecord(runId).then(function (record) { return root.ExportService.exportRun(record, format); });
     }
@@ -103,5 +107,7 @@
         });
     }
 
-    return { getRecord: getRecord, show: show, showRecord: showRecord, hide: hide, isVisible: isVisible, exportRecord: exportRecord, loadSettings: loadSettings, resume: resume, prepareRerun: prepareRerun, applyToSettings: applyToSettings };
+    if (root.MapDisplayController) root.MapDisplayController.register('history-replay', clearDisplay);
+
+    return { getRecord: getRecord, show: show, showRecord: showRecord, hide: hide, isVisible: isVisible, clearDisplay: clearDisplay, exportRecord: exportRecord, loadSettings: loadSettings, resume: resume, prepareRerun: prepareRerun, applyToSettings: applyToSettings };
 }));

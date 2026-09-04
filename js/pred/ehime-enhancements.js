@@ -68,43 +68,29 @@ function copyPosListToClipboard() {
 // c. 地図上の結果レイヤー管理
 // ============================================================
 
-function clearAllPredictions() {
-    if (typeof clearMapItems === 'function') {
-        clearMapItems();
-    }
-    if (ENSEMBLE_HEATMAP_LAYER && typeof ENSEMBLE_HEATMAP_LAYER.remove === 'function') {
-        ENSEMBLE_HEATMAP_LAYER.remove();
-    }
+function clearPredictionMapDisplay() {
+    if (typeof clearMapItems === 'function') clearMapItems();
+    if (ENSEMBLE_HEATMAP_LAYER && typeof ENSEMBLE_HEATMAP_LAYER.remove === 'function') ENSEMBLE_HEATMAP_LAYER.remove();
     ENSEMBLE_HEATMAP_LAYER = null;
     ENSEMBLE_HEATMAP_POINTS = [];
     ENSEMBLE_HEATMAP_VISIBLE = false;
     updateEnsembleHeatmapButtonLabel();
-    // 履歴マーカーも削除
     if (typeof landing_history_markers !== 'undefined') {
         for (var i = 0; i < landing_history_markers.length; i++) {
-            var m = landing_history_markers[i];
-            if (m) {
-                // 軌跡があれば削除
-                if (m.associatedPath && typeof m.associatedPath.remove === 'function') {
-                    m.associatedPath.remove();
-                }
-                // マーカーを削除
-                if (typeof m.remove === 'function') {
-                    m.remove();
-                }
-            }
+            var marker = landing_history_markers[i];
+            if (!marker) continue;
+            if (marker.associatedPath && typeof marker.associatedPath.remove === 'function') marker.associatedPath.remove();
+            if (typeof marker.remove === 'function') marker.remove();
         }
         landing_history_markers = [];
     }
-    // 落下位置一覧をクリア
-    var tbody = document.querySelector('#pos_list_table tbody');
-    if (tbody) tbody.innerHTML = '';
+}
 
-    // 保存履歴・自動保存設定は消さず、現在の表示系列だけを初期化する。
-    if (typeof clearPredictionCharts === 'function') clearPredictionCharts();
-
-    if (typeof showToast === 'function') {
-        showToast('表示中の予測結果をクリアしました（保存履歴は保持）', 'info', 3000);
+function clearAllPredictions() {
+    if (window.MapDisplayController) window.MapDisplayController.clearAll({ source: 'user' });
+    else {
+        clearPredictionMapDisplay();
+        if (typeof showToast === 'function') showToast('地図上の結果をすべて消しました（履歴・表・グラフ・設定は保持）', 'info', 3500);
     }
 }
 
@@ -478,8 +464,11 @@ function initEhimeEnhancements() {
     if (csvBtn) csvBtn.addEventListener('click', exportPosListCSV);
     var copyBtn = document.getElementById('clipboard_copy_btn');
     if (copyBtn) copyBtn.addEventListener('click', copyPosListToClipboard);
-    var clearBtn = document.getElementById('clear_all_btn');
-    if (clearBtn) clearBtn.addEventListener('click', clearAllPredictions);
+    if (window.MapDisplayController) window.MapDisplayController.register('prediction-results', clearPredictionMapDisplay);
+    ['clear_all_btn', 'clear_map_results_btn'].forEach(function (id) {
+        var clearBtn = document.getElementById(id);
+        if (clearBtn) clearBtn.addEventListener('click', clearAllPredictions);
+    });
     var ensembleCsvBtn = document.getElementById('ensemble_export_csv');
     if (ensembleCsvBtn) ensembleCsvBtn.addEventListener('click', exportEnsembleCSV);
     var ensembleJsonBtn = document.getElementById('ensemble_export_json');

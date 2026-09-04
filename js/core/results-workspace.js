@@ -355,6 +355,7 @@
         var refresh = element('run_history_refresh');
         if (refresh) refresh.addEventListener('click', refreshHistory);
         root.addEventListener('wasa:run-repository-change', scheduleHistoryRefresh);
+        root.addEventListener('wasa:map-display-cleared', scheduleHistoryRefresh);
         activate(restoredView(), { remember: false });
         refreshHistory();
     }

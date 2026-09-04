@@ -304,8 +304,9 @@
                     var checkbox = $('<input>').attr({ type: 'checkbox', id: id })
                         .data({ name: name, lat: site.latitude, lon: site.longitude, alt: site.altitude })
                         .prop('checked', selectedSet.has(name));
-                    var label = $('<label>').attr('for', id).append(checkbox)
-                        .append(document.createTextNode(' ' + name + ' (' + Number(site.latitude).toFixed(3) + ', ' + Number(site.longitude).toFixed(3) + ')'));
+                    var label = $('<label>').attr('for', id).addClass('auto-site-option').append(checkbox)
+                        .append($('<span>').addClass('auto-site-name').text(name))
+                        .append($('<span>').addClass('auto-site-coordinates').text(Number(site.latitude).toFixed(3) + ', ' + Number(site.longitude).toFixed(3)));
                     container.append(label);
                 });
                 resolve(sites);

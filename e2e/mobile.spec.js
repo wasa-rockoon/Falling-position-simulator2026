@@ -4,6 +4,10 @@ test('モバイルで主要ダイアログが画面内に収まりキーボー�
     const { page } = app;
     await app.setBaseSettings('single');
     await expect(page.locator('#input_form')).toHaveClass(/mobile-panel-open/);
+    await expect(page.locator('#api_source')).toBeVisible();
+    const apiBox = await page.locator('#api_source').boundingBox();
+    expect(apiBox.width).toBeGreaterThan(180);
+    await expect(page.locator('.api-source-select-row [data-help-topic="apiSource"]')).toBeVisible();
 
     await page.locator('#run_auto_search_btn').click();
     const autoDialog = page.getByRole('dialog', { name: /放球自動探索/ });

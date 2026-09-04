@@ -331,6 +331,7 @@
             if (popoutMetrics) popoutMetrics.hidden = root.innerWidth <= 768;
         });
         if (popoutMetrics) popoutMetrics.hidden = root.innerWidth <= 768;
+        if (root.innerWidth > 768) floatMetrics();
     }
 
     function registerServiceWorker() {

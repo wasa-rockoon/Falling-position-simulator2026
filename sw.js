@@ -2,12 +2,13 @@
 'use strict';
 
 var CACHE_PREFIX = 'wasa-predictor-';
-var CACHE_VERSION = 'c53e3adcc7d6';
+var CACHE_VERSION = 'd38057ee1f40';
 var APP_CACHE_NAME = CACHE_PREFIX + 'app-' + CACHE_VERSION;
 var TILE_CACHE_NAME = CACHE_PREFIX + 'tiles-v1';
 var TILE_CACHE_LIMIT = 500;
 var APP_SHELL = [
     "./",
+    "./css/context-help.css",
     "./css/gas-calculator.css",
     "./css/images/layers-2x.png",
     "./css/images/layers.png",
@@ -74,8 +75,10 @@ var APP_SHELL = [
     "./js/core/app-notifications.js",
     "./js/core/app-shell.js",
     "./js/core/app-storage.js",
+    "./js/core/context-help.js",
     "./js/core/export-service.js",
     "./js/core/history-controller.js",
+    "./js/core/map-display-controller.js",
     "./js/core/map-layer-registry.js",
     "./js/core/results-workspace.js",
     "./js/core/run-repository.js",

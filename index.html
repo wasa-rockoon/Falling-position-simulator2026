@@ -21,6 +21,7 @@
 
     <link href="css/uncertainty.css" rel="stylesheet">
     <link href="css/gas-calculator.css" rel="stylesheet">
+    <link href="css/context-help.css" rel="stylesheet">
 
     <!-- Core Libraries -->
     <script src="js/jquery-3.3.1.min.js"></script>
@@ -38,6 +39,7 @@
     <script src="js/core/app-shell.js"></script>
     <script src="js/core/export-service.js"></script>
     <script src="js/core/map-layer-registry.js"></script>
+    <script src="js/core/map-display-controller.js"></script>
     <script src="js/core/history-controller.js"></script>
     <script src="js/core/results-workspace.js"></script>
     <script src="js/pred/pred-api-client.js"></script>
@@ -79,6 +81,7 @@
     <script src="js/calc/balloon-gas.js" type="text/javascript"></script>
     <script src="js/calc/gas-calculator-template.js" type="text/javascript"></script>
     <script src="js/calc/gas-calculator-ui.js" type="text/javascript"></script>
+    <script src="js/core/context-help.js" type="text/javascript"></script>
     <script src="js/colour-map.js" type="text/javascript"></script>
 
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
@@ -342,6 +345,7 @@
                                 <button type="button" class="result-action" id="showHideWindChart" onclick="toggleWindChart()">風速グラフ</button>
                                 <button type="button" class="result-action" id="showHideDebug">診断ログ</button>
                                 <button type="button" class="result-action" id="clear_replayed_history" onclick="clearEhimeHistoryReplay()" hidden>再表示を消す</button>
+                                <button type="button" class="result-action" id="clear_map_results_btn" title="履歴・表・グラフ・設定は残します">地図上の結果をすべて消す</button>
                                 <button type="button" class="result-action" id="coord_format_toggle" title="緯度経度表示形式を切替">座標形式切替</button>
                                 <button type="button" class="result-action" id="about_window_show">このツールについて</button>
                             </div>
@@ -420,7 +424,7 @@
                             <div class="export-controls pos-list-controls">
                                 <button type="button" id="csv_export_btn" class="btn-export" title="CSVダウンロード">CSV出力</button>
                                 <button type="button" id="clipboard_copy_btn" class="btn-export" title="クリップボードにコピー">コピー</button>
-                                <button type="button" id="clear_all_btn" class="btn-export btn-export-danger" title="表示中の予測結果をクリア（保存履歴は保持）">表示クリア</button>
+                                <button type="button" id="clear_all_btn" class="btn-export btn-export-danger" title="地図上の結果だけを消去（履歴・表・グラフ・設定は保持）">地図上の結果をすべて消す</button>
                             </div>
                             <div id="pos_list_container">
                                 <table id="pos_list_table">

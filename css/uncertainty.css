@@ -154,6 +154,7 @@
 
 .uncertainty-actions button,
 #uncertainty_map_view,
+#uncertainty_map_clear,
 #uncertainty_export {
     padding: 8px 11px;
     color: var(--text-primary, #162033);
@@ -172,6 +173,7 @@
 
 .uncertainty-actions button:disabled,
 #uncertainty_map_view:disabled,
+#uncertainty_map_clear:disabled,
 #uncertainty_export:disabled { opacity: 0.5; cursor: not-allowed; }
 
 .uncertainty-results { min-width: 0; }
@@ -202,6 +204,8 @@
     border: 1px solid var(--border-color, #d8dee8);
     border-radius: 9px;
 }
+.uncertainty-map-actions-block { margin-left: auto; min-width: 0; }
+.uncertainty-map-action-note { margin: 6px 0 0; color: var(--text-secondary, #596579); font-size: 10px; line-height: 1.45; text-align: right; }
 .uncertainty-map-legend,
 .uncertainty-result-actions { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; }
 .uncertainty-map-legend span { display: inline-flex; align-items: center; gap: 4px; color: var(--text-secondary, #596579); font-size: 10px; }
@@ -224,6 +228,7 @@
     font-weight: 700;
 }
 #uncertainty_map_view:not(:disabled):hover,
+#uncertainty_map_clear:not(:disabled):hover,
 #uncertainty_export:not(:disabled):hover { filter: brightness(1.05); }
 .uncertainty-config input:focus,
 .uncertainty-config select:focus,
@@ -236,6 +241,9 @@
     .uncertainty-grid,
     .uncertainty-site-list { grid-template-columns: 1fr; }
     .uncertainty-table-scroll { max-height: 44vh; }
+    .uncertainty-map-actions-block { width: 100%; margin-left: 0; }
+    .uncertainty-result-actions > button { flex: 1 1 140px; }
+    .uncertainty-map-action-note { text-align: left; }
 }
 
 .uncertainty-map-popup {
