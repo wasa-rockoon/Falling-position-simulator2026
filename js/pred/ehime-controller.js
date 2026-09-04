@@ -791,6 +791,9 @@ function finalizeEhimeRunIfCompleted() {
         return ehime_predictions[k] && ehime_predictions[k].status === 'ok';
     }).length;
     var anySuccess = successCount > 0;
+    var callLimitCount = keys.filter(function (k) {
+        return ehime_predictions[k] && ehime_predictions[k].callLimit === true;
+    }).length;
 
     if (anySuccess) {
         saveEhimeHistorySnapshot();
@@ -802,7 +805,14 @@ function finalizeEhimeRunIfCompleted() {
         ? AppErrors.create('EHIME_ALL_VARIANTS_FAILED', '愛媛13条件の予測に失敗しました。', { phase: 'prediction', runId: ehime_current && ehime_current.runId })
         : undefined;
     persistEhimeRunBoundary(finalStatus, finalError).then(function () {
-        $(document).trigger('ehime_run_complete', [{ runId: ehime_current && ehime_current.runId, success: anySuccess }]);
+        $(document).trigger('ehime_run_complete', [{
+            runId: ehime_current && ehime_current.runId,
+            success: anySuccess,
+            status: finalStatus,
+            successCount: successCount,
+            total: keys.length,
+            budgetExhausted: callLimitCount > 0
+        }]);
     });
 }
 
@@ -1279,6 +1289,7 @@ function runEhimePredictions(base_settings, extra_settings, requestContext, runt
                 if (!ehime_current || ehime_current.runId !== runId) return;
                 ehime_predictions[variantId].status = 'error';
                 ehime_predictions[variantId].error = error && error.message ? error.message : String(error);
+                ehime_predictions[variantId].callLimit = Boolean(error && error.callLimit);
                 updateEhimeSummaryFromStore();
                 persistEhimeRunBoundary('running').then(finalizeEhimeRunIfCompleted);
             });

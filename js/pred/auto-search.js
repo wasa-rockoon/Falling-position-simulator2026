@@ -761,11 +761,28 @@
             }
             function handler(_event, detail) {
                 if (expectedRunId && detail && detail.runId && detail.runId !== expectedRunId) return;
+                var completedVariants = detail && Number(detail.successCount);
+                var totalVariants = detail && Number(detail.total);
+                var stoppedByBudget = Boolean(detail && detail.budgetExhausted);
+                if (stoppedByBudget) {
+                    finish({
+                        ok: false,
+                        seaPct: 0,
+                        reason: 'api_budget',
+                        budgetExhausted: true,
+                        completedVariants: completedVariants,
+                        totalVariants: totalVariants
+                    });
+                    return;
+                }
                 if (detail && detail.success === false) {
                     finish({ ok: false, seaPct: 0, reason: detail.interrupted ? 'interrupted' : 'all_variants_failed' });
                     return;
                 }
-                finish(summarizeFineResult(threshold));
+                var summary = summarizeFineResult(threshold);
+                summary.completedVariants = completedVariants;
+                summary.totalVariants = totalVariants;
+                finish(summary);
             }
             $(document).on('ehime_run_complete', handler);
             if (signal) {
@@ -810,6 +827,16 @@
             var candidate = state.fineCandidates[state.phaseIndex];
             var fine = await runFine(candidate, threshold);
             if (executionCancelled()) return;
+            if (fine.budgetExhausted) {
+                await partialAtBoundary(
+                    'HTTP試行上限に達したため、精密探索を候補の途中で停止しました。' +
+                    '<br>この候補は処理済みにせず、上限を増やして再開すると最初から再実行します。' +
+                    (Number.isFinite(fine.completedVariants) && Number.isFinite(fine.totalVariants)
+                        ? '<br>今回完了した条件 ' + fine.completedVariants + ' / ' + fine.totalVariants
+                        : '')
+                );
+                return;
+            }
             candidate.fine = fine;
             if (fine.ok && !state.results.some(function (result) { return result.id === candidate.id; })) {
                 var support = nearestSupport(fine.centroidLat, fine.centroidLon);

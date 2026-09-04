@@ -48,6 +48,16 @@
 .context-help-body p { margin: 0; font-size: 13px; line-height: 1.65; }
 .form-group.has-validation-message { flex-wrap: wrap; }
 .form-group.has-validation-message > .validation-error { flex: 0 0 calc(100% - 138px); min-width: 0; margin: -2px 0 0 138px; }
+.form-date-group.has-validation-message {
+  flex-wrap: wrap;
+  overflow: visible;
+}
+.form-date-group.has-validation-message > .validation-error {
+  flex: 0 0 100%;
+  width: 100%;
+  min-width: 0;
+  margin: -2px 0 0;
+}
 @media (max-width: 768px) {
   .context-help-panel, .context-help-panel.is-right { top: auto; left: 8px; right: 8px; bottom: 8px; width: calc(100vw - 16px); max-height: 52vh; }
   #context_help_move { display: none; }

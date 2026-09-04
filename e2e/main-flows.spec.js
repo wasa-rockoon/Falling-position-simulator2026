@@ -238,6 +238,23 @@ test('範囲外のバースト高度でも入力値と入力欄幅を保つ', as
     expect(Math.abs(after.width - before.width)).toBeLessThan(2);
 });
 
+test('範囲外の日付でも年・月・日の入力欄幅を保つ', async ({ app }) => {
+    const { page } = app;
+    const yearBefore = await page.locator('#year').boundingBox();
+    const dayBefore = await page.locator('#day').boundingBox();
+    await page.locator('#year').fill('9999');
+    await page.locator('#day').fill('99');
+    await expect(page.locator('#valid_year')).toBeVisible();
+    await expect(page.locator('#valid_day')).toBeVisible();
+    await expect(page.locator('#year')).toHaveValue('9999');
+    await expect(page.locator('#day')).toHaveValue('99');
+    const yearAfter = await page.locator('#year').boundingBox();
+    const dayAfter = await page.locator('#day').boundingBox();
+    expect(yearAfter.width).toBeGreaterThan(50);
+    expect(dayAfter.width).toBeGreaterThan(50);
+    expect(Math.abs(yearAfter.width - yearBefore.width)).toBeLessThan(2);
+    expect(Math.abs(dayAfter.width - dayBefore.width)).toBeLessThan(2);
+});
 test('地図上の全結果消去は表と保存履歴を保持する', async ({ app }) => {
     const { page } = app;
     await app.setBaseSettings('single');
