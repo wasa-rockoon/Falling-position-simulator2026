@@ -106,6 +106,22 @@
             try {
                 var response = await client.request(params, merged);
                 if (response.cacheHit) diagnostics.cacheHits += 1;
+                var local = response.data && response.data.metadata && response.data.metadata.local;
+                if (local && local.revision) {
+                    diagnostics.localDatasets = diagnostics.localDatasets || [];
+                    if (!diagnostics.localDatasets.some(function (entry) { return entry.revision === local.revision; })) {
+                        diagnostics.localDatasets.push(Object.assign({}, local));
+                        var repository = typeof globalThis !== 'undefined' && globalThis.RunRepository;
+                        if (context.runId && repository && repository.recordLocalDataset) {
+                            try {
+                                if (context.runRecordReady) await context.runRecordReady;
+                                await repository.recordLocalDataset(context.runId, local);
+                            } catch (error) {
+                                if (typeof globalThis.reportNonFatalError === 'function') globalThis.reportNonFatalError(error, 'local.provenance');
+                            }
+                        }
+                    }
+                }
                 return response;
             } catch (error) {
                 diagnostics.failures += 1;

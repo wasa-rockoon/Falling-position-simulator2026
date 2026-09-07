@@ -1,0 +1,45 @@
+name: wasa-tawhiri
+services:
+  tawhiri:
+    image: ${TAWHIRI_IMAGE:-ghcr.io/projecthorus/tawhiri-container@sha256:9714dc04a22f8982d810f3dc6f3a8ca69f84274cc4d8bff47ce52b42f0c1e451}
+    platform: linux/amd64
+    environment:
+      TZ: UTC
+    ports:
+      - "127.0.0.1:8000:8000"
+    volumes:
+      - tawhiri-data:/srv:ro
+      - ./scripts:/opt/wasa:ro
+    command: ["gunicorn", "-b", "0.0.0.0:8000", "-w", "${TAWHIRI_WORKERS:-2}", "tawhiri.api:app"]
+  downloader:
+    image: ${DOWNLOADER_IMAGE:-ghcr.io/projecthorus/tawhiri-downloader-container@sha256:157444f8571ccf38862a6257a03207fd8ac18d6b59fe70a9117dedf973807169}
+    platform: linux/amd64
+    profiles: ["download"]
+    environment:
+      TZ: UTC
+    volumes:
+      - tawhiri-data:/srv
+    entrypoint: ["/root/tawhiri-downloader/default/main.exe"]
+  elevation:
+    image: ${TAWHIRI_IMAGE:-ghcr.io/projecthorus/tawhiri-container@sha256:9714dc04a22f8982d810f3dc6f3a8ca69f84274cc4d8bff47ce52b42f0c1e451}
+    platform: linux/amd64
+    profiles: ["download"]
+    environment:
+      TZ: UTC
+    volumes:
+      - tawhiri-data:/srv
+    command: ["ruaumoko-download", "-v", "/srv/ruaumoko-dataset.partial"]
+  maintenance:
+    image: ${TAWHIRI_IMAGE:-ghcr.io/projecthorus/tawhiri-container@sha256:9714dc04a22f8982d810f3dc6f3a8ca69f84274cc4d8bff47ce52b42f0c1e451}
+    platform: linux/amd64
+    profiles: ["tools"]
+    network_mode: none
+    environment:
+      TZ: UTC
+    volumes:
+      - tawhiri-data:/srv
+      - ./scripts:/opt/wasa:ro
+    command: ["python3", "/opt/wasa/weather_store.py", "inventory"]
+volumes:
+  tawhiri-data:
+    name: wasa-tawhiri-data

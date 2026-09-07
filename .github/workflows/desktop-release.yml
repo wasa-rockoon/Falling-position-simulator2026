@@ -1,0 +1,36 @@
+name: Desktop release (draft)
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 45
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - run: npm run desktop:make
+      - uses: actions/upload-artifact@v5
+        with:
+          name: windows-desktop
+          path: out/make/
+      - name: Create draft release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $releaseVersion = node -p "require('./package.json').version"
+          if ($releaseVersion -notmatch '^\d+\.\d+\.\d+$') { throw 'Use a numeric release version' }
+          $releaseTag = "desktop-v$releaseVersion"
+          $releaseFiles = @(Get-ChildItem -LiteralPath out/make -Recurse -File | Where-Object { $_.Extension -in '.exe', '.zip', '.nupkg' -or $_.Name -eq 'RELEASES' } | ForEach-Object { $_.FullName })
+          if ($releaseFiles.Count -lt 2) { throw 'Release artifacts missing' }
+          gh release create $releaseTag @releaseFiles --draft --target $env:GITHUB_SHA --title "Windows desktop $releaseVersion" --notes "Windows 11 / Docker Desktop (WSL2 Linux backend) required. Node.js and repository clone are not required. Download WasaSimulatorSetup.exe or the ZIP. Weather data is downloaded from the app. This build is unsigned."
+          if ($LASTEXITCODE -ne 0) { throw 'Draft release creation failed; check existing release/tag.' }

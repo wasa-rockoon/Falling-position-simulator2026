@@ -324,3 +324,15 @@ npm run build:ui-assets:windows
 ## English Summary
 
 Falling Position Simulator 2026 is a static, browser-based planning tool for high-altitude balloon flights. It visualizes Tawhiri/SondeHub trajectories and landing points, compares 13 fixed Ehime experiment variants, searches launch windows across sites and times, includes 2026 helium-volume, cylinder-process, and burst-altitude calculations, and performs uncertainty analysis using Monte Carlo, Latin Hypercube, or Sobol sampling. Results, resumable jobs, diagnostics, and exports are stored locally in the browser. The public application is intended for GitHub Pages; Node.js and `cors-proxy.js` are required only for local development or a local Tawhiri instance.
+
+### WindowsでローカルTawhiriを使う（Phase 2）
+
+`start-local.bat` で起動、`stop-local.bat` で停止します。初回の標高・GFS取得は `download-weather.bat`。Docker Desktop（WSL2 backend）とNode.js 20以上が必要です。Tawhiriのclone/buildやWSLターミナル操作は不要です。
+
+詳細は [ローカル環境の導入手順](local/README.md) を参照してください。
+
+ローカル環境パネルからGFSの取得・キャンセル・再試行、保存runと容量の確認、run単位の削除ができます。予測前のデータ期間確認と、使用データの履歴記録にも対応しています。
+
+### Windowsデスクトップ版（Electron）
+
+既存画面をデスクトップアプリとして配布できます。開発起動は `npm run desktop:start`、Windows配布物の生成は `npm run desktop:make`。配布版の利用者はNode.jsとcloneが不要です。Docker Desktopは引き続き必要です。詳細は [デスクトップ版の手順](desktop/README.md) を参照してください。

@@ -1,0 +1,16 @@
+.local-environment { margin: 12px 0; padding: 10px; border: 1px solid var(--border-color, #ccd5dc); border-radius: 8px; background: var(--bg-secondary, #f6f8fa); font-size: 12px; }
+.local-environment[hidden], .local-environment [hidden] { display: none !important; }
+.local-environment summary { cursor: pointer; font-weight: 700; padding: 4px 0; }
+.local-environment summary span { font-weight: 400; margin-left: 8px; }
+.local-environment dl { display: grid; grid-template-columns: 75px 1fr; gap: 6px; margin: 12px 0; }
+.local-environment dd { margin: 0; }
+.local-environment button { padding: 6px 9px; margin: 3px 3px 3px 0; border: 1px solid var(--border-color, #aab5c0); border-radius: 5px; background: var(--bg-primary, white); color: var(--text-primary, #172f43); cursor: pointer; }
+.local-environment button:disabled { opacity: .5; cursor: not-allowed; }
+.local-environment button:focus-visible { outline: 2px solid #1679af; outline-offset: 2px; }
+.local-environment .local-danger, .local-environment .local-error { color: var(--color-danger, #ba2636); }
+.local-environment p { line-height: 1.5; overflow-wrap: anywhere; }
+.local-dataset { display: grid; gap: 5px; padding: 10px 0; border-bottom: 1px solid var(--border-color, #ccd5dc); overflow-wrap: anywhere; }
+.local-dataset button { justify-self: start; }
+.local-file-list { max-height: 290px; overflow: auto; }
+.local-environment pre { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 180px; overflow: auto; font-size: 10px; }
+.local-confirm { padding: 10px; border: 1px solid var(--color-danger, #ba2636); border-radius: 6px; }

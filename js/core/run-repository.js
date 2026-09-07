@@ -57,6 +57,8 @@
         var operation = previous.catch(function () { /* a later boundary may still be persisted */ }).then(async function () {
             var current = await repository.get(runId);
             if (!current) throw new Error('RunRecord not found: ' + runId);
+            var resolvedPatch = typeof patch === 'function' ? patch(current) : patch;
+            patch = resolvedPatch;
             var nextStatus = patch && patch.status;
             var next;
             if (nextStatus && nextStatus !== current.status) {
@@ -73,6 +75,14 @@
         });
         repository.updateQueues.set(runId, tracked);
         return tracked;
+    };
+
+    Repository.prototype.recordLocalDataset = function (runId, dataset) {
+        return this.update(runId, function (current) {
+            var values = (current.provenance.localDatasets || []).slice();
+            if (!values.some(function (item) { return item.revision === dataset.revision; })) values.push(RunRecord.clone(dataset));
+            return { provenance: { localDatasets: values } };
+        });
     };
 
     Repository.prototype.saveBoundary = async function (runId, boundary) {

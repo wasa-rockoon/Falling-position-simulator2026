@@ -8,13 +8,16 @@ const execFileAsync = promisify(execFile);
 const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const targets = [
     path.join(repositoryRoot, 'js'),
+    path.join(repositoryRoot, 'local'),
+    ...['main.js', 'preload.js', 'navigation.js', 'startup.js', 'prepare.mjs'].map(name => path.join(repositoryRoot, 'desktop', name)),
+    path.join(repositoryRoot, 'forge.config.js'),
     path.join(repositoryRoot, 'cors-proxy.js'),
     path.join(repositoryRoot, 'sw.js')
 ];
 
 async function collectJavaScript(target) {
     const entries = await readdir(target, { withFileTypes: true }).catch(() => []);
-    if (entries.length === 0) return target.endsWith('.js') ? [target] : [];
+    if (entries.length === 0) return /\.(?:js|mjs)$/.test(target) ? [target] : [];
     const files = [];
     for (const entry of entries) {
         const child = path.join(target, entry.name);

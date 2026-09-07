@@ -22,6 +22,10 @@ const PORT = parseInt(process.env.PORT || '3100', 10);
 const TAWHIRI_HOST = process.env.TAWHIRI_HOST || 'localhost';
 const TAWHIRI_PORT = parseInt(process.env.TAWHIRI_PORT || '8000', 10);
 const STATIC_DIR = __dirname;
+const HOST = process.env.HOST || '127.0.0.1';
+const LOCAL_SHUTDOWN_TOKEN = process.env.LOCAL_SHUTDOWN_TOKEN || '';
+const localHttp = require('./local/http-api.js');
+const localService = process.env.LOCAL_MANAGEMENT === '1' ? new (require('./local/service.js').LocalService)() : null;
 
 const MIME_TYPES = {
     '.html': 'text/html; charset=utf-8',
@@ -39,8 +43,22 @@ const MIME_TYPES = {
     '.md': 'text/markdown; charset=utf-8'
 };
 
-function proxyToTawhiri(req, res) {
+async function proxyToTawhiri(req, res) {
     const reqUrl = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
+    let lease;
+    try {
+        if (localService && reqUrl.pathname === '/api/v1/') {
+            if (req.method !== 'GET') return localHttp.send(res, 405, { error: { description: '予測はGETのみです。' } });
+            lease = await localService.acquirePrediction(Object.fromEntries(reqUrl.searchParams));
+            if (res.destroyed) { lease.release(); return; }
+            reqUrl.searchParams.set('dataset', lease.dataset);
+            reqUrl.searchParams.delete('_local_revision');
+            res.once('close', lease.release);
+            res.once('finish', lease.release);
+        }
+    } catch (error) { localHttp.send(res, error.status || 503, { error: { description: error.message } }); return; }
+    const exportFormat = ['csv', 'kml'].includes(reqUrl.searchParams.get('format')) ? reqUrl.searchParams.get('format') : null;
+    if (exportFormat) reqUrl.searchParams.delete('format');
     const targetPath = `${reqUrl.pathname}${reqUrl.search}`;
 
     const options = {
@@ -59,11 +77,38 @@ function proxyToTawhiri(req, res) {
         res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
         res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
+        if (lease) {
+            proxyRes.headers['x-local-revision'] = lease.revision;
+            proxyRes.headers['x-local-engine'] = lease.engine;
+            proxyRes.headers['cache-control'] = 'no-store';
+        }
+        if (exportFormat && proxyRes.statusCode === 200) {
+            let size = 0; const chunks = [];
+            proxyRes.on('data', chunk => {
+                size += chunk.length;
+                if (size > 32 * 1024 * 1024) { proxyRes.destroy(); localHttp.send(res, 502, { error: { description: '出力する予測結果が大きすぎます。' } }); }
+                else chunks.push(chunk);
+            });
+            proxyRes.on('end', () => {
+                if (res.destroyed || res.writableEnded) return;
+                try {
+                    const output = require('./local/prediction-export').predictionExport(JSON.parse(Buffer.concat(chunks).toString('utf8')), exportFormat);
+                    const headers = { 'Content-Type': exportFormat === 'csv' ? 'text/csv; charset=utf-8' : 'application/vnd.google-earth.kml+xml; charset=utf-8', 'Content-Disposition': 'attachment; filename="prediction.' + exportFormat + '"', 'Cache-Control': 'no-store' };
+                    if (lease) { headers['x-local-revision'] = lease.revision; headers['x-local-engine'] = lease.engine; }
+                    res.writeHead(200, headers); res.end(output);
+                } catch (error) { localHttp.send(res, 502, { error: { description: error.message } }); }
+            });
+            proxyRes.on('error', error => { if (!res.writableEnded && !res.destroyed) localHttp.send(res, 502, { error: { description: error.message } }); });
+            return;
+        }
         res.writeHead(proxyRes.statusCode, proxyRes.headers);
         proxyRes.pipe(res);
     });
 
+    proxyReq.setTimeout(120000, () => proxyReq.destroy(new Error('予測APIがタイムアウトしました。')));
+    res.once('close', () => { if (!res.writableFinished) proxyReq.destroy(); });
     proxyReq.on('error', (err) => {
+        if (res.destroyed || res.headersSent) return;
         console.error(`[Proxy Error] ${err.message}`);
         res.writeHead(502, {
             'Content-Type': 'application/json; charset=utf-8',
@@ -108,12 +153,18 @@ function proxyToSondeHub(req, res) {
 }
 function serveStaticFile(req, res) {
     const reqUrl = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
-    let pathname = decodeURIComponent(reqUrl.pathname);
+    let pathname;
+    try { pathname = decodeURIComponent(reqUrl.pathname); }
+    catch (_) { res.writeHead(400); res.end('Bad Request'); return; }
+    // Runtime credentials, configuration and Git metadata must never be served.
+    if (pathname.split(/[\\/]/).some(part => part.startsWith('.')) || /^\/local(?:\/|$)/.test(pathname)) {
+        res.writeHead(403); res.end('Forbidden'); return;
+    }
 
     if (pathname === '/') pathname = '/index.html';
 
     const filePath = path.join(STATIC_DIR, pathname);
-    if (!filePath.startsWith(STATIC_DIR)) {
+    if (!filePath.startsWith(STATIC_DIR + path.sep)) {
         res.writeHead(403, { 'Content-Type': 'text/plain; charset=utf-8' });
         res.end('Forbidden');
         return;
@@ -133,12 +184,28 @@ function serveStaticFile(req, res) {
     });
 }
 
-const server = http.createServer((req, res) => {
+const server = http.createServer(async (req, res) => {
+    if (req.url === '/local/shutdown') {
+        if (!LOCAL_SHUTDOWN_TOKEN || req.method !== 'POST' || req.headers.origin ||
+            req.headers.authorization !== `Bearer ${LOCAL_SHUTDOWN_TOKEN}`) {
+            res.writeHead(403); res.end('Forbidden'); return;
+        }
+        try { if (localService) await localService.shutdown(); }
+        catch (error) { localHttp.send(res, error.status || 503, { error: { description: error.message } }); return; }
+        res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
+        res.end(JSON.stringify({ stopped: true }));
+        server.close(() => process.exit(0));
+        setTimeout(() => process.exit(0), 2000).unref();
+        return;
+    }
+    if (req.url.startsWith('/local/')) { await localHttp.handle(req, res, localService, server.address().port); return; }
     if (req.url === '/__server-info') {
         res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
         res.end(JSON.stringify({
             app: 'Falling-position-simulator2026',
             staticDir: STATIC_DIR,
+            localManagement: Boolean(localService),
+            localInstance: LOCAL_SHUTDOWN_TOKEN ? LOCAL_SHUTDOWN_TOKEN.slice(0, 16) : null,
             tawhiri: `${TAWHIRI_HOST}:${TAWHIRI_PORT}`
         }, null, 2));
         return;
@@ -193,9 +260,9 @@ function listenWithFallback(port, retriesLeft) {
         process.exit(1);
     });
 
-    server.listen(candidate, () => {
+    server.listen(candidate, HOST, () => {
         printBootLog(candidate);
     });
 }
 
-listenWithFallback(PORT, 20);
+listenWithFallback(PORT, process.env.STRICT_PORT === '1' ? 0 : 20);

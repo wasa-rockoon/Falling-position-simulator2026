@@ -2,7 +2,7 @@
 'use strict';
 
 var CACHE_PREFIX = 'wasa-predictor-';
-var CACHE_VERSION = '5b0eb935033f';
+var CACHE_VERSION = '75e70fa236f8';
 var APP_CACHE_NAME = CACHE_PREFIX + 'app-' + CACHE_VERSION;
 var TILE_CACHE_NAME = CACHE_PREFIX + 'tiles-v1';
 var TILE_CACHE_LIMIT = 500;
@@ -23,6 +23,7 @@ var APP_SHELL = [
     "./css/images/ui-icons_ffffff_256x240.png",
     "./css/jquery-ui.css",
     "./css/leaflet.css",
+    "./css/local-environment.css",
     "./css/predictor-mobile.css",
     "./css/predictor.css",
     "./css/uncertainty.css",
@@ -78,6 +79,7 @@ var APP_SHELL = [
     "./js/core/context-help.js",
     "./js/core/export-service.js",
     "./js/core/history-controller.js",
+    "./js/core/local-environment.js",
     "./js/core/map-display-controller.js",
     "./js/core/map-layer-registry.js",
     "./js/core/results-workspace.js",
@@ -132,6 +134,7 @@ function isApiRequest(url) {
     return url.hostname === 'api.v2.sondehub.org' ||
         url.hostname === 'api.open-meteo.com' ||
         url.pathname.startsWith('/api/') ||
+        url.pathname.startsWith('/local/') ||
         url.pathname === '/__server-info';
 }
 

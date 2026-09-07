@@ -25,3 +25,18 @@ assignment-info.md
 check.js
 parse.py
 pred_new.patch
+
+# Local Tawhiri: data belongs in Docker named volumes, never Git
+local/.env
+local/.runtime/
+local/data/
+local/datasets/
+local/tmp/
+*.grib
+*.grib2
+*.gribmirror
+ruaumoko-dataset
+
+# Desktop packages and staged runtime
+out/
+desktop/.staging/

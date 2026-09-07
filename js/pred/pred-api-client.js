@@ -303,7 +303,10 @@
                 signal: controller ? controller.signal : externalSignal
             });
             if (!response.ok) {
-                throw new PredictionRequestError('予測APIがHTTP ' + response.status + 'を返しました', {
+                var message = '予測APIがHTTP ' + response.status + 'を返しました';
+                try { var details = await response.json(); if (details.error && details.error.description) message = details.error.description; }
+                catch (_) { /* Non-JSON upstream errors keep the HTTP description. */ }
+                throw new PredictionRequestError(message, {
                     status: response.status,
                     retryAfterMs: parseRetryAfter(response),
                     retryable: response.status === 429 || response.status >= 500
@@ -313,6 +316,10 @@
             if (data && data.error) {
                 var description = data.error.description || data.error.message || '予測APIエラー';
                 throw new PredictionRequestError(description, { status: 200, retryable: false, response: data });
+            }
+            if (response.headers && response.headers.get && response.headers.get('x-local-revision')) {
+                data.metadata = data.metadata || {};
+                data.metadata.local = { revision: response.headers.get('x-local-revision'), engine: response.headers.get('x-local-engine'), dataset: data.request && data.request.dataset };
             }
             return data;
         } catch (error) {
@@ -358,6 +365,10 @@
     PredictionClient.prototype.request = async function (params, options) {
         options = options || {};
         var client = this;
+        if (client.source === 'local' && root.LocalEnvironment) {
+            var local = await root.LocalEnvironment.prepare(params, options.signal);
+            if (local) params = Object.assign({}, params, { dataset: local.dataset, _local_revision: local.revision });
+        }
         var url = buildRequestUrl(client.baseUrl, params, client.baseLocation);
         var key = cacheKey(client.baseUrl, params, client.baseLocation);
         if (options.cache !== false && !options.forceRefresh) {

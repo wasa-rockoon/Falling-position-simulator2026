@@ -30,7 +30,7 @@ module.exports = defineConfig({
     projects: [
         {
             name: 'chromium-desktop',
-            testMatch: /main-flows\.spec\.js/,
+            testMatch: /(?:main-flows|local-environment)\.spec\.js/,
             use: { ...devices['Desktop Chrome'], viewport: { width: 1366, height: 768 } }
         },
         {

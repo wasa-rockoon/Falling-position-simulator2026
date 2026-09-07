@@ -76,6 +76,7 @@ function isApiRequest(url) {
     return url.hostname === 'api.v2.sondehub.org' ||
         url.hostname === 'api.open-meteo.com' ||
         url.pathname.startsWith('/api/') ||
+        url.pathname.startsWith('/local/') ||
         url.pathname === '/__server-info';
 }
 

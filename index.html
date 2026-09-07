@@ -22,6 +22,7 @@
     <link href="css/uncertainty.css" rel="stylesheet">
     <link href="css/gas-calculator.css" rel="stylesheet">
     <link href="css/context-help.css" rel="stylesheet">
+    <link href="css/local-environment.css" rel="stylesheet">
 
     <!-- Core Libraries -->
     <script src="js/jquery-3.3.1.min.js"></script>
@@ -42,6 +43,7 @@
     <script src="js/core/map-display-controller.js"></script>
     <script src="js/core/history-controller.js"></script>
     <script src="js/core/results-workspace.js"></script>
+    <script src="js/core/local-environment.js"></script>
     <script src="js/pred/pred-api-client.js"></script>
     <script src="js/pred/request-context.js"></script>
     <script src="js/pred/prediction-runner.js"></script>
@@ -243,6 +245,32 @@
                                     <input type="text" id="api_custom_url" placeholder="https://example.com/api/v1/">
                                 </div>
                             </div>
+
+                            <details id="local_environment" class="local-environment" hidden>
+                                <summary>ローカル環境 <span id="local_summary"></span></summary>
+                                <dl><dt>Tawhiri</dt><dd id="local_tawhiri"></dd><dt>標高データ</dt><dd id="local_elevation"></dd></dl>
+                                <p id="local_storage"></p>
+                                <button type="button" id="local_download">最新データを取得</button>
+                                <button type="button" id="local_refresh">状態を更新</button>
+                                <p>全球GFSは1 run約9 GiBです。取得時は一時ファイル分も必要です。古いrunは自動削除しません。</p>
+                                <p id="local_busy" role="status"></p>
+                                <p id="local_message" role="status" aria-live="polite"></p>
+                                <button type="button" id="local_check_date">入力日時を確認</button>
+                                <p id="local_date_check" role="status"></p>
+                                <div id="local_job" hidden>
+                                    <p id="local_job_status" role="status"></p><p id="local_job_dataset"></p>
+                                    <button type="button" id="local_cancel">取得をキャンセル</button>
+                                    <button type="button" id="local_recover" hidden>復旧を試す</button>
+                                    <button type="button" id="local_retry">同じrunを再取得</button>
+                                    <p id="local_job_error" class="local-error"></p>
+                                    <details><summary>取得ログ</summary><pre id="local_job_log"></pre></details>
+                                </div>
+                                <h4>保存済みGFS</h4><div id="local_datasets" class="local-file-list"></div>
+                                <details><summary>一時ファイルの整理</summary><div id="local_temporary" class="local-file-list"></div></details>
+                                <div id="local_delete_confirm" class="local-confirm" role="alertdialog" aria-modal="false" aria-labelledby="local_delete_text" hidden>
+                                    <p id="local_delete_text"></p><button type="button" id="local_delete_execute" class="local-danger">削除する</button><button type="button" id="local_delete_cancel">戻る</button>
+                                </div>
+                            </details>
 
                             <!-- プリセット機能 -->
                             <div class="preset-controls">

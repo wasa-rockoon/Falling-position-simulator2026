@@ -225,6 +225,7 @@
             launchPointLabel: record.input && record.input.launch ? record.input.launch.label || '' : '',
             updatedAt: record.updatedAt,
             pinned: pinned === true,
+            localDatasets: clone(record.provenance.localDatasets || []),
             summary: {
                 landingCount: landings.length,
                 seaRate: finite(metrics.seaRate),

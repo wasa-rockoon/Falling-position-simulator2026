@@ -210,6 +210,10 @@
         appendText(header, 'span', 'run-status-badge status-' + item.status, statusLabel(item.status));
         appendText(article, 'div', 'run-history-meta', historyMeta(item));
         appendText(article, 'div', 'run-history-summary', historySummary(item));
+        if (root.LocalEnvironment) {
+            var localNote = root.LocalEnvironment.historyNote(item.localDatasets);
+            if (localNote) appendText(article, 'div', 'run-history-meta', localNote);
+        }
 
         var actions = appendText(article, 'div', 'run-history-actions', '');
         function addHistoryAction(label, operation, successMessage) {
@@ -355,6 +359,7 @@
         var refresh = element('run_history_refresh');
         if (refresh) refresh.addEventListener('click', refreshHistory);
         root.addEventListener('wasa:run-repository-change', scheduleHistoryRefresh);
+        root.addEventListener('wasa:local-weather-change', scheduleHistoryRefresh);
         root.addEventListener('wasa:map-display-cleared', scheduleHistoryRefresh);
         activate(restoredView(), { remember: false });
         refreshHistory();

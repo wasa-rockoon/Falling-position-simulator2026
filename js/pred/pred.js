@@ -88,6 +88,12 @@ function readURLParams() {
     if(url.searchParams.has('float_altitude')){
         $("#burst").val(url.searchParams.get('float_altitude'));
     }
+    // Local launcher uses port 3100; Pages retains the public default.
+    if (!url.searchParams.has('api_source') &&
+        ['localhost', '127.0.0.1', '[::1]'].indexOf(window.location.hostname) !== -1 &&
+        window.location.port === '3100') {
+        $("#api_source").val('local');
+    }
     if(url.searchParams.has('api_source')){
         var source = url.searchParams.get('api_source');
         $("#api_source").val(source);
