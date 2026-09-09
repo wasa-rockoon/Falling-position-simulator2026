@@ -498,20 +498,48 @@
     function evaluateSequentialStop(observations, options, previous) {
         options = options || {};
         var summary = summarizeObservations(observations);
-        var minimum = Math.max(1, Number(options.minSamples || 12));
+        var minimum = Math.max(1, Number(options.minSamples || 32));
         var probabilityTolerance = Math.max(0.001, Number(options.probabilityTolerance || 0.1));
         var centroidToleranceKm = Math.max(0, Number(options.centroidToleranceKm || 1));
+        var ellipseRelativeTolerance = Math.max(0, Number(options.ellipseRelativeTolerance == null ? 0.1 : options.ellipseRelativeTolerance));
         var requiredStableBatches = Math.max(1, Number(options.requiredStableBatches || 2));
         var determinedRatio = summary.valid ? summary.classified / summary.valid : 0;
         var centroidShiftKm = previous && previous.summary ? haversineKm(previous.summary.mean, summary.mean) : Infinity;
-        var stableNow = summary.samples >= minimum && determinedRatio >= 0.8 &&
-            summary.seaInterval.halfWidth <= probabilityTolerance && centroidShiftKm <= centroidToleranceKm;
+        var previousEllipse = previous && previous.summary && previous.summary.ellipse95;
+        var ellipse = summary.ellipse95;
+        function ellipseArea(value) {
+            if (!value) return null;
+            var major = Number(value.majorKm);
+            var minor = Number(value.minorKm);
+            return Number.isFinite(major) && Number.isFinite(minor) ? Math.PI * major * minor / 4 : null;
+        }
+        function relativeChange(current, before) {
+            current = Number(current);
+            before = Number(before);
+            if (!Number.isFinite(current) || !Number.isFinite(before)) return null;
+            var scale = Math.max(Math.abs(current), Math.abs(before));
+            if (scale <= 1e-9) return 0;
+            return Math.abs(current - before) / scale;
+        }
+        var ellipseAreaChange = relativeChange(ellipseArea(ellipse), ellipseArea(previousEllipse));
+        var ellipseMajorChange = relativeChange(ellipse && ellipse.majorKm, previousEllipse && previousEllipse.majorKm);
+        var ellipseMinorChange = relativeChange(ellipse && ellipse.minorKm, previousEllipse && previousEllipse.minorKm);
+        var ellipseStable = ellipseAreaChange !== null && ellipseMajorChange !== null && ellipseMinorChange !== null &&
+            ellipseAreaChange <= ellipseRelativeTolerance && ellipseMajorChange <= ellipseRelativeTolerance &&
+            ellipseMinorChange <= ellipseRelativeTolerance;
+        // Wilson区間はバッチごとに反復確認するため、固定標本での厳密な95%被覆ではなく停止判断の目安として使う。
+        var stableNow = summary.samples >= minimum && determinedRatio > 0.8 &&
+            summary.seaInterval.halfWidth <= probabilityTolerance && centroidShiftKm <= centroidToleranceKm && ellipseStable;
         var stableBatches = stableNow ? ((previous && previous.stableBatches) || 0) + 1 : 0;
         return {
             stop: stableBatches >= requiredStableBatches,
             reason: stableBatches >= requiredStableBatches ? 'converged' : 'continue',
             stableBatches: stableBatches,
             centroidShiftKm: centroidShiftKm,
+            ellipseAreaChange: ellipseAreaChange,
+            ellipseMajorChange: ellipseMajorChange,
+            ellipseMinorChange: ellipseMinorChange,
+            ellipseStable: ellipseStable,
             determinedRatio: determinedRatio,
             summary: summary
         };
@@ -520,8 +548,8 @@
     function planBudget(siteCount, options) {
         options = options || {};
         var sites = Math.max(0, Math.floor(Number(siteCount)));
-        var maxSamples = Math.max(1, Math.floor(Number(options.maxSamples || 48)));
-        var minSamples = Math.max(1, Math.floor(Number(options.minSamples || 12)));
+        var maxSamples = Math.max(1, Math.floor(Number(options.maxSamples || 96)));
+        var minSamples = Math.max(1, Math.floor(Number(options.minSamples || 32)));
         var callLimit = Math.max(0, Math.floor(Number(options.callLimit || sites * maxSamples)));
         var perSiteCap = sites ? Math.min(maxSamples, Math.floor(callLimit / sites)) : 0;
         return {

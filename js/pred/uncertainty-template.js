@@ -64,12 +64,13 @@
                             </fieldset>
                             <fieldset class="uncertainty-grid">
                                 <legend>早期終了の条件・通信上限</legend>
-                                <label>早期終了の最低計算回数／地点<input id="uncertainty_min_samples" type="number" min="4" max="500" step="1" value="12"></label>
+                                <label>早期終了の最低計算回数／地点<input id="uncertainty_min_samples" type="number" min="4" max="500" step="1" value="32"></label>
                                 <label>安定性の判定間隔（回）<input id="uncertainty_batch_size" type="number" min="2" max="100" step="1" value="8"></label>
-                                <label>最大計算回数／地点<input id="uncertainty_max_samples" type="number" min="4" max="1000" step="1" value="48"></label>
+                                <label>最大計算回数／地点<input id="uncertainty_max_samples" type="number" min="4" max="1000" step="1" value="96"></label>
                                 <label>通信試行上限（全地点・再試行含む）<input id="uncertainty_call_limit" type="number" min="1" max="10000" step="1" value="100"></label>
-                                <label>海上率の95% CI許容半幅（ポイント）<input id="uncertainty_probability_tolerance" type="number" min="1" max="50" step="1" value="10"></label>
+                                <label>海上率区間の許容半幅（ポイント）<input id="uncertainty_probability_tolerance" type="number" min="1" max="50" step="1" value="10"></label>
                                 <label>平均着地点の移動許容値（km）<input id="uncertainty_centroid_tolerance" type="number" min="0.05" max="100" step="0.05" value="1"></label>
+                                <label>95%楕円の変化許容値（%）<input id="uncertainty_ellipse_tolerance" type="number" min="0" max="100" step="1" value="10"></label>
                             </fieldset>
                             <div id="uncertainty_estimate" class="uncertainty-estimate" aria-live="polite"></div>
                             <p id="uncertainty_error" class="uncertainty-error" hidden></p>
@@ -87,11 +88,11 @@
                             <div class="uncertainty-progress"><div id="uncertainty_progress_bar"></div></div>
                             <div class="uncertainty-table-scroll">
                                 <table>
-                                    <thead><tr><th>地点</th><th>サンプル</th><th>海上率 (95% CI)</th><th>平均着地点</th><th>95%楕円（長×短）</th><th>状態</th></tr></thead>
+                                    <thead><tr><th>地点</th><th>サンプル</th><th id="uncertainty_interval_heading">海上率（参考95%区間）</th><th>平均着地点</th><th>95%楕円（長×短）</th><th>状態</th></tr></thead>
                                     <tbody id="uncertainty_result_body"></tbody>
                                 </table>
                             </div>
-                            <p class="uncertainty-note">早期終了は「海上率の95%信頼区間」と「平均着地点」が2バッチ連続で収束した場合のみ行います。未判定の陸海データが20%を超える場合は収束扱いにしません。密度等高線は8点以上の着地点から計算するKDE近似です。</p>
+                            <p class="uncertainty-note">最低32件の後、海上率区間、平均着地点、95%楕円の面積・長軸・短軸が2バッチ連続で安定した場合のみ早期終了します。未判定が20%以上の場合は収束扱いにしません。逐次停止のため、表示区間は厳密な固定標本95%保証ではなく収束判定の目安です。</p>
                             <div class="uncertainty-map-tools">
                                 <label>着地点の色分け
                                     <select id="uncertainty_color_mode">

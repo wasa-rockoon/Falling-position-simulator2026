@@ -110,7 +110,7 @@
         selectedSamplePath = null;
         if (!Array.isArray(observation.flightPath) || !observation.flightPath.length) return;
         selectedSamplePath = root.L.polyline(observation.flightPath, {
-            color: sampleColor(observation, '#2454a6'), weight: 3, opacity: 0.9, interactive: false
+            color: '#000000', weight: 3, opacity: 0.9, interactive: false
         }).addTo(uncertaintyMapLayer);
         selectedSamplePath.bindTooltip((observation.isCentral ? '基準値' : 'サンプル ' + (observation.index + 1)) + ' の飛行経路');
     }
@@ -240,6 +240,7 @@
             callLimit: Math.floor(numberValue('uncertainty_call_limit')),
             probabilityTolerance: numberValue('uncertainty_probability_tolerance') / 100,
             centroidToleranceKm: numberValue('uncertainty_centroid_tolerance'),
+            ellipseRelativeTolerance: numberValue('uncertainty_ellipse_tolerance') / 100,
             requiredStableBatches: 2,
             selectedSiteIds: selectedSites().map(function (site) { return site.id; })
         };
@@ -254,6 +255,7 @@
         if (!Number.isFinite(config.batchSize) || config.batchSize < 2) throw new Error('バッチサイズは2以上にしてください');
         if (!Number.isFinite(config.maxSamples) || config.maxSamples < config.minSamples) throw new Error('最大サンプルは最小サンプル以上にしてください');
         if (!Number.isFinite(config.callLimit) || config.callLimit < 1) throw new Error('API呼出上限が不正です');
+        if (!Number.isFinite(config.ellipseRelativeTolerance) || config.ellipseRelativeTolerance < 0 || config.ellipseRelativeTolerance > 1) throw new Error('95%楕円の変化許容値は0〜100%で指定してください');
         var sampleCallLimit = config.callLimit - sites.length;
         if (sampleCallLimit < 1) {
             throw new Error('通信試行上限は、基準値の予測ぶんを含めて最低 ' + (sites.length + 1) + ' 回以上にしてください');
@@ -298,6 +300,7 @@
         if (!budget.canReachMinimum) message += '<br><strong>基準値の予測を含めたAPI上限を増やすか、地点数を減らしてください。</strong>';
         var advice = root.PredictionWorkload ? root.PredictionWorkload.apiAdvice(source, config.callLimit) : { aboveRecommended: false };
         if (advice.aboveRecommended) message += '<br><strong>公開APIの推奨目安300試行を超えています。大量解析にはLocalhostを推奨します。</strong>';
+        message += '<br>' + (source === 'local' ? 'Local Tawhiriの最大回数目安: 128〜256件／地点。' : '公開APIの最大回数目安: 64〜96件／地点。');
         message += '<br>事前キャッシュ命中は未判定（0件として計算）。命中時はHTTP試行と所要時間が短縮されます。';
         element('uncertainty_estimate').innerHTML = message;
     }
@@ -565,6 +568,7 @@
             minSamples: state.configuration.minSamples,
             probabilityTolerance: state.configuration.probabilityTolerance,
             centroidToleranceKm: state.configuration.centroidToleranceKm,
+            ellipseRelativeTolerance: state.configuration.ellipseRelativeTolerance,
             requiredStableBatches: state.configuration.requiredStableBatches
         }, run.sequential);
         if (run.sequential.stop) {
@@ -638,7 +642,8 @@
         content.appendChild(heading);
         appendPopupLine(content, '有効サンプル', String(summary.valid));
         if (summary.seaProbability != null) {
-            appendPopupLine(content, '海上率', formatNumber(summary.seaProbability * 100, 1) + '%（95% CI ' +
+            var intervalName = state.configuration && state.configuration.method === 'monte-carlo' ? '95% CI' : '参考95%区間';
+            appendPopupLine(content, '海上率', formatNumber(summary.seaProbability * 100, 1) + '%（' + intervalName + ' ' +
                 formatNumber(summary.seaInterval.low * 100, 1) + '–' + formatNumber(summary.seaInterval.high * 100, 1) + '%）');
         }
         appendPopupLine(content, '分類内訳', '海 ' + summary.sea + ' / 陸 ' + summary.land + ' / 内水面 ' + summary.inlandWater + ' / 不明 ' + summary.unknown);
@@ -913,6 +918,9 @@
     function renderResults() {
         var body = element('uncertainty_result_body');
         body.replaceChildren();
+        var intervalHeading = element('uncertainty_interval_heading');
+        var intervalName = state.configuration && state.configuration.method === 'monte-carlo' ? '95% CI' : '参考95%区間';
+        if (intervalHeading) intervalHeading.textContent = '海上率（' + intervalName + '）';
         state.siteRuns.forEach(function (run) {
             var summary = resultSummary(run);
             var row = document.createElement('tr');
@@ -1248,6 +1256,7 @@
         };
         Object.keys(mapping).forEach(function (key) { if (config[key] != null) element(mapping[key]).value = config[key]; });
         if (config.probabilityTolerance != null) element('uncertainty_probability_tolerance').value = config.probabilityTolerance * 100;
+        if (config.ellipseRelativeTolerance != null) element('uncertainty_ellipse_tolerance').value = config.ellipseRelativeTolerance * 100;
         renderSiteChoices(config.selectedSiteIds || ['current']);
     }
 

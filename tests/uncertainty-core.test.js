@@ -58,21 +58,74 @@ test('Wilson interval narrows as observations increase', () => {
     assert.ok(large.low < 0.5 && large.high > 0.5);
 });
 
-test('sequential stop requires repeated stable batches', () => {
-    const observations = Array.from({ length: 40 }, (_, index) => ({
-        lat: 33 + (index % 3) * 0.00001,
-        lng: 132 + (index % 3) * 0.00001,
-        isWater: true
+function stablePattern(count, classify = () => true) {
+    const offsets = [[1, 0], [-1, 0], [0, 1], [0, -1], [0.7, 0.7], [-0.7, -0.7], [0.7, -0.7], [-0.7, 0.7]];
+    return Array.from({ length: count }, (_, index) => ({
+        lat: 33 + offsets[index % offsets.length][0] * 0.001,
+        lng: 132 + offsets[index % offsets.length][1] * 0.001,
+        landSea: { classification: classify(index) }
     }));
-    const options = { minSamples: 12, probabilityTolerance: 0.1, centroidToleranceKm: 0.2, requiredStableBatches: 2 };
-    const first = core.evaluateSequentialStop(observations.slice(0, 24), options, {
-        stableBatches: 0,
-        summary: core.summarizeObservations(observations.slice(0, 16))
-    });
+}
+
+const stopOptions = {
+    minSamples: 32, probabilityTolerance: 0.1, centroidToleranceKm: 1,
+    ellipseRelativeTolerance: 0.1, requiredStableBatches: 2
+};
+
+test('sequential stop requires two stable batches after the minimum', () => {
+    const observations = stablePattern(48, () => 'sea');
+    const before = { stableBatches: 0, summary: core.summarizeObservations(observations.slice(0, 32)) };
+    const first = core.evaluateSequentialStop(observations.slice(0, 40), stopOptions, before);
     assert.equal(first.stop, false);
-    const second = core.evaluateSequentialStop(observations.slice(0, 40), options, first);
+    assert.equal(first.stableBatches, 1);
+    const second = core.evaluateSequentialStop(observations, stopOptions, first);
     assert.equal(second.stop, true);
     assert.equal(second.reason, 'converged');
+});
+
+test('stable centroid does not converge while the 95% ellipse expands', () => {
+    const initial = stablePattern(32, () => 'sea');
+    const wider = stablePattern(8, () => 'sea').map((item) => ({
+        ...item, lat: 33 + (item.lat - 33) * 12, lng: 132 + (item.lng - 132) * 12
+    }));
+    const result = core.evaluateSequentialStop(initial.concat(wider), stopOptions, {
+        stableBatches: 1, summary: core.summarizeObservations(initial)
+    });
+    assert.ok(result.centroidShiftKm < stopOptions.centroidToleranceKm);
+    assert.ok(result.ellipseAreaChange > stopOptions.ellipseRelativeTolerance);
+    assert.equal(result.ellipseStable, false);
+    assert.equal(result.stop, false);
+});
+
+test('minimum sample count, classified ratio and interval width are mandatory', () => {
+    const belowMinimum = stablePattern(31, () => 'sea');
+    assert.equal(core.evaluateSequentialStop(belowMinimum, stopOptions, { summary: core.summarizeObservations(belowMinimum), stableBatches: 1 }).stop, false);
+
+    const twentyPercentUnknown = stablePattern(40, (index) => index % 5 === 0 ? 'unknown' : 'sea');
+    const unknownResult = core.evaluateSequentialStop(twentyPercentUnknown, stopOptions, {
+        summary: core.summarizeObservations(twentyPercentUnknown.slice(0, 32)), stableBatches: 1
+    });
+    assert.equal(unknownResult.determinedRatio, 0.8);
+    assert.equal(unknownResult.stop, false);
+
+    const mixed = stablePattern(40, (index) => index % 2 ? 'sea' : 'land');
+    const strictInterval = { ...stopOptions, probabilityTolerance: 0.01 };
+    const intervalResult = core.evaluateSequentialStop(mixed, strictInterval, {
+        summary: core.summarizeObservations(mixed.slice(0, 32)), stableBatches: 1
+    });
+    assert.ok(intervalResult.summary.seaInterval.halfWidth > strictInterval.probabilityTolerance);
+    assert.equal(intervalResult.stop, false);
+});
+
+test('zero-area ellipses produce finite relative changes', () => {
+    const identical = Array.from({ length: 40 }, () => ({ lat: 33, lng: 132, landSea: { classification: 'sea' } }));
+    const result = core.evaluateSequentialStop(identical, stopOptions, {
+        stableBatches: 0, summary: core.summarizeObservations(identical.slice(0, 32))
+    });
+    assert.equal(result.ellipseAreaChange, 0);
+    assert.equal(result.ellipseMajorChange, 0);
+    assert.equal(result.ellipseMinorChange, 0);
+    assert.ok([result.ellipseAreaChange, result.ellipseMajorChange, result.ellipseMinorChange].every(Number.isFinite));
 });
 
 test('budget planner fairly caps calls per site', () => {

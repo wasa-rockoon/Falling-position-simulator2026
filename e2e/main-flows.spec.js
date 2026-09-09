@@ -233,7 +233,7 @@ test('不確実性解析を完了し密度等高線を地図表示する', async
         let found = false;
         window.map.eachLayer(layer => {
             const tip = layer.getTooltip && layer.getTooltip();
-            if (tip && String(tip.getContent()).includes('の飛行経路')) found = true;
+            if (tip && String(tip.getContent()).includes('の飛行経路')) found = layer.options.color === '#000000';
         });
         return found;
     })).toBe(true);
