@@ -6,6 +6,7 @@
     'use strict';
 
     var layerRegistry = null;
+    var uncertaintyVisibleRunId = null;
 
     function getRecord(runId) {
         if (!root.RunRepository || typeof root.RunRepository.get !== 'function') return Promise.reject(new Error('履歴ストレージを利用できません'));
@@ -22,6 +23,11 @@
     }
 
     function showRecord(record) {
+        if (record && record.type === 'uncertainty' && root.UncertaintyAnalysis && typeof root.UncertaintyAnalysis.showHistoryRecord === 'function') {
+            var shown = root.UncertaintyAnalysis.showHistoryRecord(record);
+            uncertaintyVisibleRunId = record.id;
+            return shown;
+        }
         if (!root.L) throw new Error('地図描画ライブラリを利用できません');
         var trajectories = record && record.output && record.output.trajectories || [];
         var landings = record && record.output && record.output.landings || [];
@@ -49,16 +55,28 @@
     function show(runId) { return getRecord(runId).then(showRecord); }
 
     function hide(runId) {
+        if (uncertaintyVisibleRunId === runId && root.UncertaintyAnalysis && typeof root.UncertaintyAnalysis.hideMap === 'function') {
+            root.UncertaintyAnalysis.hideMap({ source: 'history-replay' });
+            uncertaintyVisibleRunId = null;
+            return true;
+        }
         if (!layerRegistry) return false;
         return layerRegistry.setVisible('history:' + runId, false);
     }
 
     function isVisible(runId) {
+        if (uncertaintyVisibleRunId === runId && root.UncertaintyAnalysis && typeof root.UncertaintyAnalysis.isMapVisible === 'function') {
+            return root.UncertaintyAnalysis.isMapVisible();
+        }
         return Boolean(layerRegistry && layerRegistry.isVisible('history:' + runId));
     }
 
     function clearDisplay() {
         if (layerRegistry) layerRegistry.clear();
+        if (uncertaintyVisibleRunId && root.UncertaintyAnalysis && typeof root.UncertaintyAnalysis.hideMap === 'function') {
+            root.UncertaintyAnalysis.hideMap({ source: 'history-replay' });
+            uncertaintyVisibleRunId = null;
+        }
     }
 
     function exportRecord(runId, format) {

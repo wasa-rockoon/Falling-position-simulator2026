@@ -250,6 +250,26 @@
     min-width: 190px;
     line-height: 1.55;
 }
+.uncertainty-color-map-legend {
+    max-width: min(360px, 65vw);
+    padding: 9px 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    background: var(--bg-panel, white);
+    color: var(--text-primary, #222);
+    font-size: 12px;
+    line-height: 1.5;
+}
+.uncertainty-color-map-legend[hidden] { display: none; }
+#uncertainty_color_legend { flex-basis: 100%; margin: 4px 0; }
+#uncertainty_color_mode {
+    max-width: 100%;
+    padding: 6px;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    background: var(--bg-input);
+    color: var(--text-primary);
+}
 
 .uncertainty-map-popup strong {
     color: var(--primary-color, #087cf0);

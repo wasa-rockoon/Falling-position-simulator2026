@@ -25,6 +25,95 @@
     var uncertaintyCanvasRenderer = null;
     var renderedMapSamples = new Set();
     var uncertaintySummaryLayers = [];
+    var selectedSamplePath = null;
+    var colorLegendControl = null;
+    var colorLegendNode = null;
+    var PARAMETER_FIELDS = {
+        ascentRate: ['ascent_rate', 'ascentCvPct', '上昇速度', 'm/s'],
+        descentRate: ['descent_rate', 'descentCvPct', '下降速度', 'm/s'],
+        burstAltitude: ['burst_altitude', 'burstCvPct', '破裂高度', 'm']
+    };
+
+    function parameterInfo(key, observation) {
+        var fields = PARAMETER_FIELDS[key];
+        var base = Number(state.baseSettings && state.baseSettings[fields[0]]);
+        var cv = Number(state.configuration && state.configuration[fields[1]]);
+        var sigma = base * cv / 100;
+        var value = Number(observation && observation[key]);
+        return { base: base, sigma: sigma, z: sigma > 0 ? (value - base) / sigma : 0 };
+    }
+
+    function colorMode() {
+        return element('uncertainty_color_mode').value;
+    }
+
+    function sampleColor(observation, fallback) {
+        if (observation.isCentral) return '#ff0000';
+        var mode = colorMode();
+        if (mode === 'landsea') return fallback;
+        function unit(key) {
+            var z = parameterInfo(key, observation).z;
+            return Math.max(0, Math.min(1, (Number.isFinite(z) ? z : 0) / 4 + 0.5));
+        }
+        if (mode === 'rgb') {
+            return 'rgb(' + ['ascentRate', 'burstAltitude', 'descentRate'].map(function (key) {
+                var z = parameterInfo(key, observation).z;
+                return 255 - Math.round(255 * Math.min(3, Math.abs(Number.isFinite(z) ? z : 0)) / 3);
+            }).join(',') + ')';
+        }
+        var t = unit(mode);
+        var low = [33, 102, 172], mid = [247, 247, 247], high = [178, 24, 43];
+        var a = t < 0.5 ? low : mid, b = t < 0.5 ? mid : high;
+        var fraction = t < 0.5 ? t * 2 : (t - 0.5) * 2;
+        return 'rgb(' + a.map(function (v, i) { return Math.round(v + (b[i] - v) * fraction); }).join(',') + ')';
+    }
+
+    function updateColorLegend() {
+        var mode = colorMode(), label;
+        if (mode === 'landsea') label = '青：海上 / 橙：陸上 / 紫：内水面 / 灰：未判定';
+        else if (mode === 'rgb') {
+            var centralCount = state.siteRuns.filter(function (run) { return validMapObservation(run.centralObservation); }).length;
+            label = (centralCount ? '赤い大きな点＝基準値の予測（' + centralCount + '地点）。' : '基準点データなし（未保存または予測失敗）。新規解析で取得します。') +
+                'RGB：R＝上昇 / G＝破裂 / B＝下降。偏差0で白、各成分は|z|=0で255、3以上で0（増減の符号は区別しません）。';
+        }
+        else {
+            var info = parameterInfo(mode), fields = PARAMETER_FIELDS[mode];
+            label = fields[2] + '：青 ' + formatNumber(info.base - 2 * info.sigma, 2) +
+                ' / 白 ' + formatNumber(info.base, 2) + ' / 赤 ' +
+                formatNumber(info.base + 2 * info.sigma, 2) + ' ' + fields[3] +
+                '（−2σ / 基準値 / ＋2σ、範囲外は端の色）';
+        }
+        element('uncertainty_color_legend').textContent = label;
+        if (!colorLegendControl && root.map && root.L) {
+            colorLegendControl = root.L.control({ position: 'bottomleft' });
+            colorLegendControl.onAdd = function () {
+                colorLegendNode = root.L.DomUtil.create('div', 'uncertainty-color-map-legend');
+                root.L.DomEvent.disableClickPropagation(colorLegendNode);
+                return colorLegendNode;
+            };
+            colorLegendControl.addTo(root.map);
+        }
+        if (colorLegendNode) {
+            colorLegendNode.textContent = label;
+            colorLegendNode.hidden = false;
+        }
+    }
+
+    function degreesMinutesSeconds(value, positive, negative) {
+        var seconds = Math.round(Math.abs(Number(value)) * 3600);
+        return Math.floor(seconds / 3600) + '°' + Math.floor(seconds % 3600 / 60) +
+            '′' + (seconds % 60) + '″' + (value < 0 ? negative : positive);
+    }
+
+    function showSamplePath(observation) {
+        if (selectedSamplePath && uncertaintyMapLayer) uncertaintyMapLayer.removeLayer(selectedSamplePath);
+        selectedSamplePath = null;
+        if (!Array.isArray(observation.flightPath) || !observation.flightPath.length) return;
+        selectedSamplePath = root.L.polyline(observation.flightPath, {
+            color: sampleColor(observation, '#2454a6'), weight: 3, opacity: 0.9, interactive: false
+        }).addTo(uncertaintyMapLayer);
+        selectedSamplePath.bindTooltip((observation.isCentral ? '基準値' : 'サンプル ' + (observation.index + 1)) + ' の飛行経路');
+    }
     var SITE_COLORS = ['#6d5bd0', '#007aff', '#00a67e', '#d94880', '#9a6700', '#7950f2', '#0b7285', '#c2410c'];
 
     function emptyState() {
@@ -165,9 +254,13 @@
         if (!Number.isFinite(config.batchSize) || config.batchSize < 2) throw new Error('バッチサイズは2以上にしてください');
         if (!Number.isFinite(config.maxSamples) || config.maxSamples < config.minSamples) throw new Error('最大サンプルは最小サンプル以上にしてください');
         if (!Number.isFinite(config.callLimit) || config.callLimit < 1) throw new Error('API呼出上限が不正です');
-        var budget = core.planBudget(sites.length, config);
+        var sampleCallLimit = config.callLimit - sites.length;
+        if (sampleCallLimit < 1) {
+            throw new Error('通信試行上限は、基準値の予測ぶんを含めて最低 ' + (sites.length + 1) + ' 回以上にしてください');
+        }
+        var budget = core.planBudget(sites.length, Object.assign({}, config, { callLimit: sampleCallLimit }));
         if (!budget.canReachMinimum) {
-            throw new Error('API上限が小さすぎます。最低でも ' + (sites.length * config.minSamples) + ' 回が必要です');
+            throw new Error('通信試行上限が小さすぎます。基準値を含めて最低でも ' + (sites.length * (config.minSamples + 1)) + ' 回が必要です');
         }
         return budget;
     }
@@ -188,19 +281,21 @@
         if (!element('uncertainty_estimate')) return;
         var config = readConfiguration();
         var count = selectedSites().length;
-        var budget = core.planBudget(count, config);
+        var sampleCallLimit = Math.max(0, config.callLimit - count);
+        var budget = core.planBudget(count, Object.assign({}, config, { callLimit: sampleCallLimit }));
         var launchDate = element('uncertainty_launch_date').value || '-';
         var launchTime = element('uncertainty_launch_time').value || '-';
         var source = $('#api_source').val() || 'sondehub';
         var policy = root.PredictionApi && root.PredictionApi.policies ? root.PredictionApi.policies[source] : null;
         var maxRetries = policy ? policy.maxRetries : 2;
         var attempts = root.PredictionWorkload
-            ? root.PredictionWorkload.estimateAttempts(budget.maximumCalls, maxRetries, 0)
-            : { worstCaseHttpAttempts: budget.maximumCalls * (maxRetries + 1) };
+            ? root.PredictionWorkload.estimateAttempts(budget.maximumCalls + count, maxRetries, 0)
+            : { worstCaseHttpAttempts: (budget.maximumCalls + count) * (maxRetries + 1) };
         var message = '解析日時（JST）: ' + launchDate + ' ' + launchTime + '<br>選択 ' + count + '地点 / 論理サンプル 最小 ' + budget.minimumCalls + '回 / 最大 ' + budget.maximumCalls + '回';
         if (budget.reducedByLimit) message += '（HTTP上限により1地点 ' + budget.perSiteCap + '回へ縮小）';
+        message += '<br>別途、基準値の予測 ' + count + '件を通信上限内で実行します（統計対象外）。上限が小さい場合はサンプル数が減ります。';
         message += '<br>HTTP試行上限 ' + config.callLimit + '回 / 再試行込み最悪 ' + attempts.worstCaseHttpAttempts + '回 / 上限までの概算: 約' + humanDuration(estimateSeconds(config.callLimit));
-        if (!budget.canReachMinimum) message += '<br><strong>API上限を増やすか、地点数を減らしてください。</strong>';
+        if (!budget.canReachMinimum) message += '<br><strong>基準値の予測を含めたAPI上限を増やすか、地点数を減らしてください。</strong>';
         var advice = root.PredictionWorkload ? root.PredictionWorkload.apiAdvice(source, config.callLimit) : { aboveRecommended: false };
         if (advice.aboveRecommended) message += '<br><strong>公開APIの推奨目安300試行を超えています。大量解析にはLocalhostを推奨します。</strong>';
         message += '<br>事前キャッシュ命中は未判定（0件として計算）。命中時はHTTP試行と所要時間が短縮されます。';
@@ -282,7 +377,7 @@
                     seriesId: state.runId + ':' + siteRun.site.id + ':' + observation.index,
                     latitude: observation.lat,
                     longitude: observation.lng,
-                    timeUtc: state.baseSettings && state.baseSettings.launch_datetime,
+                    timeUtc: observation.landingTimeUtc || null,
                     nearestSupportPoint: null,
                     landSea: observation.landSea || {
                         classification: observation.isWater === true ? 'sea' : (observation.isWater === false ? 'land' : 'unknown'),
@@ -510,7 +605,7 @@
         var content = document.createElement('div');
         content.className = 'uncertainty-map-popup';
         var heading = document.createElement('strong');
-        heading.textContent = run.site.name + ' / サンプル ' + (observation.index + 1);
+        heading.textContent = run.site.name + (observation.isCentral ? ' / 基準値の予測（統計対象外）' : ' / サンプル ' + (observation.index + 1));
         content.appendChild(heading);
         var classification = observation.landSea && observation.landSea.classification;
         var classificationLabel = classification === 'sea' ? '海上' : (classification === 'land' ? '陸上' : (classification === 'inland_water' ? '内水面' : '未判定'));
@@ -519,6 +614,19 @@
         appendPopupLine(content, '下降', formatNumber(observation.descentRate, 2) + ' m/s');
         appendPopupLine(content, '破裂高度', formatNumber(observation.burstAltitude, 0) + ' m');
         appendPopupLine(content, '着地点', formatNumber(observation.lat, 4) + ', ' + formatNumber(observation.lng, 4));
+        appendPopupLine(content, '着地点（60進法）', degreesMinutesSeconds(observation.lat, 'N', 'S') + ', ' + degreesMinutesSeconds(observation.lng, 'E', 'W'));
+        Object.keys(PARAMETER_FIELDS).forEach(function (key) {
+            var info = parameterInfo(key, observation);
+            appendPopupLine(content, PARAMETER_FIELDS[key][2] + 'の偏差',
+                info.sigma > 0 ? '基準値から ' + (info.z > 0 ? '+' : '') + formatNumber(info.z, 2) + 'σ（' +
+                    formatNumber(Number(observation[key]) - info.base, 2) + ' ' + PARAMETER_FIELDS[key][3] + '）' : '固定（σ=0）');
+        });
+        appendPopupLine(content, '着地予定時刻（JST）', observation.landingTimeUtc ?
+            root.moment.utc(observation.landingTimeUtc).utcOffset(540).format('YYYY-MM-DD HH:mm:ss') : '未保存');
+        var seconds = observation.flightTimeSec;
+        appendPopupLine(content, '飛行時間', Number.isFinite(seconds) ?
+            Math.floor(seconds / 3600) + '時間 ' + Math.floor(seconds % 3600 / 60) + '分 ' + Math.round(seconds % 60) + '秒' : '未保存');
+        if (!observation.flightPath) appendPopupLine(content, '経路', '旧履歴には未保存です。再解析すると表示できます。');
         return content;
     }
 
@@ -556,7 +664,7 @@
         if (!root.map || !root.L || typeof root.L.featureGroup !== 'function') return null;
         if (!uncertaintyMapLayer) {
             uncertaintyMapLayer = root.L.featureGroup().addTo(root.map);
-            uncertaintyEllipseLayer = root.L.featureGroup().addTo(root.map);
+            uncertaintyEllipseLayer = root.L.featureGroup();
             uncertaintyDensityLayer = root.L.featureGroup();
             if (typeof root.L.canvas === 'function') uncertaintyCanvasRenderer = root.L.canvas({ padding: 0.5 });
         }
@@ -599,6 +707,7 @@
     }
 
     function hideUncertaintyMapDisplay(options) {
+        if (colorLegendNode) colorLegendNode.hidden = true;
         [uncertaintyMapLayer, uncertaintyEllipseLayer, uncertaintyDensityLayer].forEach(function (layer) {
             setLayerVisibility(layer, false);
         });
@@ -612,6 +721,8 @@
     }
 
     function clearUncertaintyMap() {
+        selectedSamplePath = null;
+        if (colorLegendNode) colorLegendNode.hidden = true;
         [uncertaintyMapLayer, uncertaintyEllipseLayer, uncertaintyDensityLayer].forEach(function (layer) {
             if (layer) layer.clearLayers();
         });
@@ -632,6 +743,7 @@
         if (!mappedCount) return 0;
         var layerGroup = ensureUncertaintyMapLayer();
         if (!layerGroup) return 0;
+        updateColorLegend();
 
         uncertaintySummaryLayers.forEach(function (layer) {
             if (layerGroup.hasLayer(layer)) layerGroup.removeLayer(layer);
@@ -640,7 +752,20 @@
         uncertaintyEllipseLayer.clearLayers();
         uncertaintyDensityLayer.clearLayers();
 
+        var centralMarkers = [];
+        var sampleMarkers = [];
         state.siteRuns.forEach(function (run, runIndex) {
+            if (validMapObservation(run.centralObservation)) {
+                var central = run.centralObservation;
+                var centralMarker = root.L.circleMarker([central.lat, central.lng], {
+                    radius: 9, color: '#a00000', weight: 2, fillColor: '#ff0000', fillOpacity: 1,
+                    renderer: uncertaintyCanvasRenderer || undefined
+                }).bindPopup(samplePopup(run, central)).bindTooltip(run.site.name + ' 基準値の予測');
+                centralMarker.on('click', function () { showSamplePath(central); });
+                centralMarker.addTo(layerGroup);
+                uncertaintySummaryLayers.push(centralMarker);
+                centralMarkers.push(centralMarker);
+            }
             run.observations.forEach(function (observation) {
                 if (!validMapObservation(observation)) return;
                 var key = (state.id || 'restored') + '|' + run.site.id + '|' + observation.index;
@@ -648,17 +773,19 @@
                 var classification = observation.landSea && observation.landSea.classification;
                 var outcomeColor = classification === 'sea' ? '#1687d9' : (classification === 'land' ? '#f28c28' : (classification === 'inland_water' ? '#7b61a8' : '#7d8796'));
                 var markerOptions = {
-                    radius: 3.5,
-                    color: '#ffffff',
-                    weight: 1,
-                    opacity: 0.85,
-                    fillColor: outcomeColor,
-                    fillOpacity: 0.72
+                    radius: 6,
+                    color: '#475569',
+                    weight: 1.2,
+                    opacity: 1,
+                    fillColor: sampleColor(observation, outcomeColor),
+                    fillOpacity: 0.95
                 };
                 if (uncertaintyCanvasRenderer) markerOptions.renderer = uncertaintyCanvasRenderer;
                 var marker = root.L.circleMarker([Number(observation.lat), Number(observation.lng)], markerOptions);
                 marker.bindPopup(samplePopup(run, observation));
+                marker.on('click', function () { showSamplePath(observation); });
                 marker.addTo(layerGroup);
+                sampleMarkers.push(marker);
                 renderedMapSamples.add(key);
             });
 
@@ -671,7 +798,8 @@
                 weight: 2,
                 fillColor: siteColor,
                 fillOpacity: 0.35,
-                dashArray: '3 2'
+                dashArray: '3 2',
+                renderer: uncertaintyCanvasRenderer || undefined
             }).bindTooltip(run.site.name + ' 放球地点');
             launchMarker.addTo(layerGroup);
             uncertaintySummaryLayers.push(launchMarker);
@@ -684,6 +812,7 @@
                     weight: 2.4,
                     opacity: 0.95,
                     dashArray: '8 5',
+                    interactive: false,
                     fillColor: siteColor,
                     fillOpacity: 0.08
                 });
@@ -704,7 +833,8 @@
                         opacity: 0.92,
                         dashArray: style.dashArray,
                         lineCap: 'round',
-                        lineJoin: 'round'
+                        lineJoin: 'round',
+                        interactive: false
                     });
                     contour.bindTooltip(run.site.name + ' 密度 ' + Math.round(level.mass * 100) + '%');
                     contour.addTo(uncertaintyDensityLayer);
@@ -716,13 +846,16 @@
                 color: siteColor,
                 weight: 3,
                 fillColor: '#ffffff',
-                fillOpacity: 0.95
+                fillOpacity: 0.95,
+                renderer: uncertaintyCanvasRenderer || undefined
             });
             meanMarker.bindPopup(summaryPopup(run, summary));
             meanMarker.bindTooltip(run.site.name + ' 平均着地点');
             meanMarker.addTo(layerGroup);
             uncertaintySummaryLayers.push(meanMarker);
         });
+        sampleMarkers.forEach(function (marker) { marker.bringToFront(); });
+        centralMarkers.forEach(function (marker) { marker.bringToFront(); });
         applyUncertaintyMapVisibility();
         return mappedCount;
     }
@@ -775,6 +908,7 @@
             root.map.fitBounds(bounds.pad(0.08), { padding: [28, 28], maxZoom: 11 });
         }, 60);
         if (root.showToast) root.showToast('選択した不確実性レイヤーを地図に表示しました', 'info', 3000);
+        return mappedCount;
     }
     function renderResults() {
         var body = element('uncertainty_result_body');
@@ -919,6 +1053,38 @@
                 return;
             }
             run.status = 'running';
+            if (!run.centralAttempted) {
+                try {
+                    var centralExecution = await root.PredictionRunner.run(requestParameters(run, state.baseSettings), requestContext, {
+                        label: 'uncertainty:central:' + run.site.id,
+                        signal: activeAbortController ? activeAbortController.signal : null
+                    });
+                    run.centralObservation = {
+                        isCentral: true, index: -1,
+                        ascentRate: state.baseSettings.ascent_rate,
+                        descentRate: state.baseSettings.descent_rate,
+                        burstAltitude: state.baseSettings.burst_altitude,
+                        lat: centralExecution.landing.latitude, lng: centralExecution.landing.longitude,
+                        landingTimeUtc: centralExecution.landing.timeUtc,
+                        flightTimeSec: centralExecution.prediction.flightTimeSec,
+                        flightPath: centralExecution.prediction.flightPath.map(function (point) { return [point.latitude, point.longitude]; }),
+                        landSea: classifyLanding({ lat: centralExecution.landing.latitude, lng: centralExecution.landing.longitude })
+                    };
+                } catch (centralError) {
+                    if (cancelRequested || (activeAbortController && activeAbortController.signal.aborted)) return;
+                    if (centralError.callLimit) {
+                        syncRequestDiagnostics(diagnostics);
+                        await finishPartial('budget', '基準値の予測中に通信上限へ到達しました。');
+                        return;
+                    }
+                    if (root.reportNonFatalError) root.reportNonFatalError(centralError, 'uncertainty.central');
+                }
+                run.centralAttempted = true;
+                syncRequestDiagnostics(diagnostics);
+                await persist();
+                renderResults();
+                continue;
+            }
             if (!samplesBySite[run.site.id]) samplesBySite[run.site.id] = sampleSettings(run);
             var sample = samplesBySite[run.site.id][run.cursor];
             var params = requestParameters(run, sample);
@@ -936,6 +1102,11 @@
                     ascentRate: sample.ascent_rate,
                     descentRate: sample.descent_rate,
                     burstAltitude: sample.burst_altitude,
+                    landingTimeUtc: landing.datetime,
+                    flightTimeSec: execution.prediction.flightTimeSec,
+                    flightPath: execution.prediction.flightPath.map(function (point) {
+                        return [point.latitude, point.longitude];
+                    }),
                     lat: landing.lat,
                     lng: landing.lng,
                     isWater: legacyIsWater(landSea),
@@ -1119,6 +1290,44 @@
         await persist();
     }
 
+    function hydrateSnapshot(snapshot) {
+        if (!snapshot || snapshot.version !== JOB_VERSION) throw new Error('この履歴には不確実性解析の詳細データがありません');
+        clearUncertaintyMap();
+        state = Object.assign(emptyState(), JSON.parse(JSON.stringify(snapshot)));
+        state.attemptedCalls = Math.max(0, Number(state.attemptedCalls) || 0);
+        state.networkCalls = Math.max(0, Number(state.networkCalls) || 0);
+        state.cacheHits = Math.max(0, Number(state.cacheHits) || 0);
+        state.retryCount = Math.max(0, Number(state.retryCount) || 0);
+        state.failures = Math.max(0, Number(state.failures) || 0);
+        state.siteRuns = (state.siteRuns || []).map(function (run) {
+            run.cursor = Math.max(0, Number(run.cursor) || 0);
+            run.cap = Math.max(run.cursor, Number(run.cap) || 0);
+            run.observations = Array.isArray(run.observations) ? run.observations : [];
+            run.consecutiveErrors = Math.max(0, Number(run.consecutiveErrors) || 0);
+            if (run.status === 'running') run.status = 'paused';
+            return run;
+        });
+        state.pauseRequested = false;
+        if (state.status === 'running' || state.status === 'pausing') state.status = 'paused';
+        if (state.configuration) applyConfiguration(state.configuration);
+        if (state.baseSettings && state.baseSettings.launch_datetime) setLaunchDateTime(state.baseSettings.launch_datetime);
+        var colorMode = element('uncertainty_color_mode');
+        if (colorMode) colorMode.value = 'rgb';
+        var ellipse = element('uncertainty_show_ellipse');
+        if (ellipse) ellipse.checked = false;
+        var points = element('uncertainty_show_points');
+        if (points) points.checked = true;
+        renderResults();
+    }
+
+    function showHistoryRecord(record) {
+        var snapshot = record && record.output && record.output.resumeSnapshot;
+        hydrateSnapshot(snapshot);
+        var count = viewUncertaintyMap();
+        if (!count) throw new Error('この履歴には地図表示できる着地点がありません');
+        return record;
+    }
+
     function downloadCsv() {
         var rows = [['site', 'launch_datetime_utc', 'sample', 'ascent_rate_m_s', 'descent_rate_m_s', 'burst_altitude_m', 'landing_lat', 'landing_lon', 'classification', 'confidence', 'source', 'coast_distance_km', 'data_version', 'is_water_legacy', 'cache_hit', 'error']];
         state.siteRuns.forEach(function (run) {
@@ -1174,6 +1383,10 @@
         element('uncertainty_new').addEventListener('click', newAnalysis);
         element('uncertainty_sync_datetime').addEventListener('click', syncLaunchDateTimeFromSettings);
         element('uncertainty_map_view').addEventListener('click', function () { viewUncertaintyMap(); });
+        element('uncertainty_color_mode').addEventListener('change', function () {
+            clearUncertaintyMap();
+            renderUncertaintyMap();
+        });
         element('uncertainty_map_clear').addEventListener('click', function () { hideUncertaintyMapDisplay({ source: 'uncertainty' }); });
         if (root.MapDisplayController) root.MapDisplayController.register('uncertainty', hideUncertaintyMapDisplay);
         ['uncertainty_show_points', 'uncertainty_show_ellipse', 'uncertainty_show_density'].forEach(function (id) {
@@ -1204,6 +1417,7 @@
         getState: function () { return state; },
         estimate: updateEstimate,
         viewMap: viewUncertaintyMap,
+        showHistoryRecord: showHistoryRecord,
         hideMap: hideUncertaintyMapDisplay,
         isMapVisible: isUncertaintyMapVisible,
         clearMap: clearUncertaintyMap

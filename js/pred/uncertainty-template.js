@@ -57,19 +57,19 @@
                                         <option value="weibull">Weibull分布</option>
                                     </select>
                                 </label>
-                                <label>上昇速度 CV (%)<input id="uncertainty_ascent_cv" type="number" min="0" max="100" step="1" value="10"></label>
-                                <label>下降速度 CV (%)<input id="uncertainty_descent_cv" type="number" min="0" max="100" step="1" value="15"></label>
-                                <label>破裂高度 CV (%)<input id="uncertainty_burst_cv" type="number" min="0" max="100" step="1" value="12"></label>
+                                <label>上昇速度のばらつき（CV %）<input id="uncertainty_ascent_cv" type="number" min="0" max="100" step="1" value="10"></label>
+                                <label>下降速度のばらつき（CV %）<input id="uncertainty_descent_cv" type="number" min="0" max="100" step="1" value="15"></label>
+                                <label>破裂高度のばらつき（CV %）<input id="uncertainty_burst_cv" type="number" min="0" max="100" step="1" value="12"></label>
                                 <label>再現用シード<input id="uncertainty_seed" type="text" value="wasa-2026"></label>
                             </fieldset>
                             <fieldset class="uncertainty-grid">
-                                <legend>逐次停止・API上限</legend>
-                                <label>最小サンプル/地点<input id="uncertainty_min_samples" type="number" min="4" max="500" step="1" value="12"></label>
-                                <label>バッチサイズ<input id="uncertainty_batch_size" type="number" min="2" max="100" step="1" value="8"></label>
-                                <label>最大サンプル/地点<input id="uncertainty_max_samples" type="number" min="4" max="1000" step="1" value="48"></label>
-                                <label>API呼出上限（全地点）<input id="uncertainty_call_limit" type="number" min="1" max="10000" step="1" value="100"></label>
-                                <label>海上率CI許容幅 (±%)<input id="uncertainty_probability_tolerance" type="number" min="1" max="50" step="1" value="10"></label>
-                                <label>平均着地点の収束 (km)<input id="uncertainty_centroid_tolerance" type="number" min="0.05" max="100" step="0.05" value="1"></label>
+                                <legend>早期終了の条件・通信上限</legend>
+                                <label>早期終了の最低計算回数／地点<input id="uncertainty_min_samples" type="number" min="4" max="500" step="1" value="12"></label>
+                                <label>安定性の判定間隔（回）<input id="uncertainty_batch_size" type="number" min="2" max="100" step="1" value="8"></label>
+                                <label>最大計算回数／地点<input id="uncertainty_max_samples" type="number" min="4" max="1000" step="1" value="48"></label>
+                                <label>通信試行上限（全地点・再試行含む）<input id="uncertainty_call_limit" type="number" min="1" max="10000" step="1" value="100"></label>
+                                <label>海上率の95% CI許容半幅（ポイント）<input id="uncertainty_probability_tolerance" type="number" min="1" max="50" step="1" value="10"></label>
+                                <label>平均着地点の移動許容値（km）<input id="uncertainty_centroid_tolerance" type="number" min="0.05" max="100" step="0.05" value="1"></label>
                             </fieldset>
                             <div id="uncertainty_estimate" class="uncertainty-estimate" aria-live="polite"></div>
                             <p id="uncertainty_error" class="uncertainty-error" hidden></p>
@@ -93,6 +93,17 @@
                             </div>
                             <p class="uncertainty-note">早期終了は「海上率の95%信頼区間」と「平均着地点」が2バッチ連続で収束した場合のみ行います。未判定の陸海データが20%を超える場合は収束扱いにしません。密度等高線は8点以上の着地点から計算するKDE近似です。</p>
                             <div class="uncertainty-map-tools">
+                                <label>着地点の色分け
+                                    <select id="uncertainty_color_mode">
+                                        <option value="landsea">海陸判定</option>
+                                        <option value="ascentRate">上昇速度</option>
+                                        <option value="descentRate">下降速度</option>
+                                        <option value="burstAltitude">破裂高度</option>
+                                        <option value="rgb" selected>3項目の合成色（RGB）</option>
+                                    </select>
+                                </label>
+                                <p id="uncertainty_color_legend"></p>
+                                <p>点を押すと経路と時刻を表示します。次の点を選ぶと経路が切り替わります。</p>
                                 <div class="uncertainty-map-legend" aria-label="地図凡例">
                                     <span><i class="uncertainty-dot is-water"></i>海上</span>
                                     <span><i class="uncertainty-dot is-land"></i>陸上</span>
@@ -104,7 +115,7 @@
                                 </div>
                                 <div class="uncertainty-map-options" aria-label="地図表示レイヤー">
                                     <label><input id="uncertainty_show_points" type="checkbox" checked>着地点</label>
-                                    <label><input id="uncertainty_show_ellipse" type="checkbox" checked>95%楕円</label>
+                                    <label><input id="uncertainty_show_ellipse" type="checkbox">95%楕円</label>
                                     <label><input id="uncertainty_show_density" type="checkbox">密度等高線</label>
                                 </div>
                                 <div class="uncertainty-map-actions-block">

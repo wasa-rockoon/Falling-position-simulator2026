@@ -180,24 +180,113 @@ test('不確実性解析を完了し密度等高線を地図表示する', async
     await app.setBaseSettings('single');
     await page.locator('#open_uncertainty_btn').click();
     await expect(page.getByRole('dialog', { name: '不確実性解析' })).toBeVisible();
+    await expect(page.locator('#uncertainty_color_mode')).toHaveValue('rgb');
+    await expect(page.locator('#uncertainty_show_ellipse')).not.toBeChecked();
+    await page.locator('#uncertainty_show_ellipse').check();
     await page.locator('#uncertainty_select_none').click();
     await page.locator('#uncertainty_min_samples').fill('4');
     await page.locator('#uncertainty_batch_size').fill('4');
     await page.locator('#uncertainty_max_samples').fill('8');
-    await page.locator('#uncertainty_call_limit').fill('8');
+    await page.locator('#uncertainty_call_limit').fill('9');
     await page.locator('#uncertainty_start').click();
     await expect(page.locator('#uncertainty_status')).toHaveText('完了', { timeout: 20_000 });
     await expect(page.locator('#uncertainty_map_view')).toBeEnabled();
+    const beforeColorCalls = app.apiCalls.length;
+    await page.locator('#uncertainty_color_mode').selectOption('ascentRate');
+    await expect(page.locator('#uncertainty_color_legend')).toContainText('4.00');
+    await expect(page.locator('#uncertainty_color_legend')).toContainText('6.00');
+    const savedSample = await page.evaluate(() => window.UncertaintyAnalysis.getState().siteRuns[0].observations[0]);
+    expect(savedSample.flightTimeSec).toBe(7200);
+    expect(savedSample.landingTimeUtc).toBeTruthy();
+    expect(savedSample.flightPath.length).toBe(6);
+    expect(app.apiCalls.length).toBe(beforeColorCalls);
+    await page.locator('#uncertainty_color_mode').selectOption('rgb');
+    await expect(page.locator('#uncertainty_color_legend')).toContainText('R＝上昇');
+    await expect(page.locator('#uncertainty_color_legend')).toContainText('偏差0で白');
+    const central = await page.evaluate(() => window.UncertaintyAnalysis.getState().siteRuns[0].centralObservation);
+    expect(central.isCentral).toBe(true);
+    expect(central.ascentRate).toBe(5);
+    expect(app.apiCalls.length).toBe(beforeColorCalls);
+    await page.locator('#uncertainty_color_mode').selectOption('ascentRate');
     await page.locator('#uncertainty_show_density').check();
     await page.locator('#uncertainty_map_view').click();
     await expect(page.locator('#uncertainty_modal')).toBeHidden();
     await expect.poll(() => page.evaluate(() => window.UncertaintyAnalysis.getState().siteRuns[0].observations.filter((row) => !row.error).length)).toBe(8);
     await expect.poll(() => page.evaluate(() => window.UncertaintyAnalysis.isMapVisible())).toBe(true);
+    const samplePosition = await page.evaluate(() => {
+        let sample;
+        window.map.eachLayer(layer => {
+            const popup = layer.getPopup && layer.getPopup();
+            const content = popup && popup.getContent();
+            if (!sample && content && content.textContent && content.textContent.includes('/ サンプル ')) sample = layer;
+        });
+        if (!sample) throw new Error('Sample marker not found');
+        window.map.setView(sample.getLatLng(), 13, { animate: false });
+        const point = window.map.latLngToContainerPoint(sample.getLatLng());
+        const rect = window.map.getContainer().getBoundingClientRect();
+        return { x: rect.left + point.x, y: rect.top + point.y };
+    });
+    await page.mouse.click(samplePosition.x, samplePosition.y);
+    await expect(page.locator('.leaflet-popup-content')).toContainText('着地予定時刻（JST）');
+    await expect(page.locator('.leaflet-popup-content')).toContainText('2時間 0分 0秒');
+    await expect.poll(() => page.evaluate(() => {
+        let found = false;
+        window.map.eachLayer(layer => {
+            const tip = layer.getTooltip && layer.getTooltip();
+            if (tip && String(tip.getContent()).includes('の飛行経路')) found = true;
+        });
+        return found;
+    })).toBe(true);
     await page.locator('#open_uncertainty_btn').click();
     await page.locator('#uncertainty_map_clear').click();
     await expect.poll(() => page.evaluate(() => window.UncertaintyAnalysis.isMapVisible())).toBe(false);
     await page.locator('#uncertainty_map_view').click();
     await expect.poll(() => page.evaluate(() => window.UncertaintyAnalysis.isMapVisible())).toBe(true);
+    const replayRunId = await page.evaluate(() => window.UncertaintyAnalysis.getState().runId);
+    await page.evaluate(() => window.UncertaintyAnalysis.hideMap({ source: 'test' }));
+    await page.evaluate((runId) => window.HistoryController.show(runId), replayRunId);
+    await expect.poll(() => page.evaluate((runId) => window.HistoryController.isVisible(runId), replayRunId)).toBe(true);
+    await expect(page.locator('#uncertainty_color_mode')).toHaveValue('rgb');
+    const replayDetails = await page.evaluate(() => {
+        let central = null;
+        let sample = null;
+        window.map.eachLayer(layer => {
+            const popup = layer.getPopup && layer.getPopup();
+            const content = popup && popup.getContent();
+            const text = content && content.textContent || '';
+            if (text.includes('基準値の予測')) central = { radius: layer.options.radius, fillColor: layer.options.fillColor, text };
+            if (!sample && text.includes('/ サンプル ')) sample = { fillColor: layer.options.fillColor, text };
+        });
+        return { central, sample };
+    });
+    expect(replayDetails.central).toMatchObject({ radius: 9, fillColor: '#ff0000' });
+    expect(replayDetails.sample.fillColor).toMatch(/^rgb\(/);
+    expect(replayDetails.sample.text).toContain('着地予定時刻（JST）');
+    expect(replayDetails.sample.text).toContain('飛行時間');
+    expect(replayDetails.sample.text).toContain('基準値から');
+    const secondRunId = await page.evaluate(async (runId) => {
+        const source = await window.RunRepository.get(runId);
+        const copy = window.RunRecord.clone(source);
+        copy.id = runId + '_copy';
+        copy.title = '不確実性解析（別履歴）';
+        copy.createdAt = new Date(Date.now() + 1000).toISOString();
+        copy.updatedAt = copy.createdAt;
+        await window.RunRepository.save(copy);
+        return copy.id;
+    }, replayRunId);
+    await page.evaluate(() => document.querySelector('[data-results-view="history"]').click());
+    await page.evaluate((runId) => window.HistoryController.show(runId), replayRunId);
+    await page.evaluate(() => window.ResultsWorkspace.refreshHistory());
+    const firstHistory = page.locator(`.run-history-item[data-run-id="${replayRunId}"]`);
+    const secondHistory = page.locator(`.run-history-item[data-run-id="${secondRunId}"]`);
+    await expect(firstHistory.locator('button').filter({ hasText: '地図から消す' })).toHaveCount(1);
+    await page.evaluate((runId) => {
+        const card = document.querySelector(`.run-history-item[data-run-id="${runId}"]`);
+        Array.from(card.querySelectorAll('button')).find(button => button.textContent === '地図表示').click();
+    }, secondRunId);
+    await expect(page.locator('.run-history-item button[aria-pressed="true"]')).toHaveCount(1);
+    await expect(page.locator(`.run-history-item[data-run-id="${replayRunId}"] button`).filter({ hasText: /^地図表示$/ })).toHaveCount(1);
+    await expect(page.locator(`.run-history-item[data-run-id="${secondRunId}"] button`).filter({ hasText: '地図から消す' })).toHaveCount(1);
 });
 
 test('機能ウィンドウのヘルプを開いたまま自動探索を入力できる', async ({ app }) => {

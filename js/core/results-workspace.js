@@ -244,9 +244,7 @@
                         await root.HistoryController.show(item.runId);
                         if (root.showToast) root.showToast('保存した結果を地図に表示しました。', 'info', 1800);
                     }
-                    var visible = root.HistoryController.isVisible(item.runId);
-                    mapToggle.textContent = visible ? '地図から消す' : '地図表示';
-                    mapToggle.setAttribute('aria-pressed', visible ? 'true' : 'false');
+                    await refreshHistory();
                 } catch (error) {
                     report(error, 'results.history.map');
                     if (root.showToast) root.showToast(error.message || '履歴を地図で操作できませんでした。', 'warning', 2600);
