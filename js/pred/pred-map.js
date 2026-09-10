@@ -124,8 +124,24 @@ function formatCoordPair(lat, lon){
     return '('+formatCoord(lat,'lat')+', '+formatCoord(lon,'lon')+')';
 }
 
+function refreshCoordinateTextElements(){
+    document.querySelectorAll('[data-coordinate-lat][data-coordinate-lon]').forEach(function(element){
+        var lat = Number(element.dataset.coordinateLat);
+        var lon = Number(element.dataset.coordinateLon);
+        if(!Number.isFinite(lat) || !Number.isFinite(lon)) return;
+        element.textContent = formatCoord(lat, 'lat') + ', ' + formatCoord(lon, 'lon');
+    });
+    document.querySelectorAll('[data-coordinate-value][data-coordinate-type]').forEach(function(element){
+        var value = Number(element.dataset.coordinateValue);
+        var type = element.dataset.coordinateType;
+        if(!Number.isFinite(value) || (type !== 'lat' && type !== 'lon')) return;
+        element.textContent = formatCoord(value, type);
+    });
+}
+
 // Update titles / tooltips of existing markers to reflect format change
 function updateCoordinateFormat(){
+    refreshCoordinateTextElements();
     // Click marker (launch selection before prediction)
     if(typeof clickMarker !== 'undefined' && clickMarker){
         try {
@@ -193,10 +209,13 @@ function updateCoordinateFormat(){
             } catch (e) { if (typeof reportNonFatalError === 'function') reportNonFatalError(e, 'non-fatal fallback'); }
         }
     }
-    // Update popup coordinate lines (landing, burst, etc.)
+    // Update popup coordinate lines (landing, burst, history, uncertainty, etc.)
     if(typeof updateAllPopups === 'function'){
         updateAllPopups();
     }
+    document.dispatchEvent(new CustomEvent('coordinateformatchange', {
+        detail: { format: window.coordFormat }
+    }));
 }
 
 function updateAllPopups(){
@@ -214,7 +233,7 @@ function updateAllPopups(){
         var html = isElem ? content.innerHTML : content;
         if(typeof html !== 'string') return;
 
-        var labels = ['着地点:','位置:','緯度経度:','<b>予測着地点:</b>'];
+        var labels = ['着地点:','着地:','位置:','緯度経度:','<b>予測着地点:</b>'];
         labels.forEach(function(label){
             var idx = html.indexOf(label);
             if(idx !== -1){
@@ -257,26 +276,25 @@ function updateAllPopups(){
             marker.bindPopup(pop);
         }
     }
-    // Standard map_items markers
-    if(typeof map_items !== 'undefined'){
-        ['land_marker','pop_marker','launch_marker'].forEach(function(k){ rewritePopup(map_items[k]); });
+    // Walk every displayed Leaflet layer, including nested history and analysis
+    // layer groups. This also updates results restored after their original run.
+    var visited = [];
+    function rewriteLayer(layer){
+        if(!layer || visited.indexOf(layer) !== -1) return;
+        visited.push(layer);
+        rewritePopup(layer);
+        if(typeof layer.eachLayer === 'function') layer.eachLayer(rewriteLayer);
     }
-    // Ehime variant markers
+    // Ehime variant markers are also retained outside the ordinary map item
+    // collection. Rewrite them explicitly so a format switch is reflected even
+    // when a marker belongs to a detached/replayed layer group.
     if(typeof ehime_predictions !== 'undefined' && ehime_predictions){
-        for(var k in ehime_predictions){
-            rewritePopup(ehime_predictions[k].marker);
-            // If variant has layers with launch/burst markers
-            var layers = ehime_predictions[k].layers;
-            if(layers){ rewritePopup(layers.launch_marker); rewritePopup(layers.burst_marker); }
-        }
+        Object.keys(ehime_predictions).forEach(function(key){
+            var prediction = ehime_predictions[key];
+            if(prediction && prediction.marker) rewriteLayer(prediction.marker);
+        });
     }
-    // Hourly landing markers
-    if(typeof hourly_predictions !== 'undefined' && hourly_predictions){
-        for(var h in hourly_predictions){
-            var layers = hourly_predictions[h].layers;
-            if(layers && layers.landing_marker){ rewritePopup(layers.landing_marker); }
-        }
-    }
+    if(typeof map !== 'undefined' && map && typeof map.eachLayer === 'function') map.eachLayer(rewriteLayer);
 }
 
 // Read the latitude and longitude currently in the launch card and plot

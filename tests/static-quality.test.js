@@ -237,3 +237,12 @@ test('bulk workflows share retry-inclusive workload control and resumable bounda
     assert.match(apiClient, /_prunePersistentCache/);
     assert.match(apiClient, /client\.inFlight\.has\(key\)/);
 });
+
+test('coordinate format switching refreshes existing landing results and all map popups', () => {
+    const mapSource = read('js/pred/pred-map.js');
+    const resultsSource = read('js/pred/prediction-results-ui.js');
+    assert.match(mapSource, /refreshCoordinateTextElements\(\)/);
+    assert.match(mapSource, /map\.eachLayer\(rewriteLayer\)/);
+    assert.match(resultsSource, /data-coordinate-lat/);
+    assert.match(resultsSource, /formatCoord\(lat, "lat"\)/);
+});

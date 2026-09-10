@@ -188,7 +188,9 @@ function buildEhimeHistoryOverlayLayer(item, historyId) {
             + '下降: ' + escapeEhimeHistoryText(row.descentRate != null ? row.descentRate.toFixed(1) : '-') + ' m/s<br>'
             + '破裂: ' + escapeEhimeHistoryText(row.burstAltitude != null ? row.burstAltitude.toFixed(0) : '-') + ' m<br>'
             + '飛行: ' + escapeEhimeHistoryText(flightText) + '<br>'
-            + '着地: ' + lat.toFixed(4) + ', ' + lng.toFixed(4);
+            + '着地: ' + (typeof formatCoord === 'function'
+                ? formatCoord(lat, 'lat') + ', ' + formatCoord(lng, 'lon')
+                : lat.toFixed(4) + ', ' + lng.toFixed(4));
         marker.bindPopup(popupHtml);
         markers.push(marker);
         layer.addLayer(marker);
@@ -455,8 +457,8 @@ function buildEhimeHistoryReplayRowsHtml(item) {
             '<td><span class="ehime-color-swatch" style="background:' + color + '"></span></td>' +
             '<td>' + escapeEhimeHistoryText(row.label || ('VAR-' + (idx + 1))) + '</td>' +
             '<td>' + escapeEhimeHistoryText(description) + '</td>' +
-            '<td>' + (lat !== null ? lat.toFixed(4) : '-') + '</td>' +
-            '<td>' + (lng !== null ? lng.toFixed(4) : '-') + '</td>' +
+            '<td' + (lat !== null ? ' data-coordinate-value="' + lat + '" data-coordinate-type="lat"' : '') + '>' + (lat !== null ? formatCoord(lat, 'lat') : '-') + '</td>' +
+            '<td' + (lng !== null ? ' data-coordinate-value="' + lng + '" data-coordinate-type="lon"' : '') + '>' + (lng !== null ? formatCoord(lng, 'lon') : '-') + '</td>' +
             '<td>' + (ascent !== null ? ascent.toFixed(1) : '-') + '</td>' +
             '<td>' + (descent !== null ? descent.toFixed(1) : '-') + '</td>' +
             '<td>' + (burst !== null ? burst.toFixed(0) : '-') + '</td>' +
@@ -476,7 +478,7 @@ function renderEhimeHistoryToResultPanels(item) {
 
     var count = item && item.count ? item.count : (Array.isArray(item && item.rows) ? item.rows.length : 0);
     var meanText = (typeof item.meanLat === 'number' && typeof item.meanLng === 'number')
-        ? (item.meanLat.toFixed(4) + ', ' + item.meanLng.toFixed(4))
+        ? (formatCoord(item.meanLat, 'lat') + ', ' + formatCoord(item.meanLng, 'lon'))
         : '-';
     var landCount = toEhimeFiniteNumber(item && item.landCount);
     var waterCount = toEhimeFiniteNumber(item && item.waterCount);
@@ -484,15 +486,15 @@ function renderEhimeHistoryToResultPanels(item) {
 
     $('#ehime_completed').text(count);
     $('#ehime_total').text(count);
-    $('#ehime_mean').text(meanText);
+    $('#ehime_mean').text(meanText).attr({ 'data-coordinate-lat': item.meanLat, 'data-coordinate-lon': item.meanLng });
     $('#ehime_max_dev').text(item && typeof item.maxDev === 'number' ? item.maxDev.toFixed(2) : '-');
     $('#ehime_panel_completed').text(count);
     $('#ehime_panel_total').text(count);
-    $('#ehime_panel_mean').text(meanText);
+    $('#ehime_panel_mean').text(meanText).attr({ 'data-coordinate-lat': item.meanLat, 'data-coordinate-lon': item.meanLng });
     $('#ehime_panel_maxdev').text(item && typeof item.maxDev === 'number' ? item.maxDev.toFixed(2) : '-');
     $('#ensemble_completed').text(count);
     $('#ensemble_total').text(count);
-    $('#ensemble_mean_pos').text(meanText);
+    $('#ensemble_mean_pos').text(meanText).attr({ 'data-coordinate-lat': item.meanLat, 'data-coordinate-lon': item.meanLng });
     $('#ensemble_max_dev').text(item && typeof item.maxDev === 'number' ? item.maxDev.toFixed(2) : '-');
 
     if (hasLandWater) {
@@ -930,11 +932,13 @@ function buildEhimeVariantRow(idx, variant_id, entry, variant_index) {
         color = ConvertRGBtoHex(evaluate_cmap((variant_index + 1) / (ehime_variant_total + 1), 'turbo'));
     }
     var statusClass = 'ehime-status-' + entry.status;
-    var lat = '-', lon = '-', ascent = '-', descent = '-', burst = '-', flight = '-';
+    var lat = '-', lon = '-', landingLat = null, landingLon = null, ascent = '-', descent = '-', burst = '-', flight = '-';
     var landsea = '-';
     if (entry.results && entry.results.landing) {
-        lat = entry.results.landing.latlng.lat.toFixed(4);
-        lon = entry.results.landing.latlng.lng.toFixed(4);
+        landingLat = entry.results.landing.latlng.lat;
+        landingLon = entry.results.landing.latlng.lng;
+        lat = formatCoord(landingLat, 'lat');
+        lon = formatCoord(landingLon, 'lon');
         try {
             var ll = entry.results.landing.latlng;
             entry.landSeaResult = localLandSeaResult(ll.lat, ll.lng);
@@ -961,8 +965,8 @@ function buildEhimeVariantRow(idx, variant_id, entry, variant_index) {
         + '<td><span class="ehime-color-swatch" style="background:' + color + '"></span></td>'
         + '<td>' + entry.label + '</td>'
         + '<td>' + diff_parts.join(' ') + '</td>'
-        + '<td>' + lat + '</td>'
-        + '<td>' + lon + '</td>'
+        + '<td' + (landingLat !== null ? ' data-coordinate-value="' + landingLat + '" data-coordinate-type="lat"' : '') + '>' + lat + '</td>'
+        + '<td' + (landingLon !== null ? ' data-coordinate-value="' + landingLon + '" data-coordinate-type="lon"' : '') + '>' + lon + '</td>'
         + '<td>' + ascent + '</td>'
         + '<td>' + descent + '</td>'
         + '<td>' + burst + '</td>'
@@ -1009,12 +1013,14 @@ function refreshEhimePanel() {
             if (summaryLandSea.classification === 'land') landCount++;
             else if (summaryLandSea.classification === 'sea') waterCount++;
         });
-        var meanLat = (sumLat / completed.length).toFixed(4);
-        var meanLon = (sumLon / completed.length).toFixed(4);
-        $('#ehime_panel_mean').text(meanLat + ", " + meanLon);
+        var meanLat = sumLat / completed.length;
+        var meanLon = sumLon / completed.length;
+        $('#ehime_panel_mean').text(formatCoord(meanLat, 'lat') + ", " + formatCoord(meanLon, 'lon'))
+            .attr({ 'data-coordinate-lat': meanLat, 'data-coordinate-lon': meanLon });
         // max dev already computed in updateEhimeSummaryFromStore; reuse element text
         $('#ehime_panel_maxdev').text($('#ehime_max_dev').text());
-        $('#ensemble_mean_pos').text(meanLat + ", " + meanLon);
+        $('#ensemble_mean_pos').text(formatCoord(meanLat, 'lat') + ", " + formatCoord(meanLon, 'lon'))
+            .attr({ 'data-coordinate-lat': meanLat, 'data-coordinate-lon': meanLon });
         $('#ensemble_max_dev').text($('#ehime_max_dev').text());
 
         var totalDet = landCount + waterCount;
@@ -1051,8 +1057,8 @@ function refreshEhimePanel() {
                 var lat = '-', lon = '-', landsea = '-';
                 var flight = '-', ascent = '-', descent = '-', burst = '-';
                 if (entry.results && entry.results.landing) {
-                    lat = entry.results.landing.latlng.lat.toFixed(4);
-                    lon = entry.results.landing.latlng.lng.toFixed(4);
+                    lat = formatCoord(entry.results.landing.latlng.lat, 'lat');
+                    lon = formatCoord(entry.results.landing.latlng.lng, 'lon');
                 }
                 if (entry.landsea) { landsea = entry.landsea; }
                 if (entry.settings) {
@@ -1106,6 +1112,10 @@ function refreshEhimePanel() {
         }
     }
 }
+
+document.addEventListener('coordinateformatchange', function () {
+    if (typeof refreshEhimePanel === 'function') refreshEhimePanel();
+});
 
 // Row click: pan/zoom to marker & open popup
 $(document).on('click', '#ehime_variants_table tbody tr, #ehime_results_body tr', function () {
@@ -1424,7 +1434,9 @@ function plotEhimeLandingMarker(variant_id, variant_index) {
     var popup_html = entry.label + '<br/>' +
         desc_line + '<br/>' +
         '着地点<br/>' +
-        '緯度経度: ' + (landing.latlng.lat.toFixed(4) + ', ' + landing.latlng.lng.toFixed(4)) + '<br/>' +
+        '緯度経度: ' + (typeof formatCoord === 'function'
+            ? formatCoord(landing.latlng.lat, 'lat') + ', ' + formatCoord(landing.latlng.lng, 'lon')
+            : landing.latlng.lat.toFixed(4) + ', ' + landing.latlng.lng.toFixed(4)) + '<br/>' +
         '上昇/下降: ' + (entry.settings.ascent_rate.toFixed ? entry.settings.ascent_rate.toFixed(1) : entry.settings.ascent_rate) + ' / ' + (entry.settings.descent_rate.toFixed ? entry.settings.descent_rate.toFixed(1) : entry.settings.descent_rate) + ' m/s<br/>' +
         '破裂高度: ' + (entry.settings.burst_altitude.toFixed ? entry.settings.burst_altitude.toFixed(0) : entry.settings.burst_altitude) + ' m<br/>' +
         '着地時刻: ' + (landing && landing.datetime ? landing.datetime.clone().utcOffset(9 * 60).format('YYYY-MM-DD HH:mm') + ' JST' : '不明') + '<br/>';

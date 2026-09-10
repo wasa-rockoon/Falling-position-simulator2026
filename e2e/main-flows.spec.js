@@ -9,6 +9,12 @@ test('通常予測を固定APIで実行し結果を描画する', async ({ app }
     await expect(page.locator('#cursor_pred_links')).toBeVisible();
     await expect(page.locator('#cursor_pred_range')).not.toHaveText('');
     await expect(page.locator('#error_window')).toBeHidden();
+    const landingCoordinate = page.locator('#pos_list_body [data-coordinate-lat]').first();
+    await expect(landingCoordinate).not.toContainText('°');
+    await page.locator('#coord_format_toggle').click();
+    await expect(landingCoordinate).toContainText('°');
+    await page.locator('#coord_format_toggle').click();
+    await expect(landingCoordinate).not.toContainText('°');
     expect(app.apiCalls.filter((url) => url.includes('/api/v1/'))).toHaveLength(1);
 });
 
@@ -21,6 +27,18 @@ test('愛媛13条件を完了し複数系列を保存する', async ({ app }) =>
     await expect(page.locator('#ehime_dlcsv')).toBeVisible();
     await expect.poll(() => app.apiCalls.filter((url) => url.includes('/api/v1/')).length).toBe(13);
     await expect(page.locator('#results_status_badge')).toHaveText('完了');
+
+    await page.locator('#coord_format_toggle').click();
+    await page.evaluate(() => {
+        const prediction = Object.values(window.ehime_predictions || {})
+            .find((entry) => entry && entry.label === 'ASC-' && entry.marker);
+        if (!prediction) throw new Error('ASC- marker was not created');
+        prediction.marker.openPopup();
+    });
+    await expect(page.locator('.leaflet-popup-content')).toContainText('緯度経度:');
+    await expect(page.locator('.leaflet-popup-content')).toContainText('°');
+    await page.locator('#coord_format_toggle').click();
+    await expect(page.locator('.leaflet-popup-content')).not.toContainText('°');
 
     const legacyHistory = page.locator('#ehime_history_panel');
     await legacyHistory.locator('.ehime-history-replay').first().evaluate((button) => button.click());

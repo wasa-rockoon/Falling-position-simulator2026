@@ -16,17 +16,26 @@ function updatePosList(launch, burst, landing) {
     var tbody = $("#pos_list_body");
     var siteName = $("#site option:selected").text();
     var t = getJSTDateTimeFormatted(launch.datetime);
-    var lat = landing.latlng.lat.toFixed(4);
-    var lon = landing.latlng.lng.toFixed(4);
+    var lat = Number(landing.latlng.lat);
+    var lon = Number(landing.latlng.lng);
     var uniqueId = Date.now();
 
-    var locLink = '<a href="#" onclick="map.panTo(new L.LatLng(' + lat + ', ' + lon + ')); return false;">' + lat + ', ' + lon + '</a>';
-    var row = "<tr id='tr_" + uniqueId + "'>" +
-        "<td>" + siteName + "</td>" +
-        "<td>" + t + "</td>" +
-        "<td>" + locLink + "</td>" +
-        "<td id='land_sea_" + uniqueId + "'>判定中...</td>" +
-        "</tr>";
+    var locLink = $("<a>", { href: "#" })
+        .attr("data-coordinate-lat", lat)
+        .attr("data-coordinate-lon", lon)
+        .text(typeof formatCoord === "function"
+            ? formatCoord(lat, "lat") + ", " + formatCoord(lon, "lon")
+            : lat.toFixed(4) + ", " + lon.toFixed(4))
+        .on("click", function (event) {
+            event.preventDefault();
+            event.stopPropagation();
+            map.panTo(new L.LatLng(lat, lon));
+        });
+    var row = $("<tr>", { id: "tr_" + uniqueId })
+        .append($("<td>").text(siteName))
+        .append($("<td>").text(t))
+        .append($("<td>").append(locLink))
+        .append($("<td>", { id: "land_sea_" + uniqueId }).text("判定中..."));
     tbody.prepend(row);
 
     $("#tr_" + uniqueId).css("cursor", "pointer").on("click", function () {

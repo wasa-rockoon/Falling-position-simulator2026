@@ -256,7 +256,9 @@ function plotStandardPrediction(prediction, settings) {
     ).addTo(map);
 
     var history_popup_content = '着地点<br/>' +
-        '緯度経度: ' + (landing.latlng.lat.toFixed(4) + ', ' + landing.latlng.lng.toFixed(4)) + '<br/>' +
+        '緯度経度: ' + (typeof formatCoord === 'function'
+            ? formatCoord(landing.latlng.lat, 'lat') + ', ' + formatCoord(landing.latlng.lng, 'lon')
+            : landing.latlng.lat.toFixed(4) + ', ' + landing.latlng.lng.toFixed(4)) + '<br/>' +
         (settings && settings.profile === 'standard_profile' ? '上昇/下降: ' + settings.ascent_rate + ' / ' + settings.descent_rate + ' m/s<br/>' : '') +
         (settings && settings.profile === 'standard_profile' ? '破裂高度: ' + settings.burst_altitude + ' m<br/>' : (settings ? '滞留高度: ' + settings.float_altitude + ' m<br/>' : '')) +
         '着地時刻: ' + landing.datetime.clone().utcOffset(9 * 60).format('YYYY-MM-DD HH:mm') + ' JST<br/>' +
