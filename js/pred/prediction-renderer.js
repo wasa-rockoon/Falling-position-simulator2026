@@ -226,7 +226,8 @@ function plotStandardPrediction(prediction, settings) {
         prediction.flight_path,
         {
             weight: 3,
-            color: '#000000'
+            color: '#000000',
+            className: 'prediction-flight-path'
         }
     ).addTo(map);
 
@@ -249,6 +250,7 @@ function plotStandardPrediction(prediction, settings) {
         {
             weight: 3,
             color: '#000000',
+            className: 'prediction-flight-path',
             opacity: 0 // Hidden by default
         }
     ).addTo(map);
@@ -336,7 +338,12 @@ function plotFallOnlyPrediction(prediction, settings) {
         '<b>着地時刻:</b> ' + landing.datetime.clone().utcOffset(9 * 60).format('YYYY-MM-DD HH:mm') + ' JST';
     land_marker.bindPopup(land_popup);
 
-    var path_polyline = L.polyline(prediction.flight_path, { weight: 3, color: '#4444aa', dashArray: '4,4' }).addTo(map);
+    var path_polyline = L.polyline(prediction.flight_path, {
+        weight: 3,
+        color: '#000000',
+        dashArray: '4,4',
+        className: 'prediction-flight-path'
+    }).addTo(map);
     map_items['launch_marker'] = launch_marker;
     map_items['land_marker'] = land_marker;
     map_items['path_polyline'] = path_polyline;

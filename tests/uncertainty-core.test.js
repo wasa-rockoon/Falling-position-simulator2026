@@ -128,6 +128,33 @@ test('zero-area ellipses produce finite relative changes', () => {
     assert.ok([result.ellipseAreaChange, result.ellipseMajorChange, result.ellipseMinorChange].every(Number.isFinite));
 });
 
+test('Ehime GO samples cover the full 27-point grid except the separately-run baseline', () => {
+    const base = { ascent_rate: 5, descent_rate: 5, burst_altitude: 30000 };
+    const samples = core.createEhimeGoSamples(base);
+    assert.equal(samples.length, 26);
+    assert.deepEqual([...new Set(samples.concat(base).map((sample) => sample.ascent_rate))].sort((a, b) => a - b), [4, 5, 6]);
+    assert.deepEqual([...new Set(samples.concat(base).map((sample) => sample.descent_rate))].sort((a, b) => a - b), [2, 5, 8]);
+    assert.deepEqual([...new Set(samples.concat(base).map((sample) => sample.burst_altitude))].sort((a, b) => a - b), [24000, 30000, 33000]);
+    assert.throws(() => core.createEhimeGoSamples({ ascent_rate: 1, descent_rate: 5, burst_altitude: 30000 }), /上昇速度/);
+    assert.throws(() => core.createEhimeGoSamples({ ascent_rate: 5, descent_rate: 3, burst_altitude: 30000 }), /下降速度/);
+});
+
+test('Ehime GO requires all 27 landings to be sea within 12 nautical miles', () => {
+    const passing = Array.from({ length: 27 }, () => ({ landSea: { classification: 'sea', coastDistanceKm: 22.224 } }));
+    assert.equal(core.evaluateEhimeGo(passing).status, 'go');
+    const tooFar = passing.map((row) => ({ landSea: { ...row.landSea } }));
+    tooFar[3].landSea.coastDistanceKm = 22.225;
+    assert.equal(core.evaluateEhimeGo(tooFar).status, 'no-go');
+    const land = passing.map((row) => ({ landSea: { ...row.landSea } }));
+    land[2].landSea.classification = 'land';
+    assert.equal(core.evaluateEhimeGo(land).status, 'no-go');
+    const unknown = passing.map((row) => ({ landSea: { ...row.landSea } }));
+    unknown[1].landSea.classification = 'unknown';
+    assert.equal(core.evaluateEhimeGo(unknown).status, 'indeterminate');
+    assert.equal(core.evaluateEhimeGo(passing.slice(0, 26)).status, 'pending');
+    assert.equal(core.EHIME_GO_COAST_LIMIT_KM, 22.224);
+});
+
 test('budget planner fairly caps calls per site', () => {
     const plan = core.planBudget(10, { minSamples: 12, maxSamples: 48, callLimit: 200 });
     assert.equal(plan.perSiteCap, 20);

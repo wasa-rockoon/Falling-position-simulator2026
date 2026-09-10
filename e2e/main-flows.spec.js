@@ -289,6 +289,36 @@ test('不確実性解析を完了し密度等高線を地図表示する', async
     await expect(page.locator(`.run-history-item[data-run-id="${secondRunId}"] button`).filter({ hasText: '地図から消す' })).toHaveCount(1);
 });
 
+test('愛媛実験GO基準の27条件を実行して12海里判定を確定する', async ({ app }) => {
+    const { page } = app;
+    await app.setBaseSettings('single');
+    await page.locator('#open_uncertainty_btn').click();
+    await page.locator('#uncertainty_select_none').click();
+    await page.locator('#uncertainty_analysis_mode').selectOption('ehime-go');
+    await expect(page.locator('#uncertainty_ascent_cv')).toBeDisabled();
+    await expect(page.locator('#uncertainty_min_samples')).toBeDisabled();
+    await expect(page.locator('#uncertainty_estimate')).toContainText('27条件');
+    await expect(page.locator('#uncertainty_estimate')).toContainText('12 NM（22.224 km）');
+    await page.locator('#uncertainty_start').click();
+    await expect(page.locator('#uncertainty_status')).toHaveText('完了', { timeout: 30_000 });
+    const result = await page.evaluate(() => {
+        const run = window.UncertaintyAnalysis.getState().siteRuns[0];
+        return {
+            cap: run.cap,
+            samples: run.observations.length,
+            central: run.centralObservation && run.centralObservation.goLabel,
+            assessment: run.goAssessment
+        };
+    });
+    expect(result.cap).toBe(26);
+    expect(result.samples).toBe(26);
+    expect(result.central).toBe('基準値');
+    expect(['go', 'no-go', 'indeterminate']).toContain(result.assessment.status);
+    expect(result.assessment.expected).toBe(27);
+    expect(result.assessment.coastLimitKm).toBe(22.224);
+    expect(app.apiCalls.length).toBe(27);
+});
+
 test('機能ウィンドウのヘルプを開いたまま自動探索を入力できる', async ({ app }) => {
     const { page } = app;
     await expect(page.locator('.form-actions .context-help-trigger')).toHaveCount(0);

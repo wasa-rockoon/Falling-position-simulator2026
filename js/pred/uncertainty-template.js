@@ -44,6 +44,12 @@
                                 <p>地点は上の選択、日時はここで指定した条件を全サンプルに使用します。</p>
                             </fieldset>                            <fieldset class="uncertainty-grid">
                                 <legend>サンプリング</legend>
+                                <label>解析モード
+                                    <select id="uncertainty_analysis_mode">
+                                        <option value="probabilistic">確率的不確実性解析</option>
+                                        <option value="ehime-go">愛媛実験GO基準検証</option>
+                                    </select>
+                                </label>
                                 <label>方式
                                     <select id="uncertainty_method">
                                         <option value="sobol">Sobol（推奨）</option>
@@ -72,6 +78,7 @@
                                 <label>平均着地点の移動許容値（km）<input id="uncertainty_centroid_tolerance" type="number" min="0.05" max="100" step="0.05" value="1"></label>
                                 <label>95%楕円の変化許容値（%）<input id="uncertainty_ellipse_tolerance" type="number" min="0" max="100" step="1" value="10"></label>
                             </fieldset>
+                            <p class="uncertainty-note">愛媛実験GO基準検証では、上昇速度−1/基準/+1 m/s、下降速度−3/基準/+3 m/s、破裂高度−20%/基準/+10%の全27条件を確認します。すべてが海上かつ海岸線から12 NM（22.224 km）以内の場合のみGOです。地図データと予報モデルによる事前確認であり、最終的な運用判断を保証・代替しません。</p>
                             <div id="uncertainty_estimate" class="uncertainty-estimate" aria-live="polite"></div>
                             <p id="uncertainty_error" class="uncertainty-error" hidden></p>
                             <div class="uncertainty-actions">

@@ -1509,7 +1509,11 @@ function toggleEhimeVariantPath(variant_id) {
         icon: burst_icon
     }).addTo(map);
     // 経路ポリライン（黒、標準と同じスタイル）
-    var path_polyline = L.polyline(res.flight_path, { weight: 3, color: '#000000' }).addTo(map);
+    var path_polyline = L.polyline(res.flight_path, {
+        weight: 3,
+        color: '#000000',
+        className: 'prediction-flight-path'
+    }).addTo(map);
     entry.layers.flight_path = path_polyline;
     entry.layers.launch_marker = launch_marker;
     entry.layers.burst_marker = burst_marker;

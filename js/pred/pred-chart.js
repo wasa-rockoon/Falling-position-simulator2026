@@ -155,6 +155,8 @@
         if (windChart) { windChart.destroy(); windChart = null; }
         if (!canvas || !datasets.length || typeof root.Chart !== 'function') return;
         var options = commonOptions('水平風速（m/s）', '高度（m）');
+        // Recalculate on every render so a stale small range cannot clip data.
+        options.scales.x.max = core.windAxisMaximum(items);
         options.plugins.tooltip.callbacks = {
             label: function (context) {
                 return context.dataset.label + ': 高度 ' + context.parsed.y.toFixed(0) + ' m / 風速 ' + context.parsed.x.toFixed(1) + ' m/s';

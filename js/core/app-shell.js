@@ -6,10 +6,6 @@
     var featureInitializers = [];
     var registeredInitializers = new Set();
     var completedInitializers = new Set();
-    var DARK_TILE = 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png';
-    var DARK_TILE_ATTR = '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/">CARTO</a>';
-    var darkTileLayer = null;
-    var lightTileLayer = null;
 
     function report(error, context, userMessage, type) {
         if (root.AppNotifications) return root.AppNotifications.report(error, context, userMessage, type);
@@ -113,20 +109,8 @@
     }
 
     function applyMapTile() {
-        if (!root.map || !root.L || !root.L.TileLayer) return;
-        if (isDark()) {
-            if (!darkTileLayer) darkTileLayer = root.L.tileLayer(DARK_TILE, { attribution: DARK_TILE_ATTR, maxZoom: 19 });
-            root.map.eachLayer(function (layer) {
-                if (layer instanceof root.L.TileLayer && layer !== darkTileLayer) {
-                    lightTileLayer = layer;
-                    root.map.removeLayer(layer);
-                }
-            });
-            if (!root.map.hasLayer(darkTileLayer)) darkTileLayer.addTo(root.map);
-        } else {
-            if (darkTileLayer && root.map.hasLayer(darkTileLayer)) root.map.removeLayer(darkTileLayer);
-            if (lightTileLayer && !root.map.hasLayer(lightTileLayer)) lightTileLayer.addTo(root.map);
-        }
+        // Keep the user-selected, keyless base layer unchanged in both themes.
+        // The surrounding UI can be dark without replacing or filtering the map.
     }
 
     function initTheme() {

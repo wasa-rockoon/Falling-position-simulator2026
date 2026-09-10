@@ -105,7 +105,8 @@ function plotMultiplePrediction(prediction, current_hour) {
                 {
                     weight: 2,
                     zIndexOffset: 100,
-                    color: '#000000'
+                    color: '#000000',
+                    className: 'prediction-flight-path'
                 }
             ).addTo(map);
         }
@@ -193,6 +194,7 @@ function showHideHourlyPrediction(e) {
             {
                 weight: 3,
                 color: '#000000',
+                className: 'prediction-flight-path',
                 current_hour: current_hour
             }
         ).addTo(map);

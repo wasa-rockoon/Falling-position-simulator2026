@@ -495,6 +495,66 @@
             densityContours: kdeDensityContours(valid, mean, [0.5, 0.8, 0.95])
         };
     }
+
+    var EHIME_GO_COAST_LIMIT_KM = 12 * 1.852;
+
+    function createEhimeGoSamples(base) {
+        base = base || {};
+        var ascent = Number(base.ascent_rate);
+        var descent = Number(base.descent_rate);
+        var burst = Number(base.burst_altitude);
+        if (!Number.isFinite(ascent) || ascent <= 1) throw new Error('GO基準検証には1 m/sを超える上昇速度が必要です');
+        if (!Number.isFinite(descent) || descent <= 3) throw new Error('GO基準検証には3 m/sを超える下降速度が必要です');
+        if (!Number.isFinite(burst) || burst <= 0) throw new Error('GO基準検証の破裂高度が不正です');
+        var samples = [];
+        [-1, 0, 1].forEach(function (ascentOffset) {
+            [-3, 0, 3].forEach(function (descentOffset) {
+                [-0.20, 0, 0.10].forEach(function (burstRatio) {
+                    if (ascentOffset === 0 && descentOffset === 0 && burstRatio === 0) return;
+                    samples.push(Object.assign({}, base, {
+                        ascent_rate: ascent + ascentOffset,
+                        descent_rate: descent + descentOffset,
+                        burst_altitude: burst * (1 + burstRatio),
+                        goLabel: '上昇 ' + (ascentOffset > 0 ? '+' : '') + ascentOffset + ' m/s・下降 ' +
+                            (descentOffset > 0 ? '+' : '') + descentOffset + ' m/s・破裂 ' +
+                            (burstRatio > 0 ? '+' : '') + Math.round(burstRatio * 100) + '%'
+                    }));
+                });
+            });
+        });
+        return samples;
+    }
+
+    function evaluateEhimeGo(observations, expectedCount) {
+        var rows = (observations || []).filter(Boolean);
+        var expected = Math.max(1, Number(expectedCount || 27));
+        var failures = [];
+        var indeterminate = [];
+        rows.forEach(function (observation) {
+            var classification = observationClassification(observation);
+            var coastDistanceKm = Number(observation.landSea && observation.landSea.coastDistanceKm);
+            if (observation.error || classification === 'unknown' || !Number.isFinite(coastDistanceKm)) {
+                indeterminate.push(observation);
+            } else if (classification !== 'sea' || coastDistanceKm > EHIME_GO_COAST_LIMIT_KM) {
+                failures.push(observation);
+            }
+        });
+        var complete = rows.length >= expected;
+        var status = !complete ? 'pending' : (failures.length ? 'no-go' : (indeterminate.length ? 'indeterminate' : 'go'));
+        return {
+            status: status,
+            complete: complete,
+            expected: expected,
+            evaluated: rows.length,
+            failures: failures.length,
+            indeterminate: indeterminate.length,
+            coastLimitKm: EHIME_GO_COAST_LIMIT_KM,
+            maximumCoastDistanceKm: rows.reduce(function (maximum, observation) {
+                var value = Number(observation.landSea && observation.landSea.coastDistanceKm);
+                return Number.isFinite(value) ? Math.max(maximum, value) : maximum;
+            }, 0)
+        };
+    }
     function evaluateSequentialStop(observations, options, previous) {
         options = options || {};
         var summary = summarizeObservations(observations);
@@ -577,6 +637,9 @@
         wilsonInterval: wilsonInterval,
         haversineKm: haversineKm,
         summarizeObservations: summarizeObservations,
+        createEhimeGoSamples: createEhimeGoSamples,
+        evaluateEhimeGo: evaluateEhimeGo,
+        EHIME_GO_COAST_LIMIT_KM: EHIME_GO_COAST_LIMIT_KM,
         confidenceEllipse95: confidenceEllipse95,
         kdeDensityContours: kdeDensityContours,
         evaluateSequentialStop: evaluateSequentialStop,

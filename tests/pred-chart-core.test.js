@@ -26,6 +26,11 @@ test('chart core builds elapsed altitude and finite horizontal wind profiles', (
     assert.deepEqual(wind.map((point) => point.y), [550, 525]);
 });
 
+test('wind axis covers every generated speed and does not retain a stale small range', () => {
+    assert.equal(ChartCore.windAxisMaximum([{ wind: [{ x: 0.8 }, { x: 17.2 }] }]), 20);
+    assert.equal(ChartCore.windAxisMaximum([{ wind: [] }]), 5);
+});
+
 test('series registry stores all candidates but displays at most five', () => {
     const registry = new ChartCore.SeriesRegistry({ maxStored: 13, maxVisible: 5 });
     for (let index = 0; index < 7; index += 1) {

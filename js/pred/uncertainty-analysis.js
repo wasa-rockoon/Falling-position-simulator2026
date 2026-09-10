@@ -110,7 +110,8 @@
         selectedSamplePath = null;
         if (!Array.isArray(observation.flightPath) || !observation.flightPath.length) return;
         selectedSamplePath = root.L.polyline(observation.flightPath, {
-            color: '#000000', weight: 3, opacity: 0.9, interactive: false
+            color: '#000000', weight: 3, opacity: 0.9, interactive: false,
+            className: 'prediction-flight-path'
         }).addTo(uncertaintyMapLayer);
         selectedSamplePath.bindTooltip((observation.isCentral ? '基準値' : 'サンプル ' + (observation.index + 1)) + ' の飛行経路');
     }
@@ -228,6 +229,7 @@
 
     function readConfiguration() {
         return {
+            analysisMode: element('uncertainty_analysis_mode').value,
             method: element('uncertainty_method').value,
             distribution: element('uncertainty_distribution').value,
             ascentCvPct: numberValue('uncertainty_ascent_cv'),
@@ -248,6 +250,18 @@
 
     function validateConfiguration(config, sites) {
         if (!sites.length) throw new Error('放球地点を1件以上選択してください');
+        if (config.analysisMode === 'ehime-go') {
+            core.createEhimeGoSamples(readBaseSettings());
+            var requiredCalls = sites.length * 27;
+            if (!Number.isFinite(config.callLimit) || config.callLimit < requiredCalls) {
+                throw new Error('GO基準検証には全27条件のため最低 ' + requiredCalls + ' 回の通信試行上限が必要です');
+            }
+            return {
+                sites: sites.length, callLimit: config.callLimit, requestedMaximum: sites.length * 26,
+                perSiteCap: 26, maximumCalls: sites.length * 26, minimumCalls: sites.length * 26,
+                canReachMinimum: true, reducedByLimit: false
+            };
+        }
         ['ascentCvPct', 'descentCvPct', 'burstCvPct'].forEach(function (key) {
             if (!Number.isFinite(config[key]) || config[key] < 0 || config[key] > 100) throw new Error('変動係数は0〜100%で指定してください');
         });
@@ -282,6 +296,11 @@
     function updateEstimate() {
         if (!element('uncertainty_estimate')) return;
         var config = readConfiguration();
+        var goMode = config.analysisMode === 'ehime-go';
+        ['uncertainty_method', 'uncertainty_distribution', 'uncertainty_ascent_cv', 'uncertainty_descent_cv',
+            'uncertainty_burst_cv', 'uncertainty_seed', 'uncertainty_min_samples', 'uncertainty_batch_size',
+            'uncertainty_max_samples', 'uncertainty_probability_tolerance', 'uncertainty_centroid_tolerance',
+            'uncertainty_ellipse_tolerance'].forEach(function (id) { element(id).disabled = goMode; });
         var count = selectedSites().length;
         var sampleCallLimit = Math.max(0, config.callLimit - count);
         var budget = core.planBudget(count, Object.assign({}, config, { callLimit: sampleCallLimit }));
@@ -293,6 +312,14 @@
         var attempts = root.PredictionWorkload
             ? root.PredictionWorkload.estimateAttempts(budget.maximumCalls + count, maxRetries, 0)
             : { worstCaseHttpAttempts: (budget.maximumCalls + count) * (maxRetries + 1) };
+        if (config.analysisMode === 'ehime-go') {
+            element('uncertainty_estimate').innerHTML = '解析日時（JST）: ' + launchDate + ' ' + launchTime +
+                '<br>愛媛実験GO基準: ' + count + '地点 × 27条件' +
+                '<br>上昇 −1 / 基準 / +1 m/s × 下降 −3 / 基準 / +3 m/s × 破裂 −20% / 基準 / +10%' +
+                '<br>GO条件: 全結果が海上かつ海岸線から12 NM（22.224 km）以内' +
+                '<br>必要な論理予測 ' + (count * 27) + '回 / HTTP試行上限 ' + config.callLimit + '回（再試行を含む）';
+            return;
+        }
         var message = '解析日時（JST）: ' + launchDate + ' ' + launchTime + '<br>選択 ' + count + '地点 / 論理サンプル 最小 ' + budget.minimumCalls + '回 / 最大 ' + budget.maximumCalls + '回';
         if (budget.reducedByLimit) message += '（HTTP上限により1地点 ' + budget.perSiteCap + '回へ縮小）';
         message += '<br>別途、基準値の予測 ' + count + '件を通信上限内で実行します（統計対象外）。上限が小さい場合はサンプル数が減ります。';
@@ -528,6 +555,7 @@
             launch_longitude: run.site.longitude < 0 ? run.site.longitude + 360 : run.site.longitude,
             launch_altitude: run.site.altitude
         });
+        if (state.configuration.analysisMode === 'ehime-go') return core.createEhimeGoSamples(base);
         return core.createParameterSamples(base, {
             method: state.configuration.method,
             distribution: state.configuration.distribution,
@@ -564,6 +592,14 @@
         return null;
     }
     function evaluateRun(run) {
+        if (state.configuration.analysisMode === 'ehime-go') {
+            if (run.cursor < run.cap) return;
+            run.goAssessment = core.evaluateEhimeGo([run.centralObservation].concat(run.observations), 27);
+            if (run.goAssessment.status === 'pending') run.goAssessment.status = 'indeterminate';
+            run.status = 'completed';
+            run.reason = run.goAssessment.status;
+            return;
+        }
         run.sequential = core.evaluateSequentialStop(run.observations, {
             minSamples: state.configuration.minSamples,
             probabilityTolerance: state.configuration.probabilityTolerance,
@@ -585,6 +621,11 @@
     }
 
     function statusLabel(run) {
+        if (run.goAssessment) {
+            if (run.goAssessment.status === 'go') return 'GO（全27条件合格）';
+            if (run.goAssessment.status === 'no-go') return 'NO-GO（基準外あり）';
+            if (run.goAssessment.status === 'indeterminate') return '判定不能';
+        }
         if (run.status === 'completed') return run.reason === 'converged' ? '収束・早期終了' : '上限まで完了';
         if (run.status === 'running') return '解析中';
         if (run.status === 'error') return 'APIエラーで中断';
@@ -614,6 +655,10 @@
         var classification = observation.landSea && observation.landSea.classification;
         var classificationLabel = classification === 'sea' ? '海上' : (classification === 'land' ? '陸上' : (classification === 'inland_water' ? '内水面' : '未判定'));
         appendPopupLine(content, '判定', classificationLabel);
+        if (observation.goLabel) appendPopupLine(content, 'GO検証条件', observation.goLabel);
+        if (observation.landSea && Number.isFinite(Number(observation.landSea.coastDistanceKm))) {
+            appendPopupLine(content, '海岸線からの距離', formatNumber(observation.landSea.coastDistanceKm, 2) + ' km');
+        }
         appendPopupLine(content, '上昇', formatNumber(observation.ascentRate, 2) + ' m/s');
         appendPopupLine(content, '下降', formatNumber(observation.descentRate, 2) + ' m/s');
         appendPopupLine(content, '破裂高度', formatNumber(observation.burstAltitude, 0) + ' m');
@@ -919,8 +964,9 @@
         var body = element('uncertainty_result_body');
         body.replaceChildren();
         var intervalHeading = element('uncertainty_interval_heading');
+        var goMode = state.configuration && state.configuration.analysisMode === 'ehime-go';
         var intervalName = state.configuration && state.configuration.method === 'monte-carlo' ? '95% CI' : '参考95%区間';
-        if (intervalHeading) intervalHeading.textContent = '海上率（' + intervalName + '）';
+        if (intervalHeading) intervalHeading.textContent = goMode ? 'GO基準判定' : '海上率（' + intervalName + '）';
         state.siteRuns.forEach(function (run) {
             var summary = resultSummary(run);
             var row = document.createElement('tr');
@@ -928,9 +974,10 @@
             row.className = 'uncertainty-result-row';
             row.dataset.status = run.status;
             row.dataset.hasMap = String(hasMapPoints);
-            var probability = summary.seaProbability == null ? '-' :
+            var probability = goMode && run.goAssessment ?
+                ('最大離岸 ' + formatNumber(run.goAssessment.maximumCoastDistanceKm, 2) + ' km / ' + statusLabel(run)) : (summary.seaProbability == null ? '-' :
                 formatNumber(summary.seaProbability * 100, 1) + '% (' + formatNumber(summary.seaInterval.low * 100, 1) + '–' + formatNumber(summary.seaInterval.high * 100, 1) + '%)' +
-                (summary.unknown > 0 ? ' / 不明 ' + summary.unknown : '') + (summary.inlandWater > 0 ? ' / 内水面 ' + summary.inlandWater : '');
+                (summary.unknown > 0 ? ' / 不明 ' + summary.unknown : '') + (summary.inlandWater > 0 ? ' / 内水面 ' + summary.inlandWater : ''));
             var mean = summary.mean ? formatNumber(summary.mean.lat, 4) + ', ' + formatNumber(summary.mean.lng, 4) : '-';
             var ellipseSize = summary.ellipse95 ? formatNumber(summary.ellipse95.majorKm, 2) + ' × ' + formatNumber(summary.ellipse95.minorKm, 2) + ' km' : '-';
             [run.site.name, run.cursor + ' / ' + run.cap, probability, mean, ellipseSize, statusLabel(run)].forEach(function (value) {
@@ -1069,6 +1116,7 @@
                     });
                     run.centralObservation = {
                         isCentral: true, index: -1,
+                        goLabel: state.configuration.analysisMode === 'ehime-go' ? '基準値' : '',
                         ascentRate: state.baseSettings.ascent_rate,
                         descentRate: state.baseSettings.descent_rate,
                         burstAltitude: state.baseSettings.burst_altitude,
@@ -1107,6 +1155,7 @@
                 var landSea = classifyLanding(landing);
                 run.observations.push({
                     index: run.cursor,
+                    goLabel: sample.goLabel || '',
                     ascentRate: sample.ascent_rate,
                     descentRate: sample.descent_rate,
                     burstAltitude: sample.burst_altitude,
@@ -1177,11 +1226,13 @@
                     return;
                 }
                 state.configuration.callLimit = increasedLimit;
-                var revisedBudget = core.planBudget(state.siteRuns.length, state.configuration);
-                state.configuration.budget = revisedBudget;
-                state.siteRuns.forEach(function (run) {
-                    run.cap = Math.max(run.cursor, revisedBudget.perSiteCap);
-                });
+                if (state.configuration.analysisMode !== 'ehime-go') {
+                    var revisedBudget = core.planBudget(state.siteRuns.length, state.configuration);
+                    state.configuration.budget = revisedBudget;
+                    state.siteRuns.forEach(function (run) {
+                        run.cap = Math.max(run.cursor, revisedBudget.perSiteCap);
+                    });
+                }
             }
             state.siteRuns.forEach(function (run) {
                 if (run.status === 'paused' || run.status === 'error') {
@@ -1249,7 +1300,7 @@
 
     function applyConfiguration(config) {
         var mapping = {
-            method: 'uncertainty_method', distribution: 'uncertainty_distribution', ascentCvPct: 'uncertainty_ascent_cv',
+            analysisMode: 'uncertainty_analysis_mode', method: 'uncertainty_method', distribution: 'uncertainty_distribution', ascentCvPct: 'uncertainty_ascent_cv',
             descentCvPct: 'uncertainty_descent_cv', burstCvPct: 'uncertainty_burst_cv', seed: 'uncertainty_seed',
             minSamples: 'uncertainty_min_samples', batchSize: 'uncertainty_batch_size', maxSamples: 'uncertainty_max_samples',
             callLimit: 'uncertainty_call_limit', centroidToleranceKm: 'uncertainty_centroid_tolerance'
@@ -1338,11 +1389,11 @@
     }
 
     function downloadCsv() {
-        var rows = [['site', 'launch_datetime_utc', 'sample', 'ascent_rate_m_s', 'descent_rate_m_s', 'burst_altitude_m', 'landing_lat', 'landing_lon', 'classification', 'confidence', 'source', 'coast_distance_km', 'data_version', 'is_water_legacy', 'cache_hit', 'error']];
+        var rows = [['site', 'launch_datetime_utc', 'sample', 'go_condition', 'ascent_rate_m_s', 'descent_rate_m_s', 'burst_altitude_m', 'landing_lat', 'landing_lon', 'classification', 'confidence', 'source', 'coast_distance_km', 'data_version', 'is_water_legacy', 'cache_hit', 'error']];
         state.siteRuns.forEach(function (run) {
             run.observations.forEach(function (observation) {
                 rows.push([
-                    run.site.name, state.baseSettings ? state.baseSettings.launch_datetime : '', observation.index + 1, observation.ascentRate, observation.descentRate, observation.burstAltitude,
+                    run.site.name, state.baseSettings ? state.baseSettings.launch_datetime : '', observation.index + 1, observation.goLabel || '', observation.ascentRate, observation.descentRate, observation.burstAltitude,
                     observation.lat, observation.lng,
                     observation.landSea && observation.landSea.classification || 'unknown',
                     observation.landSea && observation.landSea.confidence || 'unknown',

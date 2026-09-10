@@ -83,6 +83,19 @@
         return data;
     }
 
+    function windAxisMaximum(series) {
+        var maximum = 0;
+        (Array.isArray(series) ? series : []).forEach(function (item) {
+            (item && Array.isArray(item.wind) ? item.wind : []).forEach(function (point) {
+                var speed = finite(point && point.x);
+                if (speed !== null) maximum = Math.max(maximum, speed);
+            });
+        });
+        if (!(maximum > 0)) return 5;
+        var step = maximum <= 10 ? 2 : (maximum <= 30 ? 5 : 10);
+        return Math.max(5, Math.ceil(maximum / step) * step);
+    }
+
     function buildSeries(prediction, options, colorIndex) {
         options = options || {};
         var points = flattenPrediction(prediction);
@@ -160,6 +173,7 @@
         haversineMeters: haversineMeters,
         buildAltitudeData: buildAltitudeData,
         buildWindData: buildWindData,
+        windAxisMaximum: windAxisMaximum,
         buildSeries: buildSeries,
         SeriesRegistry: SeriesRegistry
     };
