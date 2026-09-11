@@ -9,7 +9,7 @@ var MODELS={
 3000:{massG:3000,k:158/23.6,lengthM:2.95,diameterM:1.9,burstM:13.5}};
 var PARACHUTES={4.28:430,7.28:230,10.4:140};
 var DENSITY=1.1138,GAMMA=1.67;
-var DEFAULTS={inputMode:'normal',balloonMassG:1500,componentMassG:1000,otherMassG:0,parachutePreset:'wasa-4.28',terminalVelocityMps:4.28,parachuteMassG:430,recoveryEquipmentMassG:405,verificationOtherMassG:1835,targetAscentRate:5,temperatureC:26,cylinderTemperatureC:25,pressureHpa:1010,targetCylinderPressureMpa:0.2,firstCylinderOffsetMpa:0,polytropicN:1.3,cylinderProcess:'polytropic',cylinders:[1,2,3,4].map(function(id){return{id:String(id),volumeL:47,pressureMpa:14};})};
+var DEFAULTS={inputMode:'normal',balloonMassG:1500,componentMassG:1000,otherMassG:0,parachutePreset:'wasa-4.28',terminalVelocityMps:4.28,parachuteMassG:430,recoveryEquipmentMassG:405,verificationOtherMassG:1835,targetAscentRate:5,temperatureC:26,cylinderTemperatureC:25,pressureHpa:1010,targetCylinderPressureMpa:0.2,firstCylinderOffsetMpa:0,polytropicN:1.3,cylinderProcess:'adiabatic',cylinders:[1,2,3,4].map(function(id){return{id:String(id),volumeL:47,pressureMpa:14};})};
 function finite(v,label,min,max){v=Number(v);if(!Number.isFinite(v)||(min!=null&&v<min)||(max!=null&&v>max))throw new RangeError(label+'が不正です');return v;}
 function round(v,d){var s=Math.pow(10,d==null?2:d);return Math.round((v+Number.EPSILON)*s)/s;}
 function opts(raw){var o=Object.assign({},DEFAULTS,raw||{});o.cylinders=(raw&&raw.cylinders?raw.cylinders:DEFAULTS.cylinders).map(function(c){return Object.assign({},c);});return o;}

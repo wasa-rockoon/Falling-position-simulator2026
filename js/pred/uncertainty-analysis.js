@@ -29,18 +29,32 @@
     var colorLegendControl = null;
     var colorLegendNode = null;
     var PARAMETER_FIELDS = {
-        ascentRate: ['ascent_rate', 'ascentCvPct', '上昇速度', 'm/s'],
-        descentRate: ['descent_rate', 'descentCvPct', '下降速度', 'm/s'],
-        burstAltitude: ['burst_altitude', 'burstCvPct', '破裂高度', 'm']
+        ascentRate: ['ascent_rate', 'ascentCvPct', '上昇速度', 'm/s', 'ascentMeanBiasPct'],
+        descentRate: ['descent_rate', 'descentCvPct', '下降速度', 'm/s', 'descentMeanBiasPct'],
+        burstAltitude: ['burst_altitude', 'burstCvPct', '破裂高度', 'm', 'burstMeanBiasPct']
     };
+    var EMPIRICAL_PRESET = {
+        ascentCvPct: 20.35, descentCvPct: 26.76,
+        ascentMeanBiasPct: 10.65, descentMeanBiasPct: 9.82
+    };
+    var BURST_CALIBRATIONS = {
+        sphereDiameter: { label: '球近似・直径', meanBiasPct: -6.82, sigmaPct: 7.08, samples: 9 },
+        ellipsoidThickness: { label: '楕円体・膜厚', meanBiasPct: 5.41, sigmaPct: 7.72, samples: 9 },
+        ellipsoidLength: { label: '楕円体・長さ', meanBiasPct: 15.28, sigmaPct: 8.00, samples: 9 },
+        ellipsoidDiameter: { label: '楕円体・径', meanBiasPct: -14.92, sigmaPct: 6.81, samples: 9 }
+    };
+    var previousAnalysisMode = 'probabilistic';
+    var manualSamplingSnapshot = null;
 
     function parameterInfo(key, observation) {
         var fields = PARAMETER_FIELDS[key];
         var base = Number(state.baseSettings && state.baseSettings[fields[0]]);
         var cv = Number(state.configuration && state.configuration[fields[1]]);
+        var bias = Number(state.configuration && state.configuration[fields[4]]) || 0;
+        var center = base * (1 + bias / 100);
         var sigma = base * cv / 100;
         var value = Number(observation && observation[key]);
-        return { base: base, sigma: sigma, z: sigma > 0 ? (value - base) / sigma : 0 };
+        return { base: base, center: center, sigma: sigma, z: sigma > 0 ? (value - center) / sigma : 0 };
     }
 
     function colorMode() {
@@ -78,10 +92,10 @@
         }
         else {
             var info = parameterInfo(mode), fields = PARAMETER_FIELDS[mode];
-            label = fields[2] + '：青 ' + formatNumber(info.base - 2 * info.sigma, 2) +
-                ' / 白 ' + formatNumber(info.base, 2) + ' / 赤 ' +
-                formatNumber(info.base + 2 * info.sigma, 2) + ' ' + fields[3] +
-                '（−2σ / 基準値 / ＋2σ、範囲外は端の色）';
+            label = fields[2] + '：青 ' + formatNumber(info.center - 2 * info.sigma, 2) +
+                ' / 白 ' + formatNumber(info.center, 2) + ' / 赤 ' +
+                formatNumber(info.center + 2 * info.sigma, 2) + ' ' + fields[3] +
+                '（−2σ / 分布中心 / ＋2σ、範囲外は端の色）';
         }
         element('uncertainty_color_legend').textContent = label;
         if (!colorLegendControl && root.map && root.L) {
@@ -228,13 +242,14 @@
     }
 
     function readConfiguration() {
-        return {
+        var config = {
             analysisMode: element('uncertainty_analysis_mode').value,
             method: element('uncertainty_method').value,
             distribution: element('uncertainty_distribution').value,
             ascentCvPct: numberValue('uncertainty_ascent_cv'),
             descentCvPct: numberValue('uncertainty_descent_cv'),
             burstCvPct: numberValue('uncertainty_burst_cv'),
+            burstCalibrationMethod: element('uncertainty_burst_calibration_method').value,
             seed: element('uncertainty_seed').value || 'wasa-2026',
             minSamples: Math.floor(numberValue('uncertainty_min_samples')),
             batchSize: Math.floor(numberValue('uncertainty_batch_size')),
@@ -246,6 +261,15 @@
             requiredStableBatches: 2,
             selectedSiteIds: selectedSites().map(function (site) { return site.id; })
         };
+        if (config.analysisMode === 'empirical-2024-2025') {
+            var burstCalibration = BURST_CALIBRATIONS[config.burstCalibrationMethod] || BURST_CALIBRATIONS.sphereDiameter;
+            Object.assign(config, EMPIRICAL_PRESET, {
+                burstMeanBiasPct: burstCalibration.meanBiasPct,
+                burstCvPct: burstCalibration.sigmaPct
+            });
+        }
+        else Object.assign(config, { ascentMeanBiasPct: 0, descentMeanBiasPct: 0, burstMeanBiasPct: 0 });
+        return config;
     }
 
     function validateConfiguration(config, sites) {
@@ -297,10 +321,21 @@
         if (!element('uncertainty_estimate')) return;
         var config = readConfiguration();
         var goMode = config.analysisMode === 'ehime-go';
+        var empiricalMode = config.analysisMode === 'empirical-2024-2025';
         ['uncertainty_method', 'uncertainty_distribution', 'uncertainty_ascent_cv', 'uncertainty_descent_cv',
             'uncertainty_burst_cv', 'uncertainty_seed', 'uncertainty_min_samples', 'uncertainty_batch_size',
             'uncertainty_max_samples', 'uncertainty_probability_tolerance', 'uncertainty_centroid_tolerance',
             'uncertainty_ellipse_tolerance'].forEach(function (id) { element(id).disabled = goMode; });
+        ['uncertainty_distribution', 'uncertainty_ascent_cv', 'uncertainty_descent_cv', 'uncertainty_burst_cv']
+            .forEach(function (id) { element(id).disabled = goMode || empiricalMode; });
+        element('uncertainty_empirical_note').hidden = !empiricalMode;
+        element('uncertainty_go_note').hidden = !goMode;
+        element('uncertainty_burst_calibration_field').hidden = !empiricalMode;
+        element('uncertainty_burst_calibration_method').disabled = goMode;
+        if (empiricalMode) {
+            var calibration = BURST_CALIBRATIONS[config.burstCalibrationMethod] || BURST_CALIBRATIONS.sphereDiameter;
+            element('uncertainty_empirical_note').innerHTML = '<strong>過去実績検証（2024–2025・暫定）:</strong> 入力値に対し、上昇速度は平均＋10.65%・1σ＝20.35%（n=8）、下降速度は平均＋9.82%・1σ＝26.76%（n=7）、破裂高度は「' + calibration.label + '」をTargetとして平均' + (calibration.meanBiasPct >= 0 ? '＋' : '−') + formatNumber(Math.abs(calibration.meanBiasPct), 2) + '%・1σ＝' + formatNumber(calibration.sigmaPct, 2) + '%（n=' + calibration.samples + '）の正規分布を生成します。2025 PQの下降は鉛直気流影響シナリオとして通常下降の推定から除外し、欠測・設定不明の飛行も除外しています。少数の過去実績による暫定値であり、安全保証やGO/NOGO判断を代替しません。';
+        }
         var count = selectedSites().length;
         var sampleCallLimit = Math.max(0, config.callLimit - count);
         var budget = core.planBudget(count, Object.assign({}, config, { callLimit: sampleCallLimit }));
@@ -314,13 +349,18 @@
             : { worstCaseHttpAttempts: (budget.maximumCalls + count) * (maxRetries + 1) };
         if (config.analysisMode === 'ehime-go') {
             element('uncertainty_estimate').innerHTML = '解析日時（JST）: ' + launchDate + ' ' + launchTime +
-                '<br>愛媛実験GO基準: ' + count + '地点 × 27条件' +
+                '<br>GO基準検証: ' + count + '地点 × 27条件' +
                 '<br>上昇 −1 / 基準 / +1 m/s × 下降 −3 / 基準 / +3 m/s × 破裂 −20% / 基準 / +10%' +
                 '<br>GO条件: 全結果が海上かつ海岸線から12 NM（22.224 km）以内' +
                 '<br>必要な論理予測 ' + (count * 27) + '回 / HTTP試行上限 ' + config.callLimit + '回（再試行を含む）';
             return;
         }
-        var message = '解析日時（JST）: ' + launchDate + ' ' + launchTime + '<br>選択 ' + count + '地点 / 論理サンプル 最小 ' + budget.minimumCalls + '回 / 最大 ' + budget.maximumCalls + '回';
+        var message = '解析日時（JST）: ' + launchDate + ' ' + launchTime + '<br>';
+        if (empiricalMode) {
+            message += '<strong>過去実績検証（2024–2025・暫定）:</strong> 平均補正と実績1σを適用（上昇 n=8 / 下降 n=7 / 破裂 n=9、破裂Target: ' +
+                (BURST_CALIBRATIONS[config.burstCalibrationMethod] || BURST_CALIBRATIONS.sphereDiameter).label + '）<br>';
+        }
+        message += '選択 ' + count + '地点 / 論理サンプル 最小 ' + budget.minimumCalls + '回 / 最大 ' + budget.maximumCalls + '回';
         if (budget.reducedByLimit) message += '（HTTP上限により1地点 ' + budget.perSiteCap + '回へ縮小）';
         message += '<br>別途、基準値の予測 ' + count + '件を通信上限内で実行します（統計対象外）。上限が小さい場合はサンプル数が減ります。';
         message += '<br>HTTP試行上限 ' + config.callLimit + '回 / 再試行込み最悪 ' + attempts.worstCaseHttpAttempts + '回 / 上限までの概算: 約' + humanDuration(estimateSeconds(config.callLimit));
@@ -563,6 +603,9 @@
             ascentCvPct: state.configuration.ascentCvPct,
             descentCvPct: state.configuration.descentCvPct,
             burstCvPct: state.configuration.burstCvPct,
+            ascentMeanBiasPct: state.configuration.ascentMeanBiasPct,
+            descentMeanBiasPct: state.configuration.descentMeanBiasPct,
+            burstMeanBiasPct: state.configuration.burstMeanBiasPct,
             seed: state.configuration.seed + '|' + run.site.id
         });
     }
@@ -666,9 +709,11 @@
         appendPopupLine(content, '着地点（60進法）', degreesMinutesSeconds(observation.lat, 'N', 'S') + ', ' + degreesMinutesSeconds(observation.lng, 'E', 'W'));
         Object.keys(PARAMETER_FIELDS).forEach(function (key) {
             var info = parameterInfo(key, observation);
+            var empirical = state.configuration && state.configuration.analysisMode === 'empirical-2024-2025';
             appendPopupLine(content, PARAMETER_FIELDS[key][2] + 'の偏差',
-                info.sigma > 0 ? '基準値から ' + (info.z > 0 ? '+' : '') + formatNumber(info.z, 2) + 'σ（' +
-                    formatNumber(Number(observation[key]) - info.base, 2) + ' ' + PARAMETER_FIELDS[key][3] + '）' : '固定（σ=0）');
+                info.sigma > 0 ? (empirical ? '実績補正後の分布中心から ' : '基準値から ') +
+                    (info.z > 0 ? '+' : '') + formatNumber(info.z, 2) + 'σ（' +
+                    formatNumber(Number(observation[key]) - info.center, 2) + ' ' + PARAMETER_FIELDS[key][3] + '）' : '固定（σ=0）');
         });
         appendPopupLine(content, '着地予定時刻（JST）', observation.landingTimeUtc ?
             root.moment.utc(observation.landingTimeUtc).utcOffset(540).format('YYYY-MM-DD HH:mm:ss') : '未保存');
@@ -1301,14 +1346,54 @@
     function applyConfiguration(config) {
         var mapping = {
             analysisMode: 'uncertainty_analysis_mode', method: 'uncertainty_method', distribution: 'uncertainty_distribution', ascentCvPct: 'uncertainty_ascent_cv',
-            descentCvPct: 'uncertainty_descent_cv', burstCvPct: 'uncertainty_burst_cv', seed: 'uncertainty_seed',
+            descentCvPct: 'uncertainty_descent_cv', burstCvPct: 'uncertainty_burst_cv', burstCalibrationMethod: 'uncertainty_burst_calibration_method', seed: 'uncertainty_seed',
             minSamples: 'uncertainty_min_samples', batchSize: 'uncertainty_batch_size', maxSamples: 'uncertainty_max_samples',
             callLimit: 'uncertainty_call_limit', centroidToleranceKm: 'uncertainty_centroid_tolerance'
         };
         Object.keys(mapping).forEach(function (key) { if (config[key] != null) element(mapping[key]).value = config[key]; });
+        if (config.analysisMode === 'empirical-2024-2025' && !config.burstCalibrationMethod) {
+            config.burstCalibrationMethod = 'sphereDiameter';
+            config.burstMeanBiasPct = BURST_CALIBRATIONS.sphereDiameter.meanBiasPct;
+            config.burstCvPct = BURST_CALIBRATIONS.sphereDiameter.sigmaPct;
+            element('uncertainty_burst_calibration_method').value = 'sphereDiameter';
+            element('uncertainty_burst_cv').value = config.burstCvPct;
+        }
         if (config.probabilityTolerance != null) element('uncertainty_probability_tolerance').value = config.probabilityTolerance * 100;
         if (config.ellipseRelativeTolerance != null) element('uncertainty_ellipse_tolerance').value = config.ellipseRelativeTolerance * 100;
         renderSiteChoices(config.selectedSiteIds || ['current']);
+        previousAnalysisMode = config.analysisMode || 'probabilistic';
+    }
+
+    function applyAnalysisModePreset() {
+        var nextMode = element('uncertainty_analysis_mode').value;
+        if (nextMode === 'empirical-2024-2025') {
+            if (previousAnalysisMode !== 'empirical-2024-2025') {
+                manualSamplingSnapshot = {
+                    distribution: element('uncertainty_distribution').value,
+                    ascentCvPct: element('uncertainty_ascent_cv').value,
+                    descentCvPct: element('uncertainty_descent_cv').value,
+                    burstCvPct: element('uncertainty_burst_cv').value
+                };
+            }
+            element('uncertainty_distribution').value = 'normal';
+            element('uncertainty_ascent_cv').value = EMPIRICAL_PRESET.ascentCvPct;
+            element('uncertainty_descent_cv').value = EMPIRICAL_PRESET.descentCvPct;
+            var calibration = BURST_CALIBRATIONS[element('uncertainty_burst_calibration_method').value] || BURST_CALIBRATIONS.sphereDiameter;
+            element('uncertainty_burst_cv').value = calibration.sigmaPct;
+        } else if (previousAnalysisMode === 'empirical-2024-2025' && manualSamplingSnapshot) {
+            element('uncertainty_distribution').value = manualSamplingSnapshot.distribution;
+            element('uncertainty_ascent_cv').value = manualSamplingSnapshot.ascentCvPct;
+            element('uncertainty_descent_cv').value = manualSamplingSnapshot.descentCvPct;
+            element('uncertainty_burst_cv').value = manualSamplingSnapshot.burstCvPct;
+        }
+        previousAnalysisMode = nextMode;
+        updateEstimate();
+    }
+
+    function applyBurstCalibration() {
+        var calibration = BURST_CALIBRATIONS[element('uncertainty_burst_calibration_method').value] || BURST_CALIBRATIONS.sphereDiameter;
+        element('uncertainty_burst_cv').value = calibration.sigmaPct;
+        updateEstimate();
     }
 
     async function restore() {
@@ -1441,6 +1526,8 @@
         element('uncertainty_start').addEventListener('click', startOrResume);
         element('uncertainty_pause').addEventListener('click', requestPause);
         element('uncertainty_new').addEventListener('click', newAnalysis);
+        element('uncertainty_analysis_mode').addEventListener('change', applyAnalysisModePreset);
+        element('uncertainty_burst_calibration_method').addEventListener('change', applyBurstCalibration);
         element('uncertainty_sync_datetime').addEventListener('click', syncLaunchDateTimeFromSettings);
         element('uncertainty_map_view').addEventListener('click', function () { viewUncertaintyMap(); });
         element('uncertainty_color_mode').addEventListener('change', function () {

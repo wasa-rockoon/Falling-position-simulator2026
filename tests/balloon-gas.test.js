@@ -5,6 +5,8 @@ function close(actual, expected, tolerance, label) { assert.ok(Math.abs(actual -
 test('2026 Python defaults reproduce lift and helium volume with density 1.1138', () => {
     const result = gas.calculate({});
     assert.equal(gas.DENSITY_DIFFERENCE_KG_M3, 1.1138);
+    assert.equal(result.inputs.cylinderProcess, 'adiabatic');
+    assert.equal(result.cylinders.key, 'adiabatic');
     close(result.totalMassKg, 3.335, 1e-12, 'total mass');
     close(result.pureLiftKg, 2.321026744363245, 1e-12, 'pure lift');
     close(result.totalLiftKg, 5.6560267443632455, 1e-12, 'total lift');

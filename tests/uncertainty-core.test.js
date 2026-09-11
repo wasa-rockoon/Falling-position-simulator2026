@@ -51,6 +51,35 @@ test('parameter samples vary ascent, descent and burst while respecting floors',
     assert.ok(samples.every((sample) => sample.ascent_rate >= 0.1 && sample.descent_rate >= 0.1 && sample.burst_altitude >= 200));
 });
 
+test('empirical mean bias shifts the center while spread remains relative to the nominal input', () => {
+    const samples = core.createParameterSamples({
+        ascent_rate: 5, descent_rate: 5, burst_altitude: 30000, launch_altitude: 0
+    }, {
+        method: 'sobol', distribution: 'normal', count: 8192, seed: 'empirical',
+        ascentMeanBiasPct: 10.65, descentMeanBiasPct: 9.82, burstMeanBiasPct: -6.82,
+        ascentCvPct: 20.35, descentCvPct: 26.76, burstCvPct: 7.08
+    });
+    function mean(key) { return samples.reduce((sum, sample) => sum + sample[key], 0) / samples.length; }
+    function sd(key) {
+        const center = mean(key);
+        return Math.sqrt(samples.reduce((sum, sample) => sum + (sample[key] - center) ** 2, 0) / samples.length);
+    }
+    assert.ok(Math.abs(mean('ascent_rate') - 5 * 1.1065) < 0.02);
+    assert.ok(Math.abs(mean('descent_rate') - 5 * 1.0982) < 0.02);
+    assert.ok(Math.abs(mean('burst_altitude') - 30000 * 0.9318) < 80);
+    assert.ok(Math.abs(sd('ascent_rate') - 5 * 0.2035) < 0.03);
+    assert.ok(Math.abs(sd('descent_rate') - 5 * 0.2676) < 0.03);
+    assert.ok(Math.abs(sd('burst_altitude') - 30000 * 0.0708) < 80);
+});
+
+test('omitting empirical bias preserves the existing nominal-centered behavior', () => {
+    const samples = core.createParameterSamples({
+        ascent_rate: 5, descent_rate: 5, burst_altitude: 30000, launch_altitude: 0
+    }, { method: 'sobol', distribution: 'normal', count: 4096, seed: 'legacy', ascentCvPct: 10, descentCvPct: 15, burstCvPct: 12 });
+    const ascentMean = samples.reduce((sum, sample) => sum + sample.ascent_rate, 0) / samples.length;
+    assert.ok(Math.abs(ascentMean - 5) < 0.02);
+});
+
 test('Wilson interval narrows as observations increase', () => {
     const small = core.wilsonInterval(5, 10);
     const large = core.wilsonInterval(50, 100);

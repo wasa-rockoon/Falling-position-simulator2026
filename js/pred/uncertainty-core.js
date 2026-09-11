@@ -235,12 +235,18 @@
         var distribution = options.distribution || 'normal';
         var points = unitPoints(method, count, 3, options.seed);
         var launchAltitude = Number(base.launch_altitude || 0);
+        function biasedValue(unit, nominal, biasPct, spreadPct, minimum) {
+            var baseline = Number(nominal);
+            var center = baseline * (1 + Number(biasPct || 0) / 100);
+            var relativeSpread = center ? (baseline * Number(spreadPct || 0) / 100) / center : 0;
+            return transformUnit(unit, center, relativeSpread, distribution, minimum);
+        }
         return points.map(function (point, index) {
             return {
                 index: index,
-                ascent_rate: transformUnit(point[0], base.ascent_rate, Number(options.ascentCvPct || 0) / 100, distribution, 0.1),
-                descent_rate: transformUnit(point[1], base.descent_rate, Number(options.descentCvPct || 0) / 100, distribution, 0.1),
-                burst_altitude: transformUnit(point[2], base.burst_altitude, Number(options.burstCvPct || 0) / 100, distribution, launchAltitude + 100),
+                ascent_rate: biasedValue(point[0], base.ascent_rate, options.ascentMeanBiasPct, options.ascentCvPct, 0.1),
+                descent_rate: biasedValue(point[1], base.descent_rate, options.descentMeanBiasPct, options.descentCvPct, 0.1),
+                burst_altitude: biasedValue(point[2], base.burst_altitude, options.burstMeanBiasPct, options.burstCvPct, launchAltitude + 100),
                 unit: point
             };
         });

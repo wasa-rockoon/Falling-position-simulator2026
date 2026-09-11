@@ -29,7 +29,8 @@ document.body.insertAdjacentHTML('beforeend', `
 <label>残圧測定時温度 (℃)<input id="gas_cylinder_temperature" type="number" step="0.1" value="26"></label>
 <label>充填時大気圧 (hPa)<input id="gas_pressure" type="number" min="1" step="0.1" value="1010"></label>
 <label>ポリトロープ指数 n<input id="gas_polytropic_n" type="number" min="1" max="1.67" step="0.01" value="1.3"></label>
-<label>表示するボンベ詳細<select id="gas_cylinder_process"><option value="polytropic">ポリトロープ</option><option value="quasi-static">準静的</option><option value="adiabatic">断熱</option></select></label>
+<label>ボンベ充填過程<select id="gas_cylinder_process"><option value="adiabatic" selected>断熱（既定）</option><option value="polytropic">ポリトロープ</option><option value="quasi-static">準静的</option></select></label>
+<p class="gas-calculator-note">充填過程は、ボンベから取り出せる量・使用本数・残圧の見積りにだけ影響します。必要ガス量、浮力、破裂高度は気球側の条件から求めるため変化しません。</p>
 </fieldset>
 <fieldset class="gas-cylinder-fieldset"><legend>ヘリウムボンベ（4本）</legend>
 <div class="gas-cylinder-grid gas-cylinder-grid-head"><span>本</span><span>容積 (L)</span><span>初期圧力 (MPa)</span></div>
