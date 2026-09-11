@@ -121,6 +121,31 @@ test('client caches identical successful requests', async () => {
     assert.equal(calls, 1);
 });
 
+test('cache scopes isolate identical requests from different prediction runs', async () => {
+    let calls = 0;
+    const client = new PredictionApi.PredictionClient({
+        source: 'custom',
+        baseUrl: 'https://scoped-cache.example.test/tawhiri',
+        cacheTtlMs: 60000,
+        policy: { concurrency: 1, minIntervalMs: 0, timeoutMs: 1000, maxRetries: 0 },
+        fetchImpl: async () => {
+            calls += 1;
+            return {
+                ok: true, status: 200, headers: { get: () => null },
+                json: async () => ({ generation: calls })
+            };
+        }
+    });
+    const params = { launch_latitude: 33, launch_longitude: 132 };
+    const runA = await client.request(params, { cacheScope: 'run-a' });
+    const runARepeat = await client.request(params, { cacheScope: 'run-a' });
+    const runB = await client.request(params, { cacheScope: 'run-b' });
+    assert.equal(runA.cacheHit, false);
+    assert.equal(runARepeat.cacheHit, true);
+    assert.equal(runB.cacheHit, false);
+    assert.equal(calls, 2);
+});
+
 
 test('client deduplicates simultaneous identical requests', async () => {
     let calls = 0;

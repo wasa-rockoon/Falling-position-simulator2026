@@ -1266,10 +1266,48 @@ function tawhiriRequest(settings, extra_settings, requestContext) {
     }
 }
 
+// Cancel an Ehime batch that can no longer update the current screen (for
+// example, after the launch site changes). This also releases the history
+// record from the non-deletable running state.
+function cancelActiveEhimeRun(reason) {
+    var previous = ehime_current;
+    if (!previous || !previous.runId) return Promise.resolve(false);
+    var pending = Object.keys(ehime_predictions || {}).some(function (key) {
+        return ehime_predictions[key] && ehime_predictions[key].status === 'pending';
+    });
+    if (!pending) return Promise.resolve(false);
+
+    var output = typeof buildEhimeRunOutput === 'function'
+        ? buildEhimeRunOutput(previous.runId)
+        : { completed: 0, failed: 0, trajectories: [], landings: [] };
+    if (previous.abortController) previous.abortController.abort();
+    ehime_current = null;
+    $(document).trigger('ehime_run_complete', [{
+        runId: previous.runId,
+        success: false,
+        interrupted: true,
+        reason: reason || 'input-changed'
+    }]);
+    if (previous.suppressRunRecord || typeof persistPredictionRunBoundary !== 'function') return Promise.resolve(true);
+    return persistPredictionRunBoundary(previous.requestContext, {
+        status: 'cancelled',
+        progress: {
+            completedUnits: output.completed + output.failed,
+            totalUnits: ehime_variant_total,
+            currentLabel: '地点変更により取消'
+        },
+        output: {
+            trajectories: output.trajectories,
+            landings: output.landings,
+            metrics: { completedVariants: output.completed, failedVariants: output.failed }
+        }
+    }).then(function () { return true; });
+}
+
 // Generate and run multiple variant predictions for Ehime mode
 function runEhimePredictions(base_settings, extra_settings, requestContext, runtimeOptions) {
     if (ehime_current && ehime_current.runId && Object.keys(ehime_predictions || {}).some(function (key) { return ehime_predictions[key].status === 'pending'; })) {
-        $(document).trigger('ehime_run_complete', [{ runId: ehime_current.runId, success: false, interrupted: true }]);
+        cancelActiveEhimeRun('new-ehime-run');
     }
     clearMapItems();
     ehime_predictions = {};
@@ -1277,7 +1315,9 @@ function runEhimePredictions(base_settings, extra_settings, requestContext, runt
     var runId = requestContext && requestContext.runId ? requestContext.runId : (typeof RunRecord !== 'undefined' ? RunRecord.makeId('run') : 'ehime-' + Date.now().toString(36));
     if (requestContext) requestContext.runId = runId;
     runtimeOptions = runtimeOptions || {};
-    ehime_current = { base: base_settings, apiUrl: requestContext ? requestContext.baseUrl : null, runId: runId, requestContext: requestContext, suppressRunRecord: runtimeOptions.suppressRunRecord === true };
+    var abortController = !runtimeOptions.signal && typeof AbortController === 'function' ? new AbortController() : null;
+    var requestSignal = runtimeOptions.signal || (abortController && abortController.signal);
+    ehime_current = { base: base_settings, apiUrl: requestContext ? requestContext.baseUrl : null, runId: runId, requestContext: requestContext, suppressRunRecord: runtimeOptions.suppressRunRecord === true, abortController: abortController };
     if (!ehime_current.suppressRunRecord) startPredictionRunRecord(base_settings, requestContext, 'ehime_ensemble', '愛媛13条件比較', runId);
     if (typeof VariantProfileRegistry === 'undefined') throw new Error('VariantProfileRegistry is unavailable');
     var variants = VariantProfileRegistry.buildEhime(base_settings);
@@ -1290,7 +1330,7 @@ function runEhimePredictions(base_settings, extra_settings, requestContext, runt
         var variantSettings = Object.assign({}, variant.settings);
         var variantId = variant.id;
         ehime_predictions[variantId] = { settings: variantSettings, status: 'pending', label: variant.label };
-        requestTawhiriData(variantSettings, requestContext, { label: variantId, signal: runtimeOptions.signal })
+        requestTawhiriData(variantSettings, requestContext, { label: variantId, signal: requestSignal })
             .then(function (data) {
                 if (!ehime_current || ehime_current.runId !== runId) return;
                 processEhimeResult(data, variantSettings, variantId, index, requestContext, runId);

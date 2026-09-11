@@ -300,7 +300,7 @@
             var response = await this.fetchImpl(url, {
                 method: 'GET',
                 headers: { Accept: 'application/json' },
-                cache: options && options.forceRefresh ? 'no-store' : 'default',
+                cache: options && (options.bypassHttpCache || options.forceRefresh) ? 'no-store' : 'default',
                 signal: controller ? controller.signal : externalSignal
             });
             if (!response.ok) {
@@ -360,7 +360,9 @@
         options = options || {};
         var client = this;
         var url = buildRequestUrl(client.baseUrl, params, client.baseLocation);
-        var key = cacheKey(client.baseUrl, params, client.baseLocation);
+        var baseKey = cacheKey(client.baseUrl, params, client.baseLocation);
+        var scope = options.cacheScope ? String(options.cacheScope).slice(0, 160) : '';
+        var key = scope ? 'scope:' + scope + '|' + baseKey : baseKey;
         if (options.cache !== false && !options.forceRefresh) {
             var cached = await client._getCached(key);
             if (cached) return { data: cached, cacheHit: true, url: url };

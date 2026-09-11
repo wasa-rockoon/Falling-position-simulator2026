@@ -7,6 +7,79 @@
 
     var layerRegistry = null;
     var uncertaintyVisibleRunId = null;
+    var historyColorAssignments = {};
+    var HISTORY_COLORS = ['#0078d4', '#d83b01', '#107c10', '#8764b8', '#c239b3', '#008272', '#ca5010', '#4f6bed'];
+
+    function colorForHistory(runId) {
+        if (historyColorAssignments[runId]) return historyColorAssignments[runId];
+        var used = Object.keys(historyColorAssignments).map(function (id) { return historyColorAssignments[id]; });
+        var color = HISTORY_COLORS.find(function (candidate) { return used.indexOf(candidate) === -1; });
+        if (!color) {
+            var hash = String(runId || '').split('').reduce(function (value, character) {
+                return ((value << 5) - value + character.charCodeAt(0)) | 0;
+            }, 0);
+            color = HISTORY_COLORS[Math.abs(hash) % HISTORY_COLORS.length];
+        }
+        historyColorAssignments[runId] = color;
+        return color;
+    }
+
+    function trajectoryPoints(trajectory) {
+        return root.ExportService.trajectoryRows(trajectory).map(function (point) {
+            return [Number(point.latitude), Number(point.longitude), Number(point.altitude_m) || 0];
+        }).filter(function (point) {
+            return Number.isFinite(point[0]) && Number.isFinite(point[1]);
+        });
+    }
+
+    function showEhimeRecord(record, trajectories, landings) {
+        var group = typeof root.L.featureGroup === 'function' ? root.L.featureGroup() : root.L.layerGroup();
+        var recordColor = colorForHistory(record.id);
+        var trajectoriesById = {};
+
+        trajectories.forEach(function (trajectory) {
+            trajectoriesById[trajectory.id] = trajectory;
+        });
+
+        landings.forEach(function (landing) {
+            var lat = Number(landing.latitude);
+            var lon = Number(landing.longitude);
+            if (!Number.isFinite(lat) || !Number.isFinite(lon)) return;
+
+            var trajectory = trajectoriesById[landing.seriesId] || trajectories.find(function (candidate) {
+                return candidate.label === landing.seriesId || candidate.variantId === landing.seriesId;
+            });
+            var points = trajectory ? trajectoryPoints(trajectory) : [];
+            var path = points.length > 1 ? root.L.polyline(points, {
+                color: '#000000',
+                weight: 3,
+                opacity: 0.9,
+                interactive: false,
+                className: 'history-ehime-flight-path prediction-flight-path'
+            }) : null;
+            var label = trajectory && trajectory.label || landing.seriesId || '着地点';
+            var marker = root.L.circleMarker([lat, lon], {
+                radius: label === 'BASE' ? 7 : 5,
+                color: recordColor,
+                fillColor: recordColor,
+                weight: 2,
+                opacity: 1,
+                fillOpacity: 0.88,
+                className: 'history-ehime-landing-marker'
+            });
+            marker.bindPopup('<b>' + String(label) + '</b><br>履歴色: <span style="color:' +
+                recordColor + '">●</span><br>着地点をクリックすると軌跡を表示／非表示');
+            if (path) {
+                marker.on('click', function () {
+                    if (group.hasLayer(path)) group.removeLayer(path);
+                    else group.addLayer(path);
+                });
+            }
+            group.addLayer(marker);
+        });
+
+        return group;
+    }
 
     function getRecord(runId) {
         if (!root.RunRepository || typeof root.RunRepository.get !== 'function') return Promise.reject(new Error('履歴ストレージを利用できません'));
@@ -32,14 +105,14 @@
         var trajectories = record && record.output && record.output.trajectories || [];
         var landings = record && record.output && record.output.landings || [];
         if (!trajectories.length && !landings.length) throw new Error('この履歴には地図表示できる座標がありません');
-        var group = typeof root.L.featureGroup === 'function' ? root.L.featureGroup() : root.L.layerGroup();
-        trajectories.forEach(function (trajectory) {
-            var rows = root.ExportService.trajectoryRows(trajectory);
-            var points = rows.map(function (point) { return [Number(point.latitude), Number(point.longitude), Number(point.altitude_m) || 0]; })
-                .filter(function (point) { return Number.isFinite(point[0]) && Number.isFinite(point[1]); });
+        var group = record.type === 'ehime_ensemble'
+            ? showEhimeRecord(record, trajectories, landings)
+            : (typeof root.L.featureGroup === 'function' ? root.L.featureGroup() : root.L.layerGroup());
+        if (record.type !== 'ehime_ensemble') trajectories.forEach(function (trajectory) {
+            var points = trajectoryPoints(trajectory);
             if (points.length > 1) root.L.polyline(points, { weight: 3, opacity: 0.8 }).addTo(group);
         });
-        landings.forEach(function (landing) {
+        if (record.type !== 'ehime_ensemble') landings.forEach(function (landing) {
             var lat = Number(landing.latitude);
             var lon = Number(landing.longitude);
             if (!Number.isFinite(lat) || !Number.isFinite(lon)) return;
@@ -61,7 +134,9 @@
             return true;
         }
         if (!layerRegistry) return false;
-        return layerRegistry.setVisible('history:' + runId, false);
+        var hidden = layerRegistry.setVisible('history:' + runId, false);
+        if (hidden) delete historyColorAssignments[runId];
+        return hidden;
     }
 
     function isVisible(runId) {
@@ -73,6 +148,7 @@
 
     function clearDisplay() {
         if (layerRegistry) layerRegistry.clear();
+        historyColorAssignments = {};
         if (uncertaintyVisibleRunId && root.UncertaintyAnalysis && typeof root.UncertaintyAnalysis.hideMap === 'function') {
             root.UncertaintyAnalysis.hideMap({ source: 'history-replay' });
             uncertaintyVisibleRunId = null;

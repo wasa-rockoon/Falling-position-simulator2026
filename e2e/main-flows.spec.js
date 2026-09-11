@@ -28,6 +28,49 @@ test('愛媛13条件を完了し複数系列を保存する', async ({ app }) =>
     await expect.poll(() => app.apiCalls.filter((url) => url.includes('/api/v1/')).length).toBe(13);
     await expect(page.locator('#results_status_badge')).toHaveText('完了');
 
+    await page.locator('[data-results-view="history"]').click();
+    const commonHistory = page.locator('.run-history-item').first();
+    await commonHistory.getByRole('button', { name: '地図表示' }).click();
+    await expect(page.locator('.history-ehime-landing-marker')).toHaveCount(13);
+    await expect(page.locator('.history-ehime-flight-path')).toHaveCount(0);
+    const copiedRunId = await page.evaluate(async (runId) => {
+        const record = await window.RunRepository.get(runId);
+        const copy = JSON.parse(JSON.stringify(record));
+        copy.id = `${runId}_color_copy`;
+        await window.HistoryController.showRecord(copy);
+        return copy.id;
+    }, await commonHistory.getAttribute('data-run-id'));
+    await expect(page.locator('.history-ehime-landing-marker')).toHaveCount(26);
+    await expect.poll(() => page.evaluate(() => {
+        const colors = new Set();
+        window.map.eachLayer((layer) => {
+            if (layer.options && layer.options.className === 'history-ehime-landing-marker') colors.add(layer.options.color);
+        });
+        return colors.size;
+    })).toBe(2);
+    await page.evaluate((runId) => window.HistoryController.hide(runId), copiedRunId);
+    await expect(page.locator('.history-ehime-landing-marker')).toHaveCount(13);
+    await page.evaluate(() => {
+        let marker = null;
+        window.map.eachLayer((layer) => {
+            if (!marker && layer.options && layer.options.className === 'history-ehime-landing-marker') marker = layer;
+        });
+        if (!marker) throw new Error('Ehime history landing marker was not found');
+        marker.fire('click');
+    });
+    await expect(page.locator('.history-ehime-flight-path')).toHaveCount(1);
+    await page.evaluate(() => {
+        let marker = null;
+        window.map.eachLayer((layer) => {
+            if (!marker && layer.options && layer.options.className === 'history-ehime-landing-marker') marker = layer;
+        });
+        if (!marker) throw new Error('Ehime history landing marker was not found');
+        marker.fire('click');
+    });
+    await expect(page.locator('.history-ehime-flight-path')).toHaveCount(0);
+    await commonHistory.getByRole('button', { name: '地図から消す' }).click();
+    await page.locator('[data-results-view="overview"]').click();
+
     await page.locator('#coord_format_toggle').click();
     await page.evaluate(() => {
         const prediction = Object.values(window.ehime_predictions || {})
@@ -47,6 +90,26 @@ test('愛媛13条件を完了し複数系列を保存する', async ({ app }) =>
     await page.locator('#clear_replayed_history').click();
     await expect.poll(() => page.evaluate(() => Boolean(window.currentEhimeReplayHistoryId))).toBe(false);
     await expect.poll(() => page.evaluate(() => Object.keys(window.ehime_predictions || {}).length)).toBe(0);
+});
+
+test('愛媛13条件の実行中に地点を変えると取消になり履歴を削除できる', async ({ app }) => {
+    const { page } = app;
+    app.setPredictionDelay(500);
+    await app.setBaseSettings('ehime');
+    await page.locator('#run_pred_btn').click();
+    await expect.poll(() => page.evaluate(async () => (await window.RunRepository.getActive('ehime_ensemble')).length)).toBe(1);
+
+    await page.locator('#site').selectOption({ label: '大月町総合グラウンド' });
+    await expect.poll(() => page.evaluate(async () => (await window.RunRepository.getActive('ehime_ensemble')).length)).toBe(0);
+    await page.locator('.sidebar-tab[data-panel="panel-results"]').click();
+    await page.locator('[data-results-view="history"]').click();
+    const history = page.locator('.run-history-item').first();
+    await expect(history.locator('.run-status-badge')).toHaveText('取消');
+    const remove = history.getByRole('button', { name: '削除', exact: true });
+    await expect(remove).toBeEnabled();
+    await remove.click();
+    await history.getByRole('button', { name: 'もう一度押して削除' }).click();
+    await expect(history).toBeHidden();
 });
 
 test('自動探索を候補境界で中断し再開する', async ({ app }) => {

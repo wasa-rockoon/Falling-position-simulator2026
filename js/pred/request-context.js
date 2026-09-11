@@ -18,6 +18,12 @@
         return Number.isFinite(number) && number > 0 ? number : fallback;
     }
 
+    function makeCacheScope() {
+        var runtime = typeof globalThis !== 'undefined' ? globalThis : {};
+        if (runtime.crypto && typeof runtime.crypto.randomUUID === 'function') return runtime.crypto.randomUUID();
+        return Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 12);
+    }
+
     function createPauseController(existing) {
         if (existing) return existing;
         return {
@@ -64,7 +70,11 @@
             lastError: null
         };
         var pauseController = createPauseController(options.pauseController);
-        var refreshOnFirstRequest = options.refreshOnFirstRequest !== false;
+        // A prediction result is valid only for the forecast dataset used by that
+        // execution. Isolate cache entries per run so a later run cannot reuse a
+        // trajectory calculated from an older GFS cycle. The scope is persisted
+        // in snapshots so pause/resume still benefits from same-run caching.
+        var cacheScope = options.cacheScope || makeCacheScope();
 
         var context = {
             runId: options.runId || '',
@@ -82,7 +92,7 @@
             client: client,
             diagnostics: diagnostics,
             pauseController: pauseController,
-            refreshOnFirstRequest: refreshOnFirstRequest
+            cacheScope: cacheScope
         };
 
         context.canAttempt = function () {
@@ -96,6 +106,8 @@
             var label = requestOptions.label || '';
             diagnostics.lastLabel = label;
             var merged = Object.assign({}, requestOptions, {
+                cacheScope: context.cacheScope,
+                bypassHttpCache: true,
                 canAttempt: function () {
                     return context.canAttempt() && (typeof callerCanAttempt !== 'function' || callerCanAttempt());
                 },
@@ -105,10 +117,8 @@
                     if (typeof callerOnAttempt === 'function') callerOnAttempt(attempt);
                 }
             });
-            if (context.refreshOnFirstRequest) merged.forceRefresh = true;
             try {
                 var response = await client.request(params, merged);
-                if (context.refreshOnFirstRequest) context.refreshOnFirstRequest = false;
                 if (response.cacheHit) diagnostics.cacheHits += 1;
                 return response;
             } catch (error) {
@@ -135,6 +145,7 @@
                 concurrency: context.concurrency,
                 minIntervalMs: context.minIntervalMs,
                 cachePolicy: { ttlMs: context.cachePolicy.ttlMs },
+                cacheScope: context.cacheScope,
                 diagnostics: Object.assign({}, context.diagnostics),
                 pause: {
                     status: context.pauseController.status,
@@ -157,6 +168,7 @@
             concurrency: snapshot.concurrency,
             minIntervalMs: snapshot.minIntervalMs,
             cacheTtlMs: snapshot.cachePolicy && snapshot.cachePolicy.ttlMs,
+            cacheScope: snapshot.cacheScope,
             diagnostics: Object.assign({
                 httpAttempts: 0,
                 cacheHits: 0,

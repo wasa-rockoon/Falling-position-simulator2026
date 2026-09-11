@@ -26,6 +26,11 @@
         failed: '失敗',
         cancelled: '取消'
     };
+    var UNCERTAINTY_MODE_LABELS = {
+        probabilistic: '確率的不確実性解析',
+        'empirical-2024-2025': '過去実績検証',
+        'ehime-go': 'GO基準検証'
+    };
 
     function element(id) {
         return root.document ? root.document.getElementById(id) : null;
@@ -168,6 +173,54 @@
         return parts.length ? parts.join(' / ') : '保存済みの概要値はありません';
     }
 
+    function formatParameter(value, digits, unit) {
+        var number = Number(value);
+        if (!Number.isFinite(number)) return '未保存';
+        return number.toFixed(digits) + ' ' + unit;
+    }
+
+    function historyParameters(record) {
+        var flight = record && record.input && record.input.flight || {};
+        return '上昇 ' + formatParameter(flight.ascentRateMps, 2, 'm/s') +
+            ' / 下降 ' + formatParameter(flight.descentRateMps, 2, 'm/s') +
+            ' / 破裂 ' + formatParameter(flight.burstAltitudeM, 0, 'm');
+    }
+
+    function appendHistoryParameters(parent, record) {
+        var flight = record && record.input && record.input.flight || {};
+        var container = appendText(parent, 'div', 'run-history-parameters', '');
+        [
+            ['上昇', formatParameter(flight.ascentRateMps, 2, 'm/s')],
+            ['下降', formatParameter(flight.descentRateMps, 2, 'm/s')],
+            ['破裂', formatParameter(flight.burstAltitudeM, 0, 'm')]
+        ].forEach(function (entry) {
+            var item = appendText(container, 'span', 'run-history-parameter', '');
+            appendText(item, 'small', '', entry[0]);
+            appendText(item, 'strong', '', entry[1]);
+        });
+    }
+
+    function compactJstDateTime(dateText, timeText) {
+        if (!dateText) return '未保存';
+        var match = String(dateText).match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+        var date = match ? Number(match[2]) + '/' + Number(match[3]) : String(dateText);
+        return date + ' ' + (timeText || '時刻未保存');
+    }
+
+    function historyFeature(record) {
+        var feature = record && record.input && record.input.feature || {};
+        var configuration = feature.configuration || {};
+        if (record && record.type === 'auto_search') {
+            return '探索期間（JST） ' + compactJstDateTime(configuration.startDate, configuration.startTime) +
+                '～' + compactJstDateTime(configuration.endDate, configuration.endTime);
+        }
+        if (record && record.type === 'uncertainty') {
+            var mode = configuration.analysisMode;
+            return '解析モード ' + (UNCERTAINTY_MODE_LABELS[mode] || mode || '未保存');
+        }
+        return '';
+    }
+
     function clearDeleteConfirmation(runId, button) {
         var timer = deleteConfirmTimers.get(runId);
         if (timer) root.clearTimeout(timer);
@@ -200,7 +253,7 @@
         }
     }
 
-    function renderHistoryItem(item) {
+    function renderHistoryItem(item, record) {
         var article = root.document.createElement('article');
         article.className = 'run-history-item' + (item.pinned ? ' is-pinned' : '');
         article.dataset.runId = item.runId;
@@ -209,6 +262,9 @@
         appendText(header, 'strong', 'run-history-title', item.title || typeLabel(item.type));
         appendText(header, 'span', 'run-status-badge status-' + item.status, statusLabel(item.status));
         appendText(article, 'div', 'run-history-meta', historyMeta(item));
+        appendHistoryParameters(article, record);
+        var featureText = historyFeature(record);
+        if (featureText) appendText(article, 'div', 'run-history-feature', featureText);
         appendText(article, 'div', 'run-history-summary', historySummary(item));
 
         var actions = appendText(article, 'div', 'run-history-actions', '');
@@ -296,7 +352,14 @@
             if (!items.length) {
                 appendText(list, 'p', 'run-history-empty', selectedType ? 'この種類の実行履歴はありません。' : '保存された実行履歴はありません。');
             } else {
-                items.forEach(function (item) { list.appendChild(renderHistoryItem(item)); });
+                var records = await Promise.all(items.map(function (item) {
+                    return root.RunRepository.get(item.runId).catch(function (error) {
+                        report(error, 'results.history.details');
+                        return null;
+                    });
+                }));
+                if (requestId !== historyRequest) return items;
+                items.forEach(function (item, index) { list.appendChild(renderHistoryItem(item, records[index])); });
             }
             list.setAttribute('aria-busy', 'false');
             return items;
@@ -313,6 +376,24 @@
     function scheduleHistoryRefresh() {
         if (historyRefreshTimer) root.clearTimeout(historyRefreshTimer);
         historyRefreshTimer = root.setTimeout(refreshHistory, 120);
+    }
+
+    async function recoverOrphanedEhimeRuns() {
+        if (!root.RunRepository || typeof root.RunRepository.getActive !== 'function') return;
+        try {
+            var active = await root.RunRepository.getActive('ehime_ensemble');
+            var currentId = root.ehime_current && root.ehime_current.runId;
+            await Promise.all(active.filter(function (record) {
+                return record.id !== currentId;
+            }).map(function (record) {
+                return root.RunRepository.update(record.id, {
+                    status: 'cancelled',
+                    progress: { currentLabel: '画面終了または地点変更により取消' }
+                });
+            }));
+        } catch (error) {
+            report(error, 'results.history.recover-ehime');
+        }
     }
 
     function bindViewTabs() {
@@ -354,6 +435,7 @@
         if (refresh) refresh.addEventListener('click', refreshHistory);
         root.addEventListener('wasa:run-repository-change', scheduleHistoryRefresh);
         root.addEventListener('wasa:map-display-cleared', scheduleHistoryRefresh);
+        recoverOrphanedEhimeRuns();
         activate(restoredView(), { remember: false });
         refreshHistory();
     }
@@ -371,6 +453,8 @@
         typeLabel: typeLabel,
         statusLabel: statusLabel,
         formatJst: formatJst,
-        formatPercent: percent
+        formatPercent: percent,
+        historyParameters: historyParameters,
+        historyFeature: historyFeature
     };
 }));

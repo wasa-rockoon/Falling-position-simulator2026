@@ -77,9 +77,11 @@ function EH_LaunchCard() {
         });
     // Launch card parameter onchange event handlers
     $("#lat").change(function() {
+        if (typeof cancelActiveEhimeRun === 'function') cancelActiveEhimeRun('launch-position-changed');
         plotClick();
     });
     $("#lon").change(function() {
+        if (typeof cancelActiveEhimeRun === 'function') cancelActiveEhimeRun('launch-position-changed');
         plotClick();
     });
 

@@ -43,7 +43,7 @@ test('RequestContext fixes endpoint and tracks attempts, cache hits and budget',
     assert.equal(context.resolvedBaseUrl, 'https://phase1.example.test/predict');
 });
 
-test('RequestContext refreshes stale prediction data at the start of a new run', async () => {
+test('RequestContext isolates all cached predictions between runs while reusing them within one run', async () => {
     await PredictionApi.clearCache();
     let fetchCalls = 0;
     const fetchOptions = [];
@@ -58,19 +58,22 @@ test('RequestContext refreshes stale prediction data at the start of a new run',
         fetchImpl
     });
     await firstRun.request({ launch: 'a' });
+    await firstRun.request({ launch: 'b' });
 
     const secondRun = RequestContext.create({
         source: 'custom',
         resolvedBaseUrl: 'https://refresh.example.test/predict',
         fetchImpl
     });
-    const refreshed = await secondRun.request({ launch: 'a' });
+    const refreshedA = await secondRun.request({ launch: 'a' });
+    const refreshedB = await secondRun.request({ launch: 'b' });
     const cached = await secondRun.request({ launch: 'a' });
 
-    assert.equal(refreshed.cacheHit, false);
+    assert.equal(refreshedA.cacheHit, false);
+    assert.equal(refreshedB.cacheHit, false);
     assert.equal(cached.cacheHit, true);
-    assert.equal(fetchCalls, 2);
-    assert.equal(fetchOptions[1].cache, 'no-store');
+    assert.equal(fetchCalls, 4);
+    assert.ok(fetchOptions.every((options) => options.cache === 'no-store'));
 });
 
 test('RequestContext snapshot restores immutable request settings and diagnostics', async () => {
@@ -92,4 +95,5 @@ test('RequestContext snapshot restores immutable request settings and diagnostic
     assert.equal(restored.maxHttpAttempts, 5);
     assert.equal(restored.cachePolicy.ttlMs, 5000);
     assert.equal(restored.diagnostics.httpAttempts, 2);
+    assert.equal(restored.cacheScope, snapshot.cacheScope);
 });

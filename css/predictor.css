@@ -1569,6 +1569,31 @@ table#trails th { background-color: #6666ff; color: white; }
 .run-history-title { min-width: 0; overflow-wrap: anywhere; color: var(--text-primary); font-size: 12px; }
 .run-history-meta,
 .run-history-summary { margin-top: 4px; color: var(--text-secondary); font-size: 10px !important; line-height: 1.45; overflow-wrap: anywhere; }
+.run-history-parameters {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 4px;
+  margin-top: 7px;
+}
+.run-history-parameter {
+  display: grid;
+  gap: 1px;
+  min-width: 0;
+  padding: 5px 6px;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  background: var(--bg-panel-header);
+}
+.run-history-parameter small { color: var(--text-secondary); font-size: 9px; line-height: 1.2; }
+.run-history-parameter strong { color: var(--text-primary); font-size: 10px; line-height: 1.25; overflow-wrap: anywhere; }
+.run-history-feature {
+  margin-top: 5px;
+  padding-left: 7px;
+  border-left: 2px solid var(--color-primary);
+  color: var(--text-secondary);
+  font-size: 10px;
+  line-height: 1.4;
+}
 .run-history-actions { margin-top: 7px; }
 .run-history-empty { width: auto !important; margin: 0 !important; padding: 12px; color: var(--text-secondary); text-align: center; }
 .run-history-empty.is-error { color: var(--color-danger); }

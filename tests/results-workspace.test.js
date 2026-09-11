@@ -67,6 +67,27 @@ test('history labels remain concise and Japanese', () => {
     assert.equal(ResultsWorkspace.formatPercent(75), '75%');
     assert.equal(ResultsWorkspace.formatPercent(null), '-');
 });
+
+test('history details show flight parameters and type-specific configuration', () => {
+    const base = {
+        input: {
+            flight: { ascentRateMps: 5, descentRateMps: 4.25, burstAltitudeM: 30000 },
+            feature: {}
+        }
+    };
+    assert.equal(ResultsWorkspace.historyParameters(base), '上昇 5.00 m/s / 下降 4.25 m/s / 破裂 30000 m');
+    assert.equal(ResultsWorkspace.historyFeature({
+        type: 'auto_search',
+        input: { feature: { configuration: {
+            startDate: '2026-09-16', startTime: '00:00',
+            endDate: '2026-09-18', endTime: '23:59'
+        } } }
+    }), '探索期間（JST） 9/16 00:00～9/18 23:59');
+    assert.equal(ResultsWorkspace.historyFeature({
+        type: 'uncertainty',
+        input: { feature: { configuration: { analysisMode: 'empirical-2024-2025' } } }
+    }), '解析モード 過去実績検証');
+});
 test('display clear preserves saved history and autosaved settings', () => {
     const source = fs.readFileSync(path.join(root, 'js/pred/ehime-enhancements.js'), 'utf8');
     const clearBody = source.match(/function clearAllPredictions\(\) \{([\s\S]*?)\n\}/)[1];

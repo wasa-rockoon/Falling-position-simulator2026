@@ -248,6 +248,9 @@ function populateLaunchSite() {
 // the saved locations window if "Other" was chosen; sets the launch card
 // lat/lon and plots the new launch location otherwise
 function changeLaunchSite() {
+    if (typeof cancelActiveEhimeRun === 'function') {
+        cancelActiveEhimeRun('launch-site-changed');
+    }
     var selectedName = $("#site").val();
     if ( selectedName == "Other" ) {
         appendDebug("User requested locally saved launch sites");

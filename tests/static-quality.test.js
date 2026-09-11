@@ -208,7 +208,8 @@ test('bulk workflows can abort the active request before starting a new job', ()
     assert.match(uncertainty, /signal: activeAbortController \? activeAbortController[.]signal : null/);
     assert.match(uncertainty, /await runningPromise/);
     assert.match(uncertainty, /中止して新規解析/);
-    assert.match(ehime, /signal: runtimeOptions[.]signal/);
+    assert.match(ehime, /function cancelActiveEhimeRun[\s\S]*abortController[.]abort\(\)/);
+    assert.match(ehime, /signal: requestSignal/);
 });
 test('bulk workflows share retry-inclusive workload control and resumable boundaries', () => {
     const html = read('index.html');
