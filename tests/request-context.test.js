@@ -43,6 +43,36 @@ test('RequestContext fixes endpoint and tracks attempts, cache hits and budget',
     assert.equal(context.resolvedBaseUrl, 'https://phase1.example.test/predict');
 });
 
+test('RequestContext refreshes stale prediction data at the start of a new run', async () => {
+    await PredictionApi.clearCache();
+    let fetchCalls = 0;
+    const fetchOptions = [];
+    const fetchImpl = async (_url, options) => {
+        fetchCalls += 1;
+        fetchOptions.push(options);
+        return response({ prediction: [], fetchCalls });
+    };
+    const firstRun = RequestContext.create({
+        source: 'custom',
+        resolvedBaseUrl: 'https://refresh.example.test/predict',
+        fetchImpl
+    });
+    await firstRun.request({ launch: 'a' });
+
+    const secondRun = RequestContext.create({
+        source: 'custom',
+        resolvedBaseUrl: 'https://refresh.example.test/predict',
+        fetchImpl
+    });
+    const refreshed = await secondRun.request({ launch: 'a' });
+    const cached = await secondRun.request({ launch: 'a' });
+
+    assert.equal(refreshed.cacheHit, false);
+    assert.equal(cached.cacheHit, true);
+    assert.equal(fetchCalls, 2);
+    assert.equal(fetchOptions[1].cache, 'no-store');
+});
+
 test('RequestContext snapshot restores immutable request settings and diagnostics', async () => {
     const context = RequestContext.create({
         runId: 'run_restore',

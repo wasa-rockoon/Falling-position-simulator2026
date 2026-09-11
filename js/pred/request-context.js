@@ -64,6 +64,7 @@
             lastError: null
         };
         var pauseController = createPauseController(options.pauseController);
+        var refreshOnFirstRequest = options.refreshOnFirstRequest !== false;
 
         var context = {
             runId: options.runId || '',
@@ -80,7 +81,8 @@
             }),
             client: client,
             diagnostics: diagnostics,
-            pauseController: pauseController
+            pauseController: pauseController,
+            refreshOnFirstRequest: refreshOnFirstRequest
         };
 
         context.canAttempt = function () {
@@ -103,8 +105,10 @@
                     if (typeof callerOnAttempt === 'function') callerOnAttempt(attempt);
                 }
             });
+            if (context.refreshOnFirstRequest) merged.forceRefresh = true;
             try {
                 var response = await client.request(params, merged);
+                if (context.refreshOnFirstRequest) context.refreshOnFirstRequest = false;
                 if (response.cacheHit) diagnostics.cacheHits += 1;
                 return response;
             } catch (error) {

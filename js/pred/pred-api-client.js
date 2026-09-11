@@ -285,7 +285,7 @@
         }
     };
 
-    PredictionClient.prototype._fetchOnce = async function (url, externalSignal) {
+    PredictionClient.prototype._fetchOnce = async function (url, externalSignal, options) {
         var controller = typeof root.AbortController === 'function' ? new root.AbortController() : null;
         var timer = null;
         var onExternalAbort = null;
@@ -300,6 +300,7 @@
             var response = await this.fetchImpl(url, {
                 method: 'GET',
                 headers: { Accept: 'application/json' },
+                cache: options && options.forceRefresh ? 'no-store' : 'default',
                 signal: controller ? controller.signal : externalSignal
             });
             if (!response.ok) {
@@ -340,7 +341,7 @@
                     throw new PredictionRequestError('API呼び出し上限に達しました', { retryable: false, callLimit: true });
                 }
                 if (typeof options.onAttempt === 'function') options.onAttempt(attempt + 1);
-                return await this._fetchOnce(url, signal);
+                return await this._fetchOnce(url, signal, options);
             } catch (error) {
                 lastError = error;
                 if (signal && signal.aborted) throw abortError();
