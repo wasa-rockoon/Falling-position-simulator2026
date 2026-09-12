@@ -12,6 +12,15 @@ test('2026 Python defaults reproduce lift and helium volume with density 1.1138'
     close(result.totalLiftKg, 6.202117527905807, 1e-12, 'total lift');
     close(result.gasVolumeL, 6118.089404608079, 1e-9, 'gas volume');
 });
+test('density difference can switch between Python 2026 and original Excel values', () => {
+    const python2026 = gas.calculate({ densityDifferenceKgM3: 1.1138 });
+    const originalExcel = gas.calculate({ densityDifferenceKgM3: 1.115 });
+    assert.equal(python2026.inputs.densityDifferenceKgM3, 1.1138);
+    assert.equal(originalExcel.inputs.densityDifferenceKgM3, 1.115);
+    assert.ok(originalExcel.gasVolumeL < python2026.gasVolumeL);
+    close(originalExcel.gasVolumeL / python2026.gasVolumeL, 1.1138 / 1.115, 1e-12, 'density scaling');
+    assert.throws(() => gas.calculate({ densityDifferenceKgM3: 0 }), /密度差/);
+});
 test('2026 model returns three gas processes', () => {
     const result = gas.calculate({ polytropicN: 1.3 });
     close(result.gasModels.quasiStatic.workbookEquivalentCount, 0.9527089575476658, 1e-12, 'quasi-static');

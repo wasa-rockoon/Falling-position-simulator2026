@@ -28,6 +28,7 @@ document.body.insertAdjacentHTML('beforeend', `
 <label>充填時温度 (℃)<input id="gas_fill_temperature" type="number" step="0.1" value="26"></label>
 <label>残圧測定時温度 (℃)<input id="gas_cylinder_temperature" type="number" step="0.1" value="26"></label>
 <label>充填時大気圧 (hPa)<input id="gas_pressure" type="number" min="1" step="0.1" value="1010"></label>
+<label>空気−ヘリウム密度差<select id="gas_density_difference"><option value="1.1138" selected>1.1138 kg/m³（Python 2026）</option><option value="1.115">1.115 kg/m³（元Excel）</option></select></label>
 <label>ポリトロープ指数 n<input id="gas_polytropic_n" type="number" min="1" max="1.67" step="0.01" value="1.3"></label>
 <label>ボンベ充填過程<select id="gas_cylinder_process"><option value="adiabatic" selected>断熱（既定）</option><option value="polytropic">ポリトロープ</option><option value="quasi-static">準静的</option></select></label>
 <p class="gas-calculator-note">充填過程は、ボンベから取り出せる量・使用本数・残圧の見積りにだけ影響します。必要ガス量、浮力、破裂高度は気球側の条件から求めるため変化しません。</p>
@@ -41,7 +42,7 @@ document.body.insertAdjacentHTML('beforeend', `
 </form>
 <div class="gas-calculator-results" aria-live="polite">
 <p id="gas_calculator_error" class="gas-calculator-error" hidden></p>
-<div class="gas-result-summary"><div><span>総重量</span><strong id="gas_result_total_mass">-</strong></div><div><span>純浮力</span><strong id="gas_result_pure_lift">-</strong></div><div><span>全浮力</span><strong id="gas_result_total_lift">-</strong></div><div><span>必要ガス量</span><strong id="gas_result_volume">-</strong></div><div><span>選択破裂高度</span><strong id="gas_result_burst">-</strong></div><div><span>密度差</span><strong>1.1138 kg/m³</strong></div></div>
+<div class="gas-result-summary"><div><span>総重量</span><strong id="gas_result_total_mass">-</strong></div><div><span>純浮力</span><strong id="gas_result_pure_lift">-</strong></div><div><span>全浮力</span><strong id="gas_result_total_lift">-</strong></div><div><span>必要ガス量</span><strong id="gas_result_volume">-</strong></div><div><span>選択破裂高度</span><strong id="gas_result_burst">-</strong></div><div><span>密度差</span><strong id="gas_result_density">-</strong></div></div>
 <p id="gas_cylinder_warning" class="gas-calculator-warning" hidden>4本では不足する過程があります。</p>
 <details open><summary>充填過程の比較</summary><div class="gas-table-scroll"><table><thead><tr><th>過程</th><th>指数 n</th><th>使用本数</th><th>最終使用ボンベ残圧</th></tr></thead><tbody id="gas_process_result_body"></tbody></table></div></details>
 <details><summary id="gas_cylinder_detail_title">ボンベごとの使用量・残圧</summary><div class="gas-table-scroll"><table><thead><tr><th>本</th><th>状態</th><th>充填可能量</th><th>使用量</th><th>終了圧</th></tr></thead><tbody id="gas_cylinder_result_body"></tbody></table></div></details>
