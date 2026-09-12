@@ -7,19 +7,19 @@ test('2026 Python defaults reproduce lift and helium volume with density 1.1138'
     assert.equal(gas.DENSITY_DIFFERENCE_KG_M3, 1.1138);
     assert.equal(result.inputs.cylinderProcess, 'adiabatic');
     assert.equal(result.cylinders.key, 'adiabatic');
-    close(result.totalMassKg, 3.335, 1e-12, 'total mass');
-    close(result.pureLiftKg, 2.321026744363245, 1e-12, 'pure lift');
-    close(result.totalLiftKg, 5.6560267443632455, 1e-12, 'total lift');
-    close(result.gasVolumeL, 5579.397220573637, 1e-9, 'gas volume');
+    close(result.totalMassKg, 3.734, 1e-12, 'total mass');
+    close(result.pureLiftKg, 2.4681175279058074, 1e-12, 'pure lift');
+    close(result.totalLiftKg, 6.202117527905807, 1e-12, 'total lift');
+    close(result.gasVolumeL, 6118.089404608079, 1e-9, 'gas volume');
 });
 test('2026 model returns three gas processes', () => {
     const result = gas.calculate({ polytropicN: 1.3 });
-    close(result.gasModels.quasiStatic.workbookEquivalentCount, 0.8688238040054539, 1e-12, 'quasi-static');
-    close(result.gasModels.polytropic.workbookEquivalentCount, 0.8903149861487479, 1e-12, 'polytropic');
-    close(result.gasModels.adiabatic.workbookEquivalentCount, 0.9294186585460487, 1e-12, 'adiabatic');
-    assert.equal(result.gasModels.quasiStatic.cylinders[0].residualPressureMpa, 2.01);
-    assert.equal(result.gasModels.polytropic.cylinders[0].residualPressureMpa, 1.12);
-    assert.equal(result.gasModels.adiabatic.cylinders[0].residualPressureMpa, 0.55);
+    close(result.gasModels.quasiStatic.workbookEquivalentCount, 0.9527089575476658, 1e-12, 'quasi-static');
+    close(result.gasModels.polytropic.workbookEquivalentCount, 0.9762751186516911, 1e-12, 'polytropic');
+    close(result.gasModels.adiabatic.workbookEquivalentCount, 1.0191542603075336, 1e-12, 'adiabatic');
+    assert.equal(result.gasModels.quasiStatic.cylinders[0].residualPressureMpa, 0.85);
+    assert.equal(result.gasModels.polytropic.cylinders[0].residualPressureMpa, 0.37);
+    assert.equal(result.gasModels.adiabatic.cylinders[0].residualPressureMpa, 0.2);
 });
 test('polytropic endpoints equal quasi-static and adiabatic capacities', () => {
     const iso = gas.calculate({ polytropicN: 1 });
@@ -28,7 +28,7 @@ test('polytropic endpoints equal quasi-static and adiabatic capacities', () => {
     close(adi.gasModels.polytropic.cylinders[0].capacityL, adi.gasModels.adiabatic.cylinders[0].capacityL, 1e-9, 'n=gamma');
 });
 test('2026 model exposes only four retained burst criteria', () => {
-    assert.deepEqual(gas.calculate({}).burst.methods, { ellipsoidThickness: 28.65, ellipsoidLength: 26.45, ellipsoidDiameter: 35.1, sphereDiameter: 32.25 });
+    assert.deepEqual(gas.calculate({}).burst.methods, { ellipsoidThickness: 28.1, ellipsoidLength: 25.9, ellipsoidDiameter: 34.5, sphereDiameter: 31.7 });
 });
 test('1200 g remains unavailable until its ascent coefficient is known', () => { assert.throws(() => gas.calculate({ balloonMassG: 1200 }), /未確定/); });
 test('four cylinders accept independent pressure and volume values', () => {
@@ -46,7 +46,8 @@ test('other organizations can enter independent parachute and recovery equipment
     assert.equal(result.recoveryMassG, 600);
     close(result.totalMassKg, 3.1, 1e-12, 'custom recovery total mass');
 });
-test('legacy terminal velocity settings still restore the WASA parachute mass', () => {
-    const result = gas.calculate({ terminalVelocityMps: 7.28 });
-    assert.equal(result.recoveryMassG, 635);
+test('WASA parachute presets include the latest parachute and recovery masses', () => {
+    assert.equal(gas.calculate({ terminalVelocityMps: 4.38 }).recoveryMassG, 1234);
+    assert.equal(gas.calculate({ terminalVelocityMps: 7 }).recoveryMassG, 696);
+    assert.equal(gas.calculate({ terminalVelocityMps: 9.89 }).recoveryMassG, 630);
 });

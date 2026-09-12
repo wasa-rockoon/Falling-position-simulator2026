@@ -7,14 +7,14 @@ var MODELS={
 1500:{massG:1500,k:138/23.6,lengthM:2.2,diameterM:1.4,burstM:10.0},
 2000:{massG:2000,k:148/23.6,lengthM:2.5,diameterM:1.6,burstM:11.3},
 3000:{massG:3000,k:158/23.6,lengthM:2.95,diameterM:1.9,burstM:13.5}};
-var PARACHUTES={4.28:430,7.28:230,10.4:140};
+var PARACHUTES={4.38:784,7:246,9.89:180};
 var DENSITY=1.1138,GAMMA=1.67;
-var DEFAULTS={inputMode:'normal',balloonMassG:1500,componentMassG:1000,otherMassG:0,parachutePreset:'wasa-4.28',terminalVelocityMps:4.28,parachuteMassG:430,recoveryEquipmentMassG:405,verificationOtherMassG:1835,targetAscentRate:5,temperatureC:26,cylinderTemperatureC:25,pressureHpa:1010,targetCylinderPressureMpa:0.2,firstCylinderOffsetMpa:0,polytropicN:1.3,cylinderProcess:'adiabatic',cylinders:[1,2,3,4].map(function(id){return{id:String(id),volumeL:47,pressureMpa:14};})};
+var DEFAULTS={inputMode:'normal',balloonMassG:1500,componentMassG:1000,otherMassG:0,parachutePreset:'wasa-4',terminalVelocityMps:4.38,parachuteMassG:784,recoveryEquipmentMassG:450,verificationOtherMassG:1835,targetAscentRate:5,temperatureC:26,cylinderTemperatureC:25,pressureHpa:1010,targetCylinderPressureMpa:0.2,firstCylinderOffsetMpa:0,polytropicN:1.3,cylinderProcess:'adiabatic',cylinders:[1,2,3,4].map(function(id){return{id:String(id),volumeL:47,pressureMpa:14};})};
 function finite(v,label,min,max){v=Number(v);if(!Number.isFinite(v)||(min!=null&&v<min)||(max!=null&&v>max))throw new RangeError(label+'が不正です');return v;}
 function round(v,d){var s=Math.pow(10,d==null?2:d);return Math.round((v+Number.EPSILON)*s)/s;}
 function opts(raw){var o=Object.assign({},DEFAULTS,raw||{});o.cylinders=(raw&&raw.cylinders?raw.cylinders:DEFAULTS.cylinders).map(function(c){return Object.assign({},c);});return o;}
 function modelFor(mass){var key=String(Math.round(finite(mass,'気球質量',1))),m=MODELS[key];if(!m)throw new RangeError('対応していない気球質量です: '+key+' g');if(!Number.isFinite(m.k))throw new RangeError(key+' gの上昇速度係数は未確定のため使用できません');return m;}
-function parachuteMass(v){v=finite(v,'終端速度',0.01);var key=Object.keys(PARACHUTES).find(function(x){return Math.abs(Number(x)-v)<1e-9;});if(key==null)throw new RangeError('対応していない終端速度です: '+v+' m/s');return PARACHUTES[key]+405;}
+function parachuteMass(v){v=finite(v,'終端速度',0.01);var key=Object.keys(PARACHUTES).find(function(x){return Math.abs(Number(x)-v)<1e-9;});if(key==null)throw new RangeError('対応していない終端速度です: '+v+' m/s');return PARACHUTES[key]+450;}
 // gas_calc_2026.py: calc_buoyancy
 function solvePureLiftKg(weight,rate,k){weight=finite(weight,'総重量',0.001);rate=finite(rate,'目標上昇速度',0.01);k=finite(k,'上昇速度係数',0.01);var lift=10,iterations=0,ok=false;function f(x){return Math.pow(rate,6)*Math.pow(weight+x,2)-Math.pow(k,6)*Math.pow(x,3);}function df(x){return 2*Math.pow(rate,6)*(weight+x)-3*Math.pow(k,6)*Math.pow(x,2);}for(var i=0;i<30;i+=1){var y=f(lift);iterations=i+1;if(Math.abs(y)<=1e-4){ok=true;break;}var slope=df(lift);if(!Number.isFinite(slope)||Math.abs(slope)<1e-12)break;lift-=y/slope;if(!Number.isFinite(lift)||lift<=0)break;}if(!ok)throw new RangeError('純浮力を30回以内に収束できません');return{liftKg:lift,converged:true,iterations:iterations};}
 function calculateGasVolumeL(lift,temp,pressure){lift=finite(lift,'全浮力',0);temp=finite(temp,'充填時温度')+273.15;pressure=finite(pressure,'充填時大気圧',0.01);return(lift/DENSITY)*temp*1013.25/(273.15*pressure)*1000;}

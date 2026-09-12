@@ -15,11 +15,11 @@ document.body.insertAdjacentHTML('beforeend', `
 <div id="gas_normal_fields">
 <label>コンポーネント重量 (g)<input id="gas_component_mass" type="number" min="0" step="1" value="5900"></label>
 <label>その他重量 (g)<input id="gas_other_mass" type="number" min="0" step="1" value="550"></label>
-<label>パラシュート設定<select id="gas_parachute_preset"><option value="wasa-4.28">WASA 4.28 m/s（430 g）</option><option value="wasa-7.28">WASA 7.28 m/s（230 g）</option><option value="wasa-10.4">WASA 10.4 m/s（140 g）</option><option value="custom">任意入力（他団体など）</option></select></label>
-<label>終端速度 (m/s)<input id="gas_terminal_velocity" type="number" min="0.01" step="0.01" value="4.28"></label>
-<label>パラシュート重量 (g)<input id="gas_parachute_mass" type="number" min="0" step="1" value="430"></label>
-<label>その他回収機器重量 (g)<input id="gas_recovery_equipment_mass" type="number" min="0" step="1" value="405"></label>
-<p class="gas-calculator-note">回収系合計: <strong id="gas_recovery_mass">835 g</strong>。他団体は「任意入力」を選び、パラシュートと付属機器の実測重量を入力してください。</p>
+<label>パラシュート設定<select id="gas_parachute_preset"><option value="wasa-4">WASA 4 m/s型（実測4.38 m/s・784 g）</option><option value="wasa-7">WASA 7 m/s型（7.00 m/s・246 g）</option><option value="wasa-10">WASA 10 m/s型（実測9.89 m/s・180 g）</option><option value="custom">任意入力（他団体など）</option></select></label>
+<label>予測用下降速度 (m/s)<input id="gas_terminal_velocity" type="number" min="0.01" step="0.01" value="4.38"></label>
+<label>パラシュート重量 (g)<input id="gas_parachute_mass" type="number" min="0" step="1" value="784"></label>
+<label>ガーミン・シーマーカー重量 (g)<input id="gas_recovery_equipment_mass" type="number" min="0" step="1" value="450"></label>
+<p class="gas-calculator-note">回収系合計: <strong id="gas_recovery_mass">1,234 g</strong>（ガーミン300 g＋シーマーカー150 g）。他団体は「任意入力」を選び、パラシュートと付属機器の実測重量を入力してください。</p>
 </div>
 <div id="gas_verification_fields" hidden><label>気球以外の総重量 (g)<input id="gas_verification_other_mass" type="number" min="0" step="1" value="7155"></label><p class="gas-calculator-note">回収系を含む、気球本体以外の総重量を直接入力します。</p></div>
 <label>目標上昇速度 (m/s)<input id="gas_ascent_rate" type="number" min="0.1" step="0.1" value="6"></label>
