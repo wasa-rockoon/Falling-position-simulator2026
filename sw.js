@@ -4,7 +4,9 @@
 var CACHE_PREFIX = 'wasa-predictor-';
 var CACHE_VERSION = '3a5f33cf0bdf';
 var APP_CACHE_NAME = CACHE_PREFIX + 'app-' + CACHE_VERSION;
-var TILE_CACHE_NAME = CACHE_PREFIX + 'tiles-v1';
+// v2 stores CORS-readable responses. v1 may contain opaque responses created
+// before image export required cross-origin map pixels.
+var TILE_CACHE_NAME = CACHE_PREFIX + 'tiles-v2-cors';
 var TILE_CACHE_LIMIT = 500;
 var APP_SHELL = [
     "./",
@@ -152,34 +154,25 @@ async function trimCache(cache, maximumEntries) {
 async function cacheFirstTile(request) {
     var cache = await caches.open(TILE_CACHE_NAME);
     var cached = await cache.match(request);
-    if (cached) return cached;
+    if (cached && !(request.mode === 'cors' && cached.type === 'opaque')) return cached;
+    if (cached) await cache.delete(request);
     var response = await fetch(request);
-    if (response && (response.ok || response.type === 'opaque')) {
+    var corsCompatible = request.mode !== 'cors' || response.type !== 'opaque';
+    if (response && corsCompatible && (response.ok || response.type === 'opaque')) {
         await cache.put(request, response.clone());
         await trimCache(cache, TILE_CACHE_LIMIT);
     }
     return response;
 }
 
-async function networkFirstNavigation(request) {
-    var cache = await caches.open(APP_CACHE_NAME);
-    try {
-        var response = await fetch(request);
-        if (response && response.ok) await cache.put('./index.html', response.clone());
-        return response;
-    } catch (error) {
-        return (await cache.match(request)) || (await cache.match('./index.html'));
-    }
-}
-
-async function staleWhileRevalidate(request) {
+async function cacheFirstAppShell(request) {
     var cache = await caches.open(APP_CACHE_NAME);
     var cached = await cache.match(request);
-    var network = fetch(request).then(async function (response) {
-        if (response && response.ok && response.type === 'basic') await cache.put(request, response.clone());
-        return response;
-    }).catch(function () { return null; });
-    return cached || (await network) || Response.error();
+    if (!cached && (request.mode === 'navigate' || new URL(request.url).pathname.endsWith('.html'))) {
+        cached = await cache.match('./index.html');
+    }
+    if (cached) return cached;
+    return fetch(request);
 }
 
 self.addEventListener('install', function (event) {
@@ -209,7 +202,7 @@ self.addEventListener('fetch', function (event) {
     var requestUrl = new URL(event.request.url);
     if (isApiRequest(requestUrl)) return;
     if (event.request.mode === 'navigate' || requestUrl.pathname.endsWith('.html')) {
-        event.respondWith(networkFirstNavigation(event.request));
+        event.respondWith(cacheFirstAppShell(event.request));
         return;
     }
     if (isMapTile(requestUrl)) {
@@ -217,6 +210,9 @@ self.addEventListener('fetch', function (event) {
         return;
     }
     if (requestUrl.origin === self.location.origin) {
-        event.respondWith(staleWhileRevalidate(event.request));
+        // APP_CACHE_NAME is content-versioned and pre-cached as one unit.
+        // Never revalidate individual files into an older cache: doing so can
+        // combine a new index with old modules until a hard refresh.
+        event.respondWith(cacheFirstAppShell(event.request));
     }
 });

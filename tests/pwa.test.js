@@ -61,7 +61,10 @@ test('service worker cache version matches current app-shell contents', () => {
         hash.update(hashableContent(relativeFile));
     }
     assert.equal(version[1], hash.digest('hex').slice(0, 12));
-    assert.match(serviceWorker, /TILE_CACHE_NAME = CACHE_PREFIX \+ 'tiles-v1'/);
+    assert.match(serviceWorker, /TILE_CACHE_NAME = CACHE_PREFIX \+ 'tiles-v2-cors'/);
+    assert.match(serviceWorker, /request[.]mode === 'cors' && cached[.]type === 'opaque'/);
+    assert.match(serviceWorker, /event[.]respondWith\(cacheFirstAppShell\(event[.]request\)\)/);
+    assert.doesNotMatch(serviceWorker, /staleWhileRevalidate/);
 });
 
 test('manifest icon declarations match real PNG dimensions', () => {
