@@ -92,6 +92,65 @@ test('愛媛13条件を完了し複数系列を保存する', async ({ app }) =>
     await expect.poll(() => page.evaluate(() => Object.keys(window.ehime_predictions || {}).length)).toBe(0);
 });
 
+test('画像出力は地図を同期しCORS対応タイルを安全に取得する', async ({ app }) => {
+    const { page } = app;
+    await expect(page.locator('#map_canvas img.leaflet-tile').first()).toBeVisible();
+    await expect.poll(() => page.evaluate(() => {
+        const tiles = Array.from(document.querySelectorAll('#map_canvas img.leaflet-tile'));
+        return tiles.length > 0 && tiles.every((tile) => tile.crossOrigin === 'anonymous');
+    })).toBe(true);
+
+    await page.evaluate(() => {
+        window.__imageExportProbe = { invalidateCount: 0, options: null };
+        const originalInvalidateSize = window.map.invalidateSize.bind(window.map);
+        window.map.invalidateSize = function (options) {
+            window.__imageExportProbe.invalidateCount += 1;
+            return originalInvalidateSize(options);
+        };
+        window.html2canvas = function (_element, options) {
+            const clonedDocument = document.implementation.createHTMLDocument('image export clone');
+            const clonedMap = document.getElementById('map_canvas').cloneNode(true);
+            clonedDocument.body.appendChild(clonedMap);
+            const overlayPane = clonedDocument.querySelector('.leaflet-overlay-pane');
+            const svg = clonedDocument.createElementNS('http://www.w3.org/2000/svg', 'svg');
+            svg.setAttribute('class', 'leaflet-zoom-animated');
+            svg.setAttribute('viewBox', '-123 45 900 600');
+            svg.style.transform = 'translate3d(-123px, 45px, 0px)';
+            overlayPane.appendChild(svg);
+            options.onclone(clonedDocument);
+            window.__imageExportProbe.options = {
+                useCORS: options.useCORS,
+                allowTaint: options.allowTaint,
+                width: options.width,
+                height: options.height,
+                hasCloneHook: typeof options.onclone === 'function',
+                svgTransform: svg ? svg.style.transform : null,
+                svgLeft: svg ? svg.style.left : null,
+                svgTop: svg ? svg.style.top : null
+            };
+            return Promise.resolve({ toDataURL: () => 'data:image/png;base64,iVBORw0KGgo=' });
+        };
+        HTMLAnchorElement.prototype.click = function () {
+            window.__imageExportProbe.downloaded = this.download;
+        };
+    });
+
+    await page.evaluate(() => window.exportResultImage());
+    await expect.poll(() => page.evaluate(() => window.__imageExportProbe.downloaded || '')).toMatch(/^prediction_result_.*[.]png$/);
+    const probe = await page.evaluate(() => window.__imageExportProbe);
+    expect(probe.invalidateCount).toBeGreaterThanOrEqual(2);
+    expect(probe.options).toEqual({
+        useCORS: true,
+        allowTaint: false,
+        width: 1366,
+        height: 768,
+        hasCloneHook: true,
+        svgTransform: 'none',
+        svgLeft: '-123px',
+        svgTop: '45px'
+    });
+});
+
 test('愛媛13条件の実行中に地点を変えると取消になり履歴を削除できる', async ({ app }) => {
     const { page } = app;
     app.setPredictionDelay(500);

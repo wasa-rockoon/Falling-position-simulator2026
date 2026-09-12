@@ -1650,3 +1650,15 @@ body:not(.sidebar-open) #scenario_template.diagnostics-panel { right: 12px; widt
     max-height: 60vh;
   }
 }
+/* Freeze Leaflet panes while html2canvas records the visible application. */
+.image-export-in-progress .leaflet-zoom-animated,
+.image-export-in-progress .leaflet-fade-anim .leaflet-tile,
+.image-export-in-progress .leaflet-zoom-anim .leaflet-zoom-animated {
+    transition: none !important;
+    animation: none !important;
+}
+
+#export_img.is-busy {
+    pointer-events: none;
+    opacity: 0.65;
+}

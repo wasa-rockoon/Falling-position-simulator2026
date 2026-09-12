@@ -23,12 +23,14 @@ function initMap(centre_lat, centre_lon, zoom_level) {
 
     // Add OSM Map Layer
     var osm_map = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+        crossOrigin: true
     }).addTo(map);
 
     // Open Topo
     var osm_topo_map = L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
-        attribution: '&copy; <a href="https://wiki.openstreetmap.org/wiki/OpenTopoMap">OpenTopoMap</a> contributors'
+        attribution: '&copy; <a href="https://wiki.openstreetmap.org/wiki/OpenTopoMap">OpenTopoMap</a> contributors',
+        crossOrigin: true
     });
 
     // Add ESRI Satellite Map layers.
@@ -41,6 +43,7 @@ function initMap(centre_lat, centre_lon, zoom_level) {
     {
         attribution: '&copy; '+esrimapLink+', '+esriwholink,
         maxZoom: 18,
+        crossOrigin: true,
     });
 
     var map_layers = {'OSM':osm_map, 'ESRI Satellite':esri_sat_map, 'OpenTopoMap':osm_topo_map};

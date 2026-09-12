@@ -247,3 +247,17 @@ test('coordinate format switching refreshes existing landing results and all map
     assert.match(resultsSource, /data-coordinate-lat/);
     assert.match(resultsSource, /formatCoord\(lat, "lat"\)/);
 });
+
+test('image export waits for CORS map tiles and freezes Leaflet layout', () => {
+    const mapSource = read('js/pred/pred-map.js');
+    const exportSource = read('js/pred/pred-collaborate.js');
+    assert.equal((mapSource.match(/crossOrigin: true/g) || []).length, 3);
+    assert.match(exportSource, /prepareMapForImageExport\(\)/);
+    assert.match(exportSource, /waitForVisibleMapTiles\(8000\)/);
+    assert.match(exportSource, /invalidateSize\(\{ pan: false, animate: false \}\)/);
+    assert.match(exportSource, /useCORS: true/);
+    assert.match(exportSource, /allowTaint: false/);
+    assert.match(exportSource, /flattenLeafletSvgTransforms\(clonedDocument\)/);
+    assert.match(exportSource, /svg[.]style[.]left = values\[0\] \+ 'px'/);
+    assert.match(exportSource, /svg[.]style[.]top = values\[1\] \+ 'px'/);
+});
