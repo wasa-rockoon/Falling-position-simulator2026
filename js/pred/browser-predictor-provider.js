@@ -117,7 +117,7 @@
         }
         function poolLimit(a) {
             if(Number.isFinite(options.workerCount))return Math.max(1,Math.min(4,Math.floor(options.workerCount)));
-            var nav=root.navigator||{},bytes=a.weatherBuffer.byteLength+a.terrainBuffer.byteLength;
+            var nav=options.navigator||root.navigator||{},bytes=a.weatherBuffer.byteLength+a.terrainBuffer.byteLength;
             var mobile=/Android|iPhone|iPad|iPod|Mobile/i.test(String(nav.userAgent||''));
             var cores=Math.max(1,Number(nav.hardwareConcurrency)||2),memory=Number(nav.deviceMemory)||4;
             if(mobile||cores<4||memory<4||bytes>24*1024*1024)return 1;

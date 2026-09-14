@@ -15,6 +15,7 @@ function harness({ corrupt = false, stall = false } = {}) {
     const fetched = [], workers = [];
     const client = BrowserPredictor.create({
         baseUrl: 'https://example.test/project/poc/browser-predictor/',
+        navigator: { userAgent: 'desktop-test', hardwareConcurrency: 4, deviceMemory: 4 },
         fetchImpl: async url => {
             fetched.push(url);
             const name = new URL(url).pathname.split('/').at(-1);
