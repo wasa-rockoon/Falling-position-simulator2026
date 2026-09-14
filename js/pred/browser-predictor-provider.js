@@ -43,7 +43,7 @@
         var base=options.baseUrl || new URL('../../poc/browser-predictor/',scriptUrl||root.location.href).href;
         var fetcher=options.fetchImpl||root.fetch.bind(root);
         var makeWorker=options.workerFactory||function(url){return new root.Worker(url,{type:'module'});};
-        var assetsPromise,readyPromise,slots=[],sequence=0,busy=false,queuedPredictions=0,activePredictions=0,predictionQueue=[],dispatching=false, imported=null;
+        var assetsPromise,readyPromise,slots=[],sequence=0,busy=false,queuedPredictions=0,activePredictions=0,predictionQueue=[],dispatching=false,dispatchTimer=null, imported=null;
         var packageStore=AppStorage && AppStorage.createStore ? AppStorage.createStore('weatherPackages') : null;
         var client={timeoutMs:30000,cacheTtlMs:0,provenance:null};
         async function get(name,json) {
@@ -143,6 +143,10 @@
             var workload=queuedPredictions+activePredictions;
             return workload>=8?4:(workload>=2?2:1);
         }
+        function scheduleDispatch() {
+            if(dispatching||dispatchTimer!==null)return;
+            dispatchTimer=root.setTimeout(function(){dispatchTimer=null;dispatchPredictions();},0);
+        }
         async function dispatchPredictions() {
             if(dispatching)return;
             dispatching=true;
@@ -166,7 +170,7 @@
                 jobs.forEach(function(job){job.reject(e);});
             } finally {
                 dispatching=false;
-                if(predictionQueue.length&&slots.some(function(slot){return !slot.running&&!slot.dead;}))root.setTimeout(dispatchPredictions,0);
+                if(predictionQueue.length&&slots.some(function(slot){return !slot.running&&!slot.dead;}))scheduleDispatch();
             }
         }
         function enqueuePrediction(testCase,signal) {
@@ -180,7 +184,7 @@
                     predictionQueue.splice(index,1);queuedPredictions-=1;
                     reject(error('ブラウザ計算を中断しました。','ABORTED'));
                 },{once:true});
-                dispatchPredictions();
+                scheduleDispatch();
             });
         }
         client.request=async function(params,requestOptions) {

@@ -2,7 +2,7 @@
 'use strict';
 
 var CACHE_PREFIX = 'wasa-predictor-';
-var CACHE_VERSION = '97a4a44ccfaa';
+var CACHE_VERSION = '35c460437153';
 var APP_CACHE_NAME = CACHE_PREFIX + 'app-' + CACHE_VERSION;
 // v2 stores CORS-readable responses. v1 may contain opaque responses created
 // before image export required cross-origin map pixels.

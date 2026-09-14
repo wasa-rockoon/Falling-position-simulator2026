@@ -28,9 +28,10 @@ function harness({ corrupt = false, stall = false } = {}) {
         },
         workerFactory: url => {
             const worker = {
-                url, terminated: false,
+                url, terminated: false, messages: [],
                 terminate() { this.terminated = true; },
                 postMessage(message) {
+                    this.messages.push(message.type);
                     if (stall && message.type === 'predict') return;
                     queueMicrotask(() => this.onmessage({ data: {
                         id: message.id,
@@ -96,7 +97,7 @@ test('an aborted calculation terminates its Worker and can start again', async (
     const controller = new AbortController();
     const first = h.client.request(params, { signal: controller.signal });
     const rejected = assert.rejects(first, error => error.code === 'ABORTED');
-    while (!h.workers.length) await new Promise(resolve => setImmediate(resolve));
+    while (!h.workers.some(worker => worker.messages.includes('predict'))) await new Promise(resolve => setImmediate(resolve));
     controller.abort();
     await rejected;
     assert.equal(h.workers[0].terminated, true);
