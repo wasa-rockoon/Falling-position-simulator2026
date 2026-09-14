@@ -1,0 +1,6 @@
+.tools/
+.scratch/
+results/
+__pycache__/
+
+!fixtures/source/*.grib2

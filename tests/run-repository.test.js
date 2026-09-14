@@ -65,8 +65,9 @@ test('legacy Ehime history migration is idempotent and does not delete its sourc
 });
 
 test('AppStorage exposes versioned RunRecord stores and lists cloned values', async () => {
-    assert.equal(AppStorage.databaseVersion, 2);
+    assert.equal(AppStorage.databaseVersion, 3);
     assert.ok(AppStorage.storeNames.includes('runs'));
+    assert.ok(AppStorage.storeNames.includes('weatherPackages'));
     const store = AppStorage.createStore('runs');
     await store.clear();
     const value = { nested: { count: 1 } };

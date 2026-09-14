@@ -145,6 +145,8 @@ self.addEventListener('fetch', function (event) {
     if (event.request.method !== 'GET') return;
     var requestUrl = new URL(event.request.url);
     if (isApiRequest(requestUrl)) return;
+    // Experimental fixtures stay opt-in and memory-only; never enlarge app cache.
+    if (requestUrl.pathname.includes('/poc/browser-predictor/')) return;
     if (event.request.mode === 'navigate' || requestUrl.pathname.endsWith('.html')) {
         event.respondWith(cacheFirstAppShell(event.request));
         return;

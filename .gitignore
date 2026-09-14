@@ -25,3 +25,13 @@ assignment-info.md
 check.js
 parse.py
 pred_new.patch
+
+# Regional weather package builder temporary files
+.weather-builder/
+regional-weather*.wasawx
+weather-data*.wasawx
+/out/
+
+# Generated desktop/local smoke-test artifacts
+/desktop/.staging/
+/local/.runtime/

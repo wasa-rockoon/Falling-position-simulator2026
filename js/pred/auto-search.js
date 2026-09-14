@@ -360,12 +360,20 @@
 
     function normalizeHttpDiagnostics(value) {
         return root.PredictionWorkload ? root.PredictionWorkload.normalizeDiagnostics(value) : Object.assign({
-            httpAttempts: 0, cacheHits: 0, retryCount: 0, failures: 0, lastLabel: '', lastError: null
+            httpAttempts: 0, computations: 0, cacheHits: 0, retryCount: 0, failures: 0, lastLabel: '', lastError: null
         }, value || {});
+    }
+
+    function workloadAttempts() {
+        var diagnostics = state.httpDiagnostics || {};
+        var attempts = Number(diagnostics.httpAttempts) || 0;
+        if (state.requestConfig && state.requestConfig.source === 'browser-fixture') attempts += Number(diagnostics.computations) || 0;
+        return attempts;
     }
 
     function attemptBudgetExhausted() {
         var limit = state.configuration ? state.configuration.callLimit : 0;
+        if (state.requestConfig && state.requestConfig.source === 'browser-fixture') return workloadAttempts() >= limit;
         return root.PredictionWorkload
             ? root.PredictionWorkload.isAttemptBudgetExhausted(state.httpDiagnostics, limit)
             : state.httpDiagnostics.httpAttempts >= limit;
@@ -540,7 +548,7 @@
         var profile = $('#flight_profile').val();
         var settings = {
             profile: profile,
-            pred_type: $('#prediction_type').val(),
+            pred_type: 'single',
             ascent_rate: finiteNumber($('#ascent').val(), NaN)
         };
         if (profile === 'standard_profile') {
@@ -559,7 +567,6 @@
             notify('地点を1つ以上選択してください。', 'error');
             return;
         }
-
         var context = root.createPredictionRequestContext ? root.createPredictionRequestContext() : null;
         if (!context) return;
         state = emptyState();
@@ -1232,7 +1239,7 @@
         });
         $(document).on('click', '#auto_action_btn', async function () {
             if (state.phase === 0) {
-                configureSearch();
+                await configureSearch();
                 return;
             }
             if (activeRunPromise) return;

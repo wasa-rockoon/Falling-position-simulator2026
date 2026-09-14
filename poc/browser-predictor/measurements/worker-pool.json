@@ -1,0 +1,35 @@
+{
+  "timestamp": "2026-09-13T12:41:20.105Z",
+  "environment": {
+    "platform": "win32",
+    "release": "10.0.26200",
+    "cpu": "AMD Ryzen AI 7 350 w/ Radeon 860M              ",
+    "logicalCpus": 16,
+    "ramBytes": 33413779456,
+    "chromium": "151.0.7922.34"
+  },
+  "fixtureBytes": 1803686,
+  "results": [
+    {
+      "workerCount": 1,
+      "count": 200,
+      "totalMs": 561.7000000178814,
+      "averageMs": 2.808500000089407,
+      "copiedFixtureBytes": 1803686
+    },
+    {
+      "workerCount": 2,
+      "count": 200,
+      "totalMs": 291.2000000178814,
+      "averageMs": 1.4560000000894069,
+      "copiedFixtureBytes": 3607372
+    },
+    {
+      "workerCount": 4,
+      "count": 200,
+      "totalMs": 158.09999999403954,
+      "averageMs": 0.7904999999701977,
+      "copiedFixtureBytes": 7214744
+    }
+  ]
+}

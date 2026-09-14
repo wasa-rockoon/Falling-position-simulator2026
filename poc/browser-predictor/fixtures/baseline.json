@@ -1,0 +1,92 @@
+{
+  "image": "ghcr.io/projecthorus/tawhiri-container@sha256:9714dc04a22f8982d810f3dc6f3a8ca69f84274cc4d8bff47ce52b42f0c1e451",
+  "tawhiriPackage": "Metadata-Version: 2.1\nName: Tawhiri\nVersion: 0.2.0\nSummary: High Altitude Balloon Landing Prediction Software\nHome-page: http://www.cusf.co.uk/wiki/tawhiri:start\nAuthor: Cambridge University Spaceflight\nAuthor-email: contact@cusf.co.uk\nLicense: GPLv3+\nPlatform: UNKNOWN\nClassifier: Development Status :: 4 - Beta\nClassifier: Intended Audience :: Science/Research\nClassifier: License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)\nClassifier: Programming Language :: Python :: 3.5\nClassifier: Topic :: Scientific/Engineering\nLicense-File: LICENCE\nLicense-File: AUTHORS\n\nUNKNOWN\n\n",
+  "tawhiriCommit": null,
+  "commitNote": "Image contains no git checkout metadata. Pin by image digest, source hashes and compiled module hashes.",
+  "python": "3.7.3 (default, Jan 22 2021, 20:04:44) \n[GCC 8.3.0]",
+  "sourceHashes": {
+    "models.py": "4cfb679fd2f3660b7a6c34d4fc5ccefb5db03dea7aaefacce4a481bb5e3912d3",
+    "solver.pyx": "fb032556812185a8dd02757c4e9eab32fe9f06d527b1d8c91aaf8885dbd6bb1c",
+    "interpolate.pyx": "a91d53c183f9a6ffb0d3ee609a4395e5d986d698279ab541a59a05fe897a6a18",
+    "dataset.py": "470480792ed10301b4a85a58d6c20ac2e806abb230576f0e53e99e1c4487de3f",
+    "warnings.pyx": "c3baf6d6b1b589795f84bda2360db0f1a91e872a424ada1a123481873abc63d0"
+  },
+  "compiledModules": {
+    "tawhiri.solver": {
+      "file": "/root/tawhiri-master/tawhiri/solver.cpython-37m-x86_64-linux-gnu.so",
+      "sha256": "14de3de4f7e50a77f2b8092e7d5e59d500c5b5d84be63d172ccd344242250343"
+    },
+    "tawhiri.interpolate": {
+      "file": "/root/tawhiri-master/tawhiri/interpolate.cpython-37m-x86_64-linux-gnu.so",
+      "sha256": "a0c76caeaa3266b8eec651a18de93a913b7b04243a1ccbef6630a7c29333cb5e"
+    },
+    "ruaumoko.dataset": {
+      "file": "/root/.local/lib/python3.7/site-packages/ruaumoko/dataset.cpython-37m-x86_64-linux-gnu.so",
+      "sha256": "b8f146ab28cb6ba433c47dae93853f2beabc7559b328c5751ef3d88ad1834ec3"
+    }
+  },
+  "shape": [
+    65,
+    47,
+    3,
+    361,
+    720
+  ],
+  "pressureLevelsHpa": [
+    1000,
+    975,
+    950,
+    925,
+    900,
+    875,
+    850,
+    825,
+    800,
+    775,
+    750,
+    725,
+    700,
+    675,
+    650,
+    625,
+    600,
+    575,
+    550,
+    525,
+    500,
+    475,
+    450,
+    425,
+    400,
+    375,
+    350,
+    325,
+    300,
+    275,
+    250,
+    225,
+    200,
+    175,
+    150,
+    125,
+    100,
+    70,
+    50,
+    30,
+    20,
+    10,
+    7,
+    5,
+    3,
+    2,
+    1
+  ],
+  "forecastIntervalHours": 3,
+  "resolutionDegrees": 0.5,
+  "timestepSeconds": 60,
+  "terminationTolerance": 0.01,
+  "ascent": "constant rate",
+  "descent": "models.make_drag_descent standard atmosphere",
+  "burst": "altitude >= burstAltitude",
+  "landing": "terrain.get(latitude,longitude) > altitude (no added sea-level condition)"
+}

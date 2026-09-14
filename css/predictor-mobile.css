@@ -197,6 +197,11 @@ img.handle {
 
 #open_uncertainty_btn { grid-column: auto; }
 
+.browser-data-card { padding: 9px; }
+.browser-data-card__actions { display: grid; grid-template-columns: 1fr 1fr; }
+.browser-data-card__actions button { width: 100%; }
+.browser-data-card__danger { grid-column: 1 / -1; }
+
 /* Ehime results table responsive */
 #ehime_results_table {
   font-size: 10px;

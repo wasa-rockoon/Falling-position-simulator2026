@@ -1,14 +1,16 @@
 (function (root, factory) {
     var predictionApi = root.PredictionApi;
+    var browserPredictor = root.BrowserPredictor;
     var appErrors = root.AppErrors;
     if (typeof module === 'object' && module.exports) {
         predictionApi = predictionApi || require('./pred-api-client.js');
+        browserPredictor = browserPredictor || require('./browser-predictor-provider.js');
         appErrors = appErrors || require('../core/app-errors.js');
-        module.exports = factory(predictionApi, appErrors);
+        module.exports = factory(predictionApi, appErrors, browserPredictor);
     } else {
-        root.PredictionRequestContext = factory(predictionApi, appErrors);
+        root.PredictionRequestContext = factory(predictionApi, appErrors, browserPredictor);
     }
-}(typeof globalThis !== 'undefined' ? globalThis : this, function (PredictionApi, AppErrors) {
+}(typeof globalThis !== 'undefined' ? globalThis : this, function (PredictionApi, AppErrors, BrowserPredictor) {
     'use strict';
 
     if (!PredictionApi) throw new Error('PredictionRequestContext requires PredictionApi');
@@ -50,8 +52,9 @@
         options = options || {};
         var source = options.source || options.endpointId || 'sondehub';
         var customUrl = options.customUrl || '';
-        var baseUrl = options.resolvedBaseUrl || options.baseUrl || PredictionApi.resolveApiUrl(source, customUrl);
-        var client = options.client || PredictionApi.getClient({
+        var browser = source === 'browser-fixture';
+        var baseUrl = browser ? '' : options.resolvedBaseUrl || options.baseUrl || PredictionApi.resolveApiUrl(source, customUrl);
+        var client = options.client || (browser ? BrowserPredictor.getClient() : PredictionApi.getClient({
             source: source,
             customUrl: customUrl,
             baseUrl: baseUrl,
@@ -59,7 +62,7 @@
             cacheTtlMs: options.cacheTtlMs,
             fetchImpl: options.fetchImpl,
             onQueueStateChange: options.onQueueStateChange
-        });
+        }));
         var maxHttpAttempts = finitePositive(options.maxHttpAttempts, Number.POSITIVE_INFINITY);
         var diagnostics = options.diagnostics || {
             httpAttempts: 0,
@@ -119,13 +122,14 @@
             });
             try {
                 var response = await client.request(params, merged);
+                if (browser) diagnostics.computations = (diagnostics.computations || 0) + 1;
                 if (response.cacheHit) diagnostics.cacheHits += 1;
                 return response;
             } catch (error) {
                 diagnostics.failures += 1;
                 var normalized = AppErrors ? AppErrors.normalize(error, {
                     code: 'PREDICTION_REQUEST_FAILED',
-                    userMessage: '予測APIへの接続に失敗しました。',
+                    userMessage: browser ? 'ブラウザ計算に失敗しました。' : '予測APIへの接続に失敗しました。',
                     phase: 'prediction',
                     runId: context.runId,
                     retryable: error && error.retryable === true

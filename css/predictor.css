@@ -629,6 +629,82 @@ body:not(.sidebar-open) #app-sidebar { transform: translateX(100%); }
 }
 #open_uncertainty_btn { grid-column: 1 / -1; }
 
+/* ブラウザ内予測の気象データ管理 */
+.browser-data-card {
+  margin-top: 8px;
+  padding: 10px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius-sm);
+  background: var(--bg-panel);
+  color: var(--text-primary);
+  font-size: 12px;
+  line-height: 1.45;
+}
+.browser-data-card__header,
+.browser-data-card__actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.browser-data-card__header { justify-content: space-between; margin-bottom: 6px; }
+.browser-data-card__privacy {
+  padding: 2px 7px;
+  border-radius: 999px;
+  color: var(--color-success, #237a3b);
+  background: color-mix(in srgb, var(--color-success, #237a3b) 12%, transparent);
+  font-size: 10px;
+  white-space: nowrap;
+}
+.browser-data-card__summary {
+  margin-bottom: 8px;
+  color: var(--text-secondary);
+  overflow-wrap: anywhere;
+}
+.browser-data-card__file,
+.browser-data-card__builder {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--color-primary);
+  border-radius: var(--border-radius-sm);
+  color: var(--color-primary);
+  background: var(--bg-input);
+  text-align: center;
+  font-weight: 600;
+  cursor: pointer;
+}
+.browser-data-card__file input { display: none; }
+.browser-data-card__builder { margin-top: 8px; text-decoration: none; }
+.browser-data-card__status {
+  display: block;
+  margin-top: 5px;
+  color: var(--text-secondary);
+  overflow-wrap: anywhere;
+}
+.browser-data-card details {
+  margin-top: 8px;
+  padding-top: 7px;
+  border-top: 1px solid var(--border-color);
+}
+.browser-data-card summary { cursor: pointer; font-weight: 600; }
+.browser-data-card select {
+  width: 100%;
+  margin: 7px 0;
+}
+.browser-data-card__actions { flex-wrap: wrap; }
+.browser-data-card__actions button,
+.browser-data-card__details button {
+  min-height: 32px;
+  padding: 5px 8px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius-sm);
+  background: var(--bg-input);
+  color: var(--text-primary);
+}
+.browser-data-card__danger { color: var(--color-danger) !important; }
+.browser-data-card__details p { margin: 7px 0 0; }
+
 /* 入力欄のモダンスタイル */
 #launch-card input[type="text"],
 #launch-card select {

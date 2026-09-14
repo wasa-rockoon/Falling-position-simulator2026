@@ -1,0 +1,352 @@
+{
+  "timestamp": "2026-09-12T05:43:49.345Z",
+  "image": "ghcr.io/projecthorus/tawhiri-container@sha256:9714dc04a22f8982d810f3dc6f3a8ca69f84274cc4d8bff47ce52b42f0c1e451",
+  "weatherSha256": "6e89a80540651025cbd25619ae62452fb7eaaf64c6909bb507b4c0faedf989fa",
+  "terrainSha256": "f8b8dece512cb14fa53fcd9dfbdb40e803a0b7387616fb72804c6d0f5f6f41f6",
+  "environment": {
+    "cpu": "AMD Ryzen AI 7 350 w/ Radeon 860M              ",
+    "platform": "win32",
+    "node": "v24.13.1",
+    "chromium": "151.0.7922.34",
+    "headless": true
+  },
+  "results": [
+    {
+      "id": "launch-early",
+      "pass": true,
+      "maxWindError": 1.4566126083082054e-13,
+      "maxTerrainError": 0,
+      "metrics": {
+        "maxTrajectoryErrorM": 3.954403419981504e-8,
+        "meanTrajectoryErrorM": 1.9026018346338028e-8,
+        "burstErrorM": 1.5819278600499647e-8,
+        "burstAltitudeErrorM": 0,
+        "landingErrorM": 3.4213363256228826e-8,
+        "landingAltitudeErrorM": 0,
+        "burstTimeErrorS": 0,
+        "landingTimeErrorS": 0,
+        "durationErrorS": 0
+      },
+      "reference": {
+        "durationSeconds": 8607.1875,
+        "burst": {
+          "latitude": 33.46149215181961,
+          "longitude": 132.64956091464924,
+          "altitude": 29999.21875,
+          "timeSeconds": 1789016079.84375,
+          "datetime": "2026-09-10T04:54:39.843750Z"
+        },
+        "landing": {
+          "latitude": 33.63574456862754,
+          "longitude": 132.8267224150083,
+          "altitude": 652.6772626410493,
+          "timeSeconds": 1789018707.1875,
+          "datetime": "2026-09-10T05:38:27.187500Z"
+        }
+      },
+      "browser": {
+        "durationSeconds": 8607.1875,
+        "burst": {
+          "latitude": 33.46149215181961,
+          "longitude": 132.6495609146494,
+          "altitude": 29999.21875,
+          "datetime": "2026-09-10T04:54:39.843Z",
+          "timeSeconds": 1789016079.84375
+        },
+        "landing": {
+          "latitude": 33.635744568627544,
+          "longitude": 132.82672241500867,
+          "altitude": 652.6772626410493,
+          "datetime": "2026-09-10T05:38:27.187Z",
+          "timeSeconds": 1789018707.1875
+        }
+      },
+      "performance": {
+        "count": 1,
+        "totalMs": 17.69999998807907,
+        "averageMs": 17.69999998807907,
+        "pointCount": 146,
+        "fixtureBytes": 1803686,
+        "approximateLastResultJsonBytes": 22074,
+        "peakMemoryBytes": null,
+        "memoryNote": "Exact peak memory unavailable; fixture bytes and serialized last result are lower-bound components, not JS heap usage.",
+        "worker": true
+      }
+    },
+    {
+      "id": "launch-late",
+      "pass": true,
+      "maxWindError": 1.6342482922482304e-13,
+      "maxTerrainError": 0,
+      "metrics": {
+        "maxTrajectoryErrorM": 2.645961524811213e-8,
+        "meanTrajectoryErrorM": 9.934285285694407e-9,
+        "burstErrorM": 1.3181873298448055e-8,
+        "burstAltitudeErrorM": 0,
+        "landingErrorM": 1.5785805864613484e-8,
+        "landingAltitudeErrorM": 0,
+        "burstTimeErrorS": 0,
+        "landingTimeErrorS": 0,
+        "durationErrorS": 0
+      },
+      "reference": {
+        "durationSeconds": 8574.375,
+        "burst": {
+          "latitude": 33.467139740003304,
+          "longitude": 132.68344807810692,
+          "altitude": 29999.21875,
+          "timeSeconds": 1789026879.84375,
+          "datetime": "2026-09-10T07:54:39.843750Z"
+        },
+        "landing": {
+          "latitude": 33.64448381031254,
+          "longitude": 132.87473212645529,
+          "altitude": 822.2678142770087,
+          "timeSeconds": 1789029474.375,
+          "datetime": "2026-09-10T08:37:54.375000Z"
+        }
+      },
+      "browser": {
+        "durationSeconds": 8574.375,
+        "burst": {
+          "latitude": 33.467139740003304,
+          "longitude": 132.68344807810706,
+          "altitude": 29999.21875,
+          "datetime": "2026-09-10T07:54:39.843Z",
+          "timeSeconds": 1789026879.84375
+        },
+        "landing": {
+          "latitude": 33.64448381031254,
+          "longitude": 132.87473212645546,
+          "altitude": 822.2678142770087,
+          "datetime": "2026-09-10T08:37:54.375Z",
+          "timeSeconds": 1789029474.375
+        }
+      },
+      "performance": {
+        "count": 1,
+        "totalMs": 5.299999997019768,
+        "averageMs": 5.299999997019768,
+        "pointCount": 146,
+        "fixtureBytes": 1803686,
+        "approximateLastResultJsonBytes": 22050,
+        "peakMemoryBytes": null,
+        "memoryNote": "Exact peak memory unavailable; fixture bytes and serialized last result are lower-bound components, not JS heap usage.",
+        "worker": true
+      }
+    },
+    {
+      "id": "ascent-slow",
+      "pass": true,
+      "maxWindError": 1.0630385460785874e-13,
+      "maxTerrainError": 0,
+      "metrics": {
+        "maxTrajectoryErrorM": 2.89729468653642e-8,
+        "meanTrajectoryErrorM": 8.963584300709205e-9,
+        "burstErrorM": 0,
+        "burstAltitudeErrorM": 0,
+        "landingErrorM": 0,
+        "landingAltitudeErrorM": 0,
+        "burstTimeErrorS": 0,
+        "landingTimeErrorS": 0,
+        "durationErrorS": 0
+      },
+      "reference": {
+        "durationSeconds": 10026.5625,
+        "burst": {
+          "latitude": 33.554040350865634,
+          "longitude": 132.7157843218959,
+          "altitude": 30000.625,
+          "timeSeconds": 1789022075.15625,
+          "datetime": "2026-09-10T06:34:35.156250Z"
+        },
+        "landing": {
+          "latitude": 33.73054135671993,
+          "longitude": 132.9089722411808,
+          "altitude": 1047.61359847973,
+          "timeSeconds": 1789024626.5625,
+          "datetime": "2026-09-10T07:17:06.562500Z"
+        }
+      },
+      "browser": {
+        "durationSeconds": 10026.5625,
+        "burst": {
+          "latitude": 33.554040350865634,
+          "longitude": 132.7157843218959,
+          "altitude": 30000.625,
+          "datetime": "2026-09-10T06:34:35.156Z",
+          "timeSeconds": 1789022075.15625
+        },
+        "landing": {
+          "latitude": 33.73054135671993,
+          "longitude": 132.9089722411808,
+          "altitude": 1047.61359847973,
+          "datetime": "2026-09-10T07:17:06.562Z",
+          "timeSeconds": 1789024626.5625
+        }
+      },
+      "performance": {
+        "count": 1,
+        "totalMs": 6.100000008940697,
+        "averageMs": 6.100000008940697,
+        "pointCount": 170,
+        "fixtureBytes": 1803686,
+        "approximateLastResultJsonBytes": 25433,
+        "peakMemoryBytes": null,
+        "memoryNote": "Exact peak memory unavailable; fixture bytes and serialized last result are lower-bound components, not JS heap usage.",
+        "worker": true
+      }
+    },
+    {
+      "id": "descent-fast",
+      "pass": true,
+      "maxWindError": 1.141309269314661e-13,
+      "maxTerrainError": 0,
+      "metrics": {
+        "maxTrajectoryErrorM": 3.163593065124078e-8,
+        "meanTrajectoryErrorM": 1.5008038613947003e-8,
+        "burstErrorM": 3.163593065124078e-8,
+        "burstAltitudeErrorM": 0,
+        "landingErrorM": 0,
+        "landingAltitudeErrorM": 0,
+        "burstTimeErrorS": 0,
+        "landingTimeErrorS": 0,
+        "durationErrorS": 0
+      },
+      "reference": {
+        "durationSeconds": 7875.9375,
+        "burst": {
+          "latitude": 33.468688328041054,
+          "longitude": 132.66685001365963,
+          "altitude": 29999.21875,
+          "timeSeconds": 1789020579.84375,
+          "datetime": "2026-09-10T06:09:39.843750Z"
+        },
+        "landing": {
+          "latitude": 33.596415420665366,
+          "longitude": 132.7984216381989,
+          "altitude": 512.7236111433806,
+          "timeSeconds": 1789022475.9375,
+          "datetime": "2026-09-10T06:41:15.937500Z"
+        }
+      },
+      "browser": {
+        "durationSeconds": 7875.9375,
+        "burst": {
+          "latitude": 33.468688328041054,
+          "longitude": 132.66685001365997,
+          "altitude": 29999.21875,
+          "datetime": "2026-09-10T06:09:39.843Z",
+          "timeSeconds": 1789020579.84375
+        },
+        "landing": {
+          "latitude": 33.596415420665366,
+          "longitude": 132.7984216381989,
+          "altitude": 512.7236111433806,
+          "datetime": "2026-09-10T06:41:15.937Z",
+          "timeSeconds": 1789022475.9375
+        }
+      },
+      "performance": {
+        "count": 1,
+        "totalMs": 3,
+        "averageMs": 3,
+        "pointCount": 134,
+        "fixtureBytes": 1803686,
+        "approximateLastResultJsonBytes": 20148,
+        "peakMemoryBytes": null,
+        "memoryNote": "Exact peak memory unavailable; fixture bytes and serialized last result are lower-bound components, not JS heap usage.",
+        "worker": true
+      }
+    },
+    {
+      "id": "burst-high",
+      "pass": true,
+      "maxWindError": 1.616484723854228e-13,
+      "maxTerrainError": 0,
+      "metrics": {
+        "maxTrajectoryErrorM": 4.745593343889271e-8,
+        "meanTrajectoryErrorM": 2.0726660412150375e-8,
+        "burstErrorM": 2.8998212489047976e-8,
+        "burstAltitudeErrorM": 0,
+        "landingErrorM": 3.685843117636338e-8,
+        "landingAltitudeErrorM": 0,
+        "burstTimeErrorS": 0,
+        "landingTimeErrorS": 0,
+        "durationErrorS": 0
+      },
+      "reference": {
+        "durationSeconds": 9730.3125,
+        "burst": {
+          "latitude": 33.47284402947065,
+          "longitude": 132.5071505664972,
+          "altitude": 35000.78125,
+          "timeSeconds": 1789021580.15625,
+          "datetime": "2026-09-10T06:26:20.156250Z"
+        },
+        "landing": {
+          "latitude": 33.64979701984469,
+          "longitude": 132.67517445984782,
+          "altitude": 529.820160338064,
+          "timeSeconds": 1789024330.3125,
+          "datetime": "2026-09-10T07:12:10.312500Z"
+        }
+      },
+      "browser": {
+        "durationSeconds": 9730.3125,
+        "burst": {
+          "latitude": 33.47284402947065,
+          "longitude": 132.5071505664975,
+          "altitude": 35000.78125,
+          "datetime": "2026-09-10T06:26:20.156Z",
+          "timeSeconds": 1789021580.15625
+        },
+        "landing": {
+          "latitude": 33.649797019844684,
+          "longitude": 132.67517445984822,
+          "altitude": 529.820160338064,
+          "datetime": "2026-09-10T07:12:10.312Z",
+          "timeSeconds": 1789024330.3125
+        }
+      },
+      "performance": {
+        "count": 1,
+        "totalMs": 5.100000008940697,
+        "averageMs": 5.100000008940697,
+        "pointCount": 165,
+        "fixtureBytes": 1803686,
+        "approximateLastResultJsonBytes": 24802,
+        "peakMemoryBytes": null,
+        "memoryNote": "Exact peak memory unavailable; fixture bytes and serialized last result are lower-bound components, not JS heap usage.",
+        "worker": true
+      }
+    }
+  ],
+  "errors": [
+    {
+      "id": "forecast-exhausted",
+      "expected": "Weather fixture does not cover this point/time",
+      "actual": "Weather fixture does not cover this point/time",
+      "pass": true
+    },
+    {
+      "id": "weather-outside",
+      "expected": "Weather fixture does not cover this point/time",
+      "actual": "Weather fixture does not cover this point/time",
+      "pass": true
+    },
+    {
+      "id": "terrain-outside",
+      "expected": "Terrain fixture does not cover this point",
+      "actual": "Terrain fixture does not cover this point",
+      "pass": true
+    }
+  ],
+  "recovered": true,
+  "offline": {
+    "pass": true,
+    "additionalRequests": 0,
+    "workerCount": 1
+  },
+  "requestCount": 23
+}

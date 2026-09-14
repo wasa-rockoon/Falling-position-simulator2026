@@ -1,0 +1,15 @@
+{
+  "id": "ehime-burst-high",
+  "locationSource": "index.html default launch coordinates on dev/kotaki",
+  "launchLatitude": 33.13492,
+  "launchLongitude": 132.50477,
+  "launchAltitude": 100,
+  "launchDatetime": "2026-09-10T04:30:00Z",
+  "ascentRate": 5,
+  "descentRate": 5,
+  "burstAltitude": 35000,
+  "timestepSeconds": 60,
+  "terminationTolerance": 0.01,
+  "maxStepsPerStage": 1000,
+  "note": "Fixed verification case, not a historical flight. Altitude/rates/burst are explicit test inputs."
+}

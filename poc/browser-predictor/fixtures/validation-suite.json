@@ -1,0 +1,59 @@
+{
+  "schemaVersion": 1,
+  "baseCase": "case.json",
+  "cases": [
+    {
+      "id": "launch-early",
+      "description": "Launch at 03:15 UTC",
+      "caseFile": "validation-cases/launch-early.json",
+      "referenceFile": "validation-references/launch-early.json"
+    },
+    {
+      "id": "launch-late",
+      "description": "Launch at 06:15 UTC",
+      "caseFile": "validation-cases/launch-late.json",
+      "referenceFile": "validation-references/launch-late.json"
+    },
+    {
+      "id": "ascent-slow",
+      "description": "Ascent rate 4 m/s",
+      "caseFile": "validation-cases/ascent-slow.json",
+      "referenceFile": "validation-references/ascent-slow.json"
+    },
+    {
+      "id": "descent-fast",
+      "description": "Descent rate 7 m/s",
+      "caseFile": "validation-cases/descent-fast.json",
+      "referenceFile": "validation-references/descent-fast.json"
+    },
+    {
+      "id": "burst-high",
+      "description": "Burst altitude 35000 m",
+      "caseFile": "validation-cases/burst-high.json",
+      "referenceFile": "validation-references/burst-high.json"
+    }
+  ],
+  "errorCases": [
+    {
+      "id": "forecast-exhausted",
+      "overrides": {
+        "launchDatetime": "2026-09-10T08:30:00Z"
+      },
+      "expectedError": "Weather fixture does not cover this point/time"
+    },
+    {
+      "id": "weather-outside",
+      "overrides": {
+        "launchLatitude": 29
+      },
+      "expectedError": "Weather fixture does not cover this point/time"
+    },
+    {
+      "id": "terrain-outside",
+      "overrides": {
+        "launchLatitude": 31
+      },
+      "expectedError": "Terrain fixture does not cover this point"
+    }
+  ]
+}

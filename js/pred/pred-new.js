@@ -42,6 +42,7 @@ function resolveTawhiriApiUrl() {
     }
 
     var source = apiSourceEl.val() || 'sondehub';
+    if (source === 'browser-fixture') return '';
     if (source === 'local') {
         return '/api/v1/';
     }
@@ -64,7 +65,7 @@ function createPredictionRequestContext(options) {
     var customUrl = options.customUrl;
     if (customUrl === undefined) customUrl = ($('#api_custom_url').val() || '').trim();
     var baseUrl = options.baseUrl || options.resolvedBaseUrl || resolveTawhiriApiUrl();
-    if (!baseUrl) return null;
+    if (!baseUrl && source !== 'browser-fixture') return null;
     if (typeof PredictionRunner !== 'undefined') {
         return PredictionRunner.createContext({
             runId: options.runId || '',
@@ -245,13 +246,18 @@ function persistPredictionRunBoundary(context, boundary) {
     });
 }
 
-function saveSinglePredictionResult(context, predictionResult) {
+function saveSinglePredictionResult(context, predictionResult, data) {
     if (!context || !context.runId) return;
     var series = plainTrajectorySeries(predictionResult, context.runId, null, '予測');
+    if (context.source === 'browser-fixture' && series) {
+        series.label = 'ブラウザ固定データ';
+        series.points = PredictionRunner.normalizePrediction(data).flightPath.map(function (p) { return { latitude: p.latitude, longitude: p.longitude, altitudeM: p.altitudeM, timeUtc: p.timeUtc, phase: p.phase }; });
+    }
     var landing = plainLandingResult(predictionResult, series ? series.id : context.runId + ':main');
     persistPredictionRunBoundary(context, {
         status: 'completed',
-        progress: { completedUnits: 1, totalUnits: 1, currentLabel: '完了' },
+        progress: { completedUnits: 1, totalUnits: 1, currentLabel: '完了', computations: context.diagnostics && context.diagnostics.computations || 0 },
+        provenance: data && data.metadata && data.metadata.provenance || {},
         output: {
             trajectories: series ? [series] : [],
             landings: landing ? [landing] : [],
@@ -340,6 +346,7 @@ function getPredictionRequestBaseUrl(requestContext) {
 
 function toggleCustomApiInput() {
     var source = $('#api_source').val();
+    $('#browser_fixture_info').prop('hidden', source !== 'browser-fixture');
     var input = $('#api_custom_url');
     if (!input.length) {
         return;
@@ -405,6 +412,12 @@ function shouldValidateSondeHubTimeWindow(apiSource) {
 function runPrediction() {
     // Read the user-supplied parameters and request a prediction.
     $('#error_window').hide();
+    var browserPredictionType = $('#prediction_type').val();
+    if ($('#api_source').val() === 'browser-fixture' &&
+        ((browserPredictionType !== 'single' && browserPredictionType !== 'ehime') || $('#flight_profile').val() !== 'standard_profile')) {
+        throwError(BrowserPredictor.onlySingleMessage);
+        return;
+    }
     if (typeof showToast === 'function') showToast('予測を開始しました。', 'info', 1800);
 
     if (typeof validateAllFields === 'function' && !validateAllFields()) {
@@ -556,14 +569,14 @@ function runPrediction() {
     );
 
     var selectedApiUrl = resolveTawhiriApiUrl();
-    if (!selectedApiUrl) {
+    if (!selectedApiUrl && requestedApiSource !== 'browser-fixture') {
         return;
     }
     var requestContext = createPredictionRequestContext({ source: requestedApiSource, baseUrl: selectedApiUrl });
     if (!ehime_mode) {
-        startPredictionRunRecord(run_settings, requestContext, 'single', fall_mode ? '落下予測' : '通常予測');
+        startPredictionRunRecord(run_settings, requestContext, 'single', fall_mode ? '落下予測' : requestedApiSource === 'browser-fixture' ? '通常予測（ブラウザ固定データ）' : '通常予測');
     }
-    appendDebug('Using API: ' + selectedApiUrl);
+    appendDebug(requestedApiSource === 'browser-fixture' ? 'ブラウザで固定データを計算' : 'Using API: ' + selectedApiUrl);
 
 
     // Run the request
@@ -613,3 +626,99 @@ $(document).on('change', '#prediction_type', function () {
 // Tawhiri API URL. Refer to API docs here: https://tawhiri.readthedocs.io/en/latest/api.html
 // Habitat Tawhiri Instance
 // Approximately how many hours into the future the model covers.
+
+// Package metadata is untrusted text; never insert it as HTML.
+function refreshBrowserPackageInfo() {
+    var d = BrowserPredictor.getClient().describe(), c = d.coverage;
+    function jst(t) { return moment.utc(t).utcOffset(9 * 60).format('YYYY-MM-DD HH:mm') + ' JST'; }
+    function bounds(r) { return '緯度 ' + r.south.toFixed(4) + '〜' + r.north.toFixed(4) + ' / 経度(0〜360°) ' + r.west.toFixed(4) + '〜' + r.east.toFixed(4); }
+    $('#browser_data_summary').text((d.imported ? '読込データ' : '同梱の検証用データ') +
+        ' · GFS ' + d.run + ' · ' + jst(c.start) + '〜' + jst(c.end) +
+        '未満 · 気象 ' + bounds(c.weather) + ' · 標高 ' + bounds(c.terrain) +
+        ' · 最新データとは限りません。' +
+        (d.imported ? ' パッケージ記載の標高出典: ' + (d.terrainAttribution || '記載なし') : ''));
+}
+$(document).on('change', '#browser_package_file', async function () {
+    var file = this.files[0];
+    if (!file) return;
+    this.disabled = true;
+    $('#browser_fixture_status').text('パッケージを検証中…');
+    try {
+        await BrowserPredictor.getClient().importPackage(file);
+        refreshBrowserPackageInfo();
+        $('#browser_fixture_status').text('データを切り替えました。予測条件は変更していません。');
+    } catch (error) {
+        $('#browser_fixture_status').text('読込失敗。使用中のデータは変更していません。');
+        throwError(error.userMessage || error.message);
+    } finally { this.value = ''; this.disabled = false; }
+});
+$(document).on('click', '#browser_package_reset', function () {
+    try {
+        BrowserPredictor.getClient().useBuiltin();
+        refreshBrowserPackageInfo();
+        $('#browser_fixture_status').text('同梱の検証用データに戻しました。予測条件は変更していません。');
+    } catch (error) { throwError(error.userMessage || error.message); }
+});
+function formatBrowserPackageBytes(bytes) {
+    return (Math.max(0, Number(bytes) || 0) / (1024 * 1024)).toFixed(2) + ' MiB';
+}
+async function refreshSavedBrowserPackages(selectedId) {
+    var select = $('#browser_saved_packages');
+    if (!select.length) return [];
+    try {
+        var packages = await BrowserPredictor.getClient().listSavedPackages();
+        var current = selectedId === undefined ? select.val() : selectedId;
+        select.empty().append($('<option>', { value: '', text: packages.length ? '保存済みデータを選択' : '保存済みデータはありません' }));
+        packages.forEach(function (item) {
+            var label = item.title + ' / ' + item.run + ' / ' + formatBrowserPackageBytes(item.bytes);
+            select.append($('<option>', { value: item.id, text: label }));
+        });
+        if (current && packages.some(function (item) { return item.id === current; })) select.val(current);
+        if (navigator.storage && navigator.storage.estimate) {
+            var estimate = await navigator.storage.estimate();
+            $('#browser_package_storage_status').text('保存済み ' + packages.length + '件。ブラウザ使用量 ' + formatBrowserPackageBytes(estimate.usage) +
+                (estimate.quota ? ' / 上限目安 ' + formatBrowserPackageBytes(estimate.quota) : ''));
+        } else $('#browser_package_storage_status').text('保存済み ' + packages.length + '件。');
+        return packages;
+    } catch (error) {
+        $('#browser_package_storage_status').text('保存済みデータを確認できません。');
+        return [];
+    }
+}
+$(document).on('click', '#browser_package_save_local', async function () {
+    var button = this;
+    button.disabled = true;
+    try {
+        var description = BrowserPredictor.getClient().describe();
+        await BrowserPredictor.getClient().saveActivePackage('GFS ' + description.run);
+        var active = BrowserPredictor.getClient().describe().packageSha256;
+        await refreshSavedBrowserPackages(active);
+        $('#browser_fixture_status').text('このブラウザに保存しました。ファイルは外部へ送信されません。');
+    } catch (error) { throwError(error.userMessage || error.message); }
+    finally { button.disabled = false; }
+});
+$(document).on('click', '#browser_package_load_local', async function () {
+    var id = $('#browser_saved_packages').val();
+    this.disabled = true;
+    try {
+        await BrowserPredictor.getClient().loadSavedPackage(id);
+        refreshBrowserPackageInfo();
+        await refreshSavedBrowserPackages(id);
+        $('#browser_fixture_status').text('保存済みパッケージを読み込みました。予測条件は変更していません。');
+    } catch (error) { throwError(error.userMessage || error.message); }
+    finally { this.disabled = false; }
+});
+$(document).on('click', '#browser_package_delete_local', async function () {
+    var id = $('#browser_saved_packages').val();
+    if (!id) { throwError('削除する保存済みパッケージを選択してください。'); return; }
+    this.disabled = true;
+    try {
+        await BrowserPredictor.getClient().deleteSavedPackage(id);
+        await refreshSavedBrowserPackages('');
+        $('#browser_fixture_status').text('保存済みパッケージを削除しました。使用中のデータは変更していません。');
+    } catch (error) { throwError(error.userMessage || error.message); }
+    finally { this.disabled = false; }
+});
+if (typeof AppShell !== 'undefined' && typeof AppShell.registerInitializer === 'function') {
+    AppShell.registerInitializer('browser-package-storage', function () { refreshSavedBrowserPackages(); }, 80);
+}

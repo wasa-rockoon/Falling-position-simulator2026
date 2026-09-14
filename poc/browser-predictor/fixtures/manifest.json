@@ -1,0 +1,445 @@
+{
+  "schemaVersion": 1,
+  "model": "GFS",
+  "run": "2026-09-10T00:00:00Z",
+  "forecastHours": [
+    3,
+    6,
+    9
+  ],
+  "pressureLevelsHpa": [
+    1000,
+    975,
+    950,
+    925,
+    900,
+    875,
+    850,
+    825,
+    800,
+    775,
+    750,
+    725,
+    700,
+    675,
+    650,
+    625,
+    600,
+    575,
+    550,
+    525,
+    500,
+    475,
+    450,
+    425,
+    400,
+    375,
+    350,
+    325,
+    300,
+    275,
+    250,
+    225,
+    200,
+    175,
+    150,
+    125,
+    100,
+    70,
+    50,
+    30,
+    20,
+    10,
+    7,
+    5,
+    3,
+    2,
+    1
+  ],
+  "variables": [
+    "height",
+    "wind_u",
+    "wind_v"
+  ],
+  "units": [
+    "gpm",
+    "m/s",
+    "m/s"
+  ],
+  "latitude": {
+    "start": 30,
+    "step": 0.5,
+    "count": 13
+  },
+  "longitude": {
+    "start": 128,
+    "step": 0.5,
+    "count": 19
+  },
+  "shape": [
+    3,
+    47,
+    3,
+    13,
+    19
+  ],
+  "dtype": "float32-le",
+  "file": "weather.bin",
+  "bytes": 417924,
+  "sha256": "6e89a80540651025cbd25619ae62452fb7eaaf64c6909bb507b4c0faedf989fa",
+  "cellChecks": [
+    {
+      "index": [
+        0,
+        0,
+        0,
+        6,
+        9
+      ],
+      "value": 126.14515686035156
+    },
+    {
+      "index": [
+        1,
+        23,
+        1,
+        7,
+        10
+      ],
+      "value": 10.673962593078613
+    },
+    {
+      "index": [
+        2,
+        46,
+        2,
+        4,
+        8
+      ],
+      "value": -1.1589171886444092
+    }
+  ],
+  "conversion": {
+    "eccodes": "2.48.0",
+    "numpy": "2.4.6",
+    "gribFiles": [
+      {
+        "file": "f3.grib2",
+        "sha256": "b5ec7c0c360c552037437d941f5f943bb54ccc512b588239c8e24a478446dc03",
+        "bytes": 79261,
+        "acceptedMessages": 141,
+        "ignoredMessages": [
+          [
+            "gh",
+            "isobaricInhPa",
+            1,
+            "identical float32 duplicate"
+          ],
+          [
+            "u",
+            "isobaricInhPa",
+            1,
+            "identical float32 duplicate"
+          ],
+          [
+            "v",
+            "isobaricInhPa",
+            1,
+            "identical float32 duplicate"
+          ],
+          [
+            "gh",
+            "isobaricInhPa",
+            2,
+            "identical float32 duplicate"
+          ],
+          [
+            "u",
+            "isobaricInhPa",
+            2,
+            "identical float32 duplicate"
+          ],
+          [
+            "v",
+            "isobaricInhPa",
+            2,
+            "identical float32 duplicate"
+          ],
+          [
+            "gh",
+            "isobaricInhPa",
+            3,
+            "identical float32 duplicate"
+          ],
+          [
+            "u",
+            "isobaricInhPa",
+            3,
+            "identical float32 duplicate"
+          ],
+          [
+            "v",
+            "isobaricInhPa",
+            3,
+            "identical float32 duplicate"
+          ],
+          [
+            "gh",
+            "isobaricInhPa",
+            5,
+            "identical float32 duplicate"
+          ],
+          [
+            "u",
+            "isobaricInhPa",
+            5,
+            "identical float32 duplicate"
+          ],
+          [
+            "v",
+            "isobaricInhPa",
+            5,
+            "identical float32 duplicate"
+          ],
+          [
+            "gh",
+            "isobaricInhPa",
+            7,
+            "identical float32 duplicate"
+          ],
+          [
+            "u",
+            "isobaricInhPa",
+            7,
+            "identical float32 duplicate"
+          ],
+          [
+            "v",
+            "isobaricInhPa",
+            7,
+            "identical float32 duplicate"
+          ]
+        ]
+      },
+      {
+        "file": "f6.grib2",
+        "sha256": "eabe1e025f1de6efe7e9c8a58426d1557aedf53efa00fdfd318f2a5bfe894b76",
+        "bytes": 79171,
+        "acceptedMessages": 141,
+        "ignoredMessages": [
+          [
+            "gh",
+            "isobaricInhPa",
+            1,
+            "identical float32 duplicate"
+          ],
+          [
+            "u",
+            "isobaricInhPa",
+            1,
+            "identical float32 duplicate"
+          ],
+          [
+            "v",
+            "isobaricInhPa",
+            1,
+            "identical float32 duplicate"
+          ],
+          [
+            "gh",
+            "isobaricInhPa",
+            2,
+            "identical float32 duplicate"
+          ],
+          [
+            "u",
+            "isobaricInhPa",
+            2,
+            "identical float32 duplicate"
+          ],
+          [
+            "v",
+            "isobaricInhPa",
+            2,
+            "identical float32 duplicate"
+          ],
+          [
+            "gh",
+            "isobaricInhPa",
+            3,
+            "identical float32 duplicate"
+          ],
+          [
+            "u",
+            "isobaricInhPa",
+            3,
+            "identical float32 duplicate"
+          ],
+          [
+            "v",
+            "isobaricInhPa",
+            3,
+            "identical float32 duplicate"
+          ],
+          [
+            "gh",
+            "isobaricInhPa",
+            5,
+            "identical float32 duplicate"
+          ],
+          [
+            "u",
+            "isobaricInhPa",
+            5,
+            "identical float32 duplicate"
+          ],
+          [
+            "v",
+            "isobaricInhPa",
+            5,
+            "identical float32 duplicate"
+          ],
+          [
+            "gh",
+            "isobaricInhPa",
+            7,
+            "identical float32 duplicate"
+          ],
+          [
+            "u",
+            "isobaricInhPa",
+            7,
+            "identical float32 duplicate"
+          ],
+          [
+            "v",
+            "isobaricInhPa",
+            7,
+            "identical float32 duplicate"
+          ]
+        ]
+      },
+      {
+        "file": "f9.grib2",
+        "sha256": "2f0989f08808c40affab54b8d92cb7aca26097fbb80909bba8aa273e05d2d046",
+        "bytes": 78896,
+        "acceptedMessages": 141,
+        "ignoredMessages": [
+          [
+            "gh",
+            "isobaricInhPa",
+            1,
+            "identical float32 duplicate"
+          ],
+          [
+            "u",
+            "isobaricInhPa",
+            1,
+            "identical float32 duplicate"
+          ],
+          [
+            "v",
+            "isobaricInhPa",
+            1,
+            "identical float32 duplicate"
+          ],
+          [
+            "gh",
+            "isobaricInhPa",
+            2,
+            "identical float32 duplicate"
+          ],
+          [
+            "u",
+            "isobaricInhPa",
+            2,
+            "identical float32 duplicate"
+          ],
+          [
+            "v",
+            "isobaricInhPa",
+            2,
+            "identical float32 duplicate"
+          ],
+          [
+            "gh",
+            "isobaricInhPa",
+            3,
+            "identical float32 duplicate"
+          ],
+          [
+            "u",
+            "isobaricInhPa",
+            3,
+            "identical float32 duplicate"
+          ],
+          [
+            "v",
+            "isobaricInhPa",
+            3,
+            "identical float32 duplicate"
+          ],
+          [
+            "gh",
+            "isobaricInhPa",
+            5,
+            "identical float32 duplicate"
+          ],
+          [
+            "u",
+            "isobaricInhPa",
+            5,
+            "identical float32 duplicate"
+          ],
+          [
+            "v",
+            "isobaricInhPa",
+            5,
+            "identical float32 duplicate"
+          ],
+          [
+            "gh",
+            "isobaricInhPa",
+            7,
+            "identical float32 duplicate"
+          ],
+          [
+            "u",
+            "isobaricInhPa",
+            7,
+            "identical float32 duplicate"
+          ],
+          [
+            "v",
+            "isobaricInhPa",
+            7,
+            "identical float32 duplicate"
+          ]
+        ]
+      }
+    ]
+  },
+  "sources": [
+    {
+      "forecastHour": 3,
+      "url": "https://nomads.ncep.noaa.gov/cgi-bin/filter_gfs_0p50.pl?file=gfs.t00z.pgrb2full.0p50.f003&var_UGRD=on&var_VGRD=on&var_HGT=on&subregion=&leftlon=128&rightlon=137&toplat=36&bottomlat=30&dir=%2Fgfs.20260910%2F00%2Fatmos&lev_1000_mb=on&lev_975_mb=on&lev_950_mb=on&lev_925_mb=on&lev_900_mb=on&lev_875_mb=on&lev_850_mb=on&lev_825_mb=on&lev_800_mb=on&lev_775_mb=on&lev_750_mb=on&lev_725_mb=on&lev_700_mb=on&lev_675_mb=on&lev_650_mb=on&lev_625_mb=on&lev_600_mb=on&lev_575_mb=on&lev_550_mb=on&lev_525_mb=on&lev_500_mb=on&lev_475_mb=on&lev_450_mb=on&lev_425_mb=on&lev_400_mb=on&lev_375_mb=on&lev_350_mb=on&lev_325_mb=on&lev_300_mb=on&lev_275_mb=on&lev_250_mb=on&lev_225_mb=on&lev_200_mb=on&lev_175_mb=on&lev_150_mb=on&lev_125_mb=on&lev_100_mb=on&lev_70_mb=on&lev_50_mb=on&lev_30_mb=on&lev_20_mb=on&lev_10_mb=on&lev_7_mb=on&lev_5_mb=on&lev_3_mb=on&lev_2_mb=on&lev_1_mb=on",
+      "bytes": 79261,
+      "sha256": "b5ec7c0c360c552037437d941f5f943bb54ccc512b588239c8e24a478446dc03",
+      "retrievedAt": "2026-09-10T16:50:52.141Z"
+    },
+    {
+      "forecastHour": 6,
+      "url": "https://nomads.ncep.noaa.gov/cgi-bin/filter_gfs_0p50.pl?file=gfs.t00z.pgrb2full.0p50.f006&var_UGRD=on&var_VGRD=on&var_HGT=on&subregion=&leftlon=128&rightlon=137&toplat=36&bottomlat=30&dir=%2Fgfs.20260910%2F00%2Fatmos&lev_1000_mb=on&lev_975_mb=on&lev_950_mb=on&lev_925_mb=on&lev_900_mb=on&lev_875_mb=on&lev_850_mb=on&lev_825_mb=on&lev_800_mb=on&lev_775_mb=on&lev_750_mb=on&lev_725_mb=on&lev_700_mb=on&lev_675_mb=on&lev_650_mb=on&lev_625_mb=on&lev_600_mb=on&lev_575_mb=on&lev_550_mb=on&lev_525_mb=on&lev_500_mb=on&lev_475_mb=on&lev_450_mb=on&lev_425_mb=on&lev_400_mb=on&lev_375_mb=on&lev_350_mb=on&lev_325_mb=on&lev_300_mb=on&lev_275_mb=on&lev_250_mb=on&lev_225_mb=on&lev_200_mb=on&lev_175_mb=on&lev_150_mb=on&lev_125_mb=on&lev_100_mb=on&lev_70_mb=on&lev_50_mb=on&lev_30_mb=on&lev_20_mb=on&lev_10_mb=on&lev_7_mb=on&lev_5_mb=on&lev_3_mb=on&lev_2_mb=on&lev_1_mb=on",
+      "bytes": 79171,
+      "sha256": "eabe1e025f1de6efe7e9c8a58426d1557aedf53efa00fdfd318f2a5bfe894b76",
+      "retrievedAt": "2026-09-10T16:50:56.307Z"
+    },
+    {
+      "forecastHour": 9,
+      "url": "https://nomads.ncep.noaa.gov/cgi-bin/filter_gfs_0p50.pl?file=gfs.t00z.pgrb2full.0p50.f009&var_UGRD=on&var_VGRD=on&var_HGT=on&subregion=&leftlon=128&rightlon=137&toplat=36&bottomlat=30&dir=%2Fgfs.20260910%2F00%2Fatmos&lev_1000_mb=on&lev_975_mb=on&lev_950_mb=on&lev_925_mb=on&lev_900_mb=on&lev_875_mb=on&lev_850_mb=on&lev_825_mb=on&lev_800_mb=on&lev_775_mb=on&lev_750_mb=on&lev_725_mb=on&lev_700_mb=on&lev_675_mb=on&lev_650_mb=on&lev_625_mb=on&lev_600_mb=on&lev_575_mb=on&lev_550_mb=on&lev_525_mb=on&lev_500_mb=on&lev_475_mb=on&lev_450_mb=on&lev_425_mb=on&lev_400_mb=on&lev_375_mb=on&lev_350_mb=on&lev_325_mb=on&lev_300_mb=on&lev_275_mb=on&lev_250_mb=on&lev_225_mb=on&lev_200_mb=on&lev_175_mb=on&lev_150_mb=on&lev_125_mb=on&lev_100_mb=on&lev_70_mb=on&lev_50_mb=on&lev_30_mb=on&lev_20_mb=on&lev_10_mb=on&lev_7_mb=on&lev_5_mb=on&lev_3_mb=on&lev_2_mb=on&lev_1_mb=on",
+      "bytes": 78896,
+      "sha256": "2f0989f08808c40affab54b8d92cb7aca26097fbb80909bba8aa273e05d2d046",
+      "retrievedAt": "2026-09-10T16:50:59.999Z"
+    }
+  ]
+}

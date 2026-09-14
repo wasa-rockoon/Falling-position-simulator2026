@@ -71,8 +71,9 @@ function processTawhiriResults(data, settings, fall_only, requestContext) {
             updatePredictionDerivedMetrics(data.prediction);
         } catch (_e) { if (typeof reportNonFatalError === 'function') reportNonFatalError(_e, 'prediction.charts'); }
 
+        if (requestContext && requestContext.source === 'browser-fixture') requestContext.browserPrediction = data.prediction;
         writePredictionInfo(settings, data.metadata, data.request, fall_only ? extended_results : null, requestContext);
-        saveSinglePredictionResult(requestContext, extended_results);
+        saveSinglePredictionResult(requestContext, extended_results, data);
 
     }
 
@@ -371,7 +372,17 @@ function writePredictionInfo(settings, metadata, request, fall_results, requestC
     // populate the download links
 
     // Create the API URLs based on the current prediction settings
-    if (fall_results) {
+    if (requestContext && requestContext.source === 'browser-fixture') {
+        var browserTrajectory = { label: 'Browser GFS ' + request.dataset, points: PredictionRunner.normalizePrediction(requestContext.browserPrediction).flightPath.map(function (p) {
+            return { latitude:p.latitude, longitude:p.longitude, altitudeM:p.altitudeM, timeUtc:p.timeUtc };
+        }) };
+        $('#dlcsv').attr('href','#').attr('download','BrowserFixture.csv').off('click.predictionExport').on('click.predictionExport',function(event) {
+            event.preventDefault(); ExportService.download(ExportService.trajectoryCsv(browserTrajectory),'BrowserFixture.csv','text/csv;charset=utf-8');
+        });
+        $('#dlkml').attr('href','#').attr('download','BrowserFixture.kml').off('click.predictionExport').on('click.predictionExport',function(event) {
+            event.preventDefault(); ExportService.download(ExportService.trajectoryKml(browserTrajectory),'BrowserFixture.kml','application/vnd.google-earth.kml+xml;charset=utf-8');
+        });
+    } else if (fall_results) {
         if (typeof ExportService === 'undefined') throw new Error('ExportService is unavailable');
         var timedPoints = Array.isArray(fall_results.flight_path_time) ? fall_results.flight_path_time : fall_results.flight_path.map(function (point) {
             return { lat: point[0], lon: point[1], alt: point[2], datetime: null };
@@ -414,7 +425,7 @@ function writePredictionInfo(settings, metadata, request, fall_results, requestC
 
 
     $("#run_time").html(run_time);
-    $("#dataset").html(dataset);
+    $("#dataset").text(dataset + (requestContext && requestContext.source === 'browser-fixture' ? '（ブラウザ・固定データ）' : ''));
 }
 
 function bindPanToCenterLink() {

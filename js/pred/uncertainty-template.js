@@ -22,7 +22,7 @@
                     <header class="uncertainty-header">
                         <div>
                             <h2 id="uncertainty_title">不確実性解析</h2>
-                            <p>API上限を守りながら、海上率の信頼区間と着地点の収束をバッチごとに判定します。</p>
+                            <p>予測上限を守りながら、海上率の信頼区間と着地点の収束をバッチごとに判定します。</p>
                         </div>
                         <button id="uncertainty_close" type="button" aria-label="閉じる">&times;</button>
                     </header>
@@ -82,7 +82,7 @@
                                 <label>早期終了の最低計算回数／地点<input id="uncertainty_min_samples" type="number" min="4" max="500" step="1" value="32"></label>
                                 <label>安定性の判定間隔（回）<input id="uncertainty_batch_size" type="number" min="2" max="100" step="1" value="8"></label>
                                 <label>最大計算回数／地点<input id="uncertainty_max_samples" type="number" min="4" max="1000" step="1" value="96"></label>
-                                <label>通信試行上限（全地点・再試行含む）<input id="uncertainty_call_limit" type="number" min="1" max="10000" step="1" value="100"></label>
+                                <label><span id="uncertainty_limit_label">通信試行上限（全地点・再試行含む）</span><input id="uncertainty_call_limit" type="number" min="1" max="10000" step="1" value="100"></label>
                                 <label>海上率区間の許容半幅（ポイント）<input id="uncertainty_probability_tolerance" type="number" min="1" max="50" step="1" value="10"></label>
                                 <label>平均着地点の移動許容値（km）<input id="uncertainty_centroid_tolerance" type="number" min="0.05" max="100" step="0.05" value="1"></label>
                                 <label>95%楕円の変化許容値（%）<input id="uncertainty_ellipse_tolerance" type="number" min="0" max="100" step="1" value="10"></label>
@@ -93,7 +93,7 @@
                             <p id="uncertainty_error" class="uncertainty-error" hidden></p>
                             <div class="uncertainty-actions">
                                 <button id="uncertainty_start" type="button">解析開始</button>
-                                <button id="uncertainty_pause" type="button" disabled>現在のAPI呼出後に中断</button>
+                                <button id="uncertainty_pause" type="button" disabled>現在の処理後に中断</button>
                                 <button id="uncertainty_new" type="button">新規解析</button>
                             </div>
                         </section>

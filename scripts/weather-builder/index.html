@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="ja"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>地域GFSパッケージ作成</title>
+<style>
+body{font:16px/1.7 system-ui,sans-serif;max-width:850px;margin:32px auto;padding:0 20px;background:#f5f7fa;color:#17324b}
+section{background:white;border:1px solid #ccd5df;border-radius:10px;padding:20px;margin:16px 0}
+label{display:inline-block;margin:6px 16px 6px 0}input,select,button{font:inherit;padding:6px;max-width:100%;box-sizing:border-box}
+input[type=number]{width:110px}button{cursor:pointer;margin:6px 8px 6px 0}#message{white-space:pre-wrap;overflow-wrap:anywhere}
+a{color:#065aac}small{display:block}.row{display:flex;flex-wrap:wrap;gap:8px}
+</style>
+<h1>地域GFSパッケージ作成</h1>
+<p>NOAAから指定地域のGFSを取得し、ブラウザ予測用の<code>.wasawx</code>を作成します。飛行予測APIは使用しません。</p>
+<section><h2>1. 地表標高</h2>
+<p id="terrain">読込中…</p>
+<label>別地域の標高を含むパッケージ<input type="file" id="terrainFile" accept=".wasawx"></label>
+<button id="resetTerrain" type="button">同梱の標高に戻す</button>
+<small>同梱は北緯32〜35°・東経131〜135°。パッケージを指定すると標高部分だけを利用します。全球DEMは取得しません。</small>
+</section>
+<section><h2>2. GFS runと取得地域</h2>
+<fieldset><legend>放球予定から取得条件を提案</legend>
+<label>放球予定（JST）<input id="suggestDatetime" type="datetime-local"></label>
+<label>緯度<input id="suggestLatitude" type="number" step="any" value="33.13492"></label>
+<label>経度<input id="suggestLongitude" type="number" step="any" value="132.50477"></label>
+<label>着地までの見積り（時間）<input id="suggestDuration" type="number" min="0.1" max="69" step="0.1" value="4"></label>
+<label>各方向への余裕（度）<input id="suggestMargin" type="number" min="0.5" max="4.5" step="0.5" value="0.5"></label>
+<button type="button" id="suggest">取得条件を提案して入力</button>
+<p id="suggestResult" role="status"></p>
+<small>提案だけでは取得しません。放球条件はパッケージに保存しません。標高の範囲が不足する場合は提案を止めます。</small>
+</fieldset>
+<form id="form">
+<div class="row"><label>GFS日付（UTC）<input id="date" type="date" required></label>
+<label>run（UTC）<select id="cycle"><option>00</option><option>06</option><option>12</option><option>18</option></select></label></div>
+<small>放球日時ではなく気象モデルの基準時刻です。未公開・公開期間終了のrunは取得できません。初期値は公開遅延を考慮した候補で、公開済みを保証しません。</small>
+<div class="row"><label>南端<input id="south" type="number" step="0.5" value="32" required></label>
+<label>北端<input id="north" type="number" step="0.5" value="35" required></label>
+<label>西端<input id="west" type="number" step="0.5" value="131" required></label>
+<label>東端<input id="east" type="number" step="0.5" value="135" required></label></div>
+<small>緯度経度0.5度刻み。経度は0〜359.5度。全経路を覆う余裕を取り、利用可能な標高の範囲内にしてください。最大10度×10度。</small>
+<div class="row"><label>開始 forecast hour<input id="firstHour" type="number" min="0" max="189" step="3" value="3" required></label>
+<label>終了 forecast hour<input id="lastHour" type="number" min="3" max="192" step="3" value="9" required></label></div>
+<small>runから何時間後かを指定します。3時間間隔、最大72時間幅。最終時刻・北端・東端は補間のため利用できません。</small>
+<button type="submit" id="build">取得してパッケージを作成</button>
+<button type="button" id="cancel" disabled>中止</button>
+</form>
+</section>
+<section><h2>3. 状態・出力</h2><p id="message" role="status"></p>
+<a id="download" href="/package.wasawx" download hidden>作成したパッケージを保存</a>
+<p>保存したファイルをシミュレータの「ブラウザ内計算」へ読み込んでください。サンプル条件は含まないため、放球日時・地点・高度は手入力します。</p>
+</section>
+<p>必要環境: Node.js 20.3以上、Docker Desktop（Linux / WSL2 backend）。初回だけPython imageと変換ライブラリを取得します。作業用GRIBは成功・失敗・中止後に削除し、変換環境だけ再利用します。</p>
+<p>取得先: NOAA NOMADS。取得間隔は10秒以上です。終了は起動したウィンドウでCtrl+C。出力は終了前に保存してください。</p>
+<script src="/app.js"></script></html>

@@ -1,0 +1,23 @@
+[
+  {
+    "forecastHour": 3,
+    "url": "https://nomads.ncep.noaa.gov/cgi-bin/filter_gfs_0p50.pl?file=gfs.t00z.pgrb2full.0p50.f003&var_UGRD=on&var_VGRD=on&var_HGT=on&subregion=&leftlon=128&rightlon=137&toplat=36&bottomlat=30&dir=%2Fgfs.20260910%2F00%2Fatmos&lev_1000_mb=on&lev_975_mb=on&lev_950_mb=on&lev_925_mb=on&lev_900_mb=on&lev_875_mb=on&lev_850_mb=on&lev_825_mb=on&lev_800_mb=on&lev_775_mb=on&lev_750_mb=on&lev_725_mb=on&lev_700_mb=on&lev_675_mb=on&lev_650_mb=on&lev_625_mb=on&lev_600_mb=on&lev_575_mb=on&lev_550_mb=on&lev_525_mb=on&lev_500_mb=on&lev_475_mb=on&lev_450_mb=on&lev_425_mb=on&lev_400_mb=on&lev_375_mb=on&lev_350_mb=on&lev_325_mb=on&lev_300_mb=on&lev_275_mb=on&lev_250_mb=on&lev_225_mb=on&lev_200_mb=on&lev_175_mb=on&lev_150_mb=on&lev_125_mb=on&lev_100_mb=on&lev_70_mb=on&lev_50_mb=on&lev_30_mb=on&lev_20_mb=on&lev_10_mb=on&lev_7_mb=on&lev_5_mb=on&lev_3_mb=on&lev_2_mb=on&lev_1_mb=on",
+    "bytes": 79261,
+    "sha256": "b5ec7c0c360c552037437d941f5f943bb54ccc512b588239c8e24a478446dc03",
+    "retrievedAt": "2026-09-10T16:50:52.141Z"
+  },
+  {
+    "forecastHour": 6,
+    "url": "https://nomads.ncep.noaa.gov/cgi-bin/filter_gfs_0p50.pl?file=gfs.t00z.pgrb2full.0p50.f006&var_UGRD=on&var_VGRD=on&var_HGT=on&subregion=&leftlon=128&rightlon=137&toplat=36&bottomlat=30&dir=%2Fgfs.20260910%2F00%2Fatmos&lev_1000_mb=on&lev_975_mb=on&lev_950_mb=on&lev_925_mb=on&lev_900_mb=on&lev_875_mb=on&lev_850_mb=on&lev_825_mb=on&lev_800_mb=on&lev_775_mb=on&lev_750_mb=on&lev_725_mb=on&lev_700_mb=on&lev_675_mb=on&lev_650_mb=on&lev_625_mb=on&lev_600_mb=on&lev_575_mb=on&lev_550_mb=on&lev_525_mb=on&lev_500_mb=on&lev_475_mb=on&lev_450_mb=on&lev_425_mb=on&lev_400_mb=on&lev_375_mb=on&lev_350_mb=on&lev_325_mb=on&lev_300_mb=on&lev_275_mb=on&lev_250_mb=on&lev_225_mb=on&lev_200_mb=on&lev_175_mb=on&lev_150_mb=on&lev_125_mb=on&lev_100_mb=on&lev_70_mb=on&lev_50_mb=on&lev_30_mb=on&lev_20_mb=on&lev_10_mb=on&lev_7_mb=on&lev_5_mb=on&lev_3_mb=on&lev_2_mb=on&lev_1_mb=on",
+    "bytes": 79171,
+    "sha256": "eabe1e025f1de6efe7e9c8a58426d1557aedf53efa00fdfd318f2a5bfe894b76",
+    "retrievedAt": "2026-09-10T16:50:56.307Z"
+  },
+  {
+    "forecastHour": 9,
+    "url": "https://nomads.ncep.noaa.gov/cgi-bin/filter_gfs_0p50.pl?file=gfs.t00z.pgrb2full.0p50.f009&var_UGRD=on&var_VGRD=on&var_HGT=on&subregion=&leftlon=128&rightlon=137&toplat=36&bottomlat=30&dir=%2Fgfs.20260910%2F00%2Fatmos&lev_1000_mb=on&lev_975_mb=on&lev_950_mb=on&lev_925_mb=on&lev_900_mb=on&lev_875_mb=on&lev_850_mb=on&lev_825_mb=on&lev_800_mb=on&lev_775_mb=on&lev_750_mb=on&lev_725_mb=on&lev_700_mb=on&lev_675_mb=on&lev_650_mb=on&lev_625_mb=on&lev_600_mb=on&lev_575_mb=on&lev_550_mb=on&lev_525_mb=on&lev_500_mb=on&lev_475_mb=on&lev_450_mb=on&lev_425_mb=on&lev_400_mb=on&lev_375_mb=on&lev_350_mb=on&lev_325_mb=on&lev_300_mb=on&lev_275_mb=on&lev_250_mb=on&lev_225_mb=on&lev_200_mb=on&lev_175_mb=on&lev_150_mb=on&lev_125_mb=on&lev_100_mb=on&lev_70_mb=on&lev_50_mb=on&lev_30_mb=on&lev_20_mb=on&lev_10_mb=on&lev_7_mb=on&lev_5_mb=on&lev_3_mb=on&lev_2_mb=on&lev_1_mb=on",
+    "bytes": 78896,
+    "sha256": "2f0989f08808c40affab54b8d92cb7aca26097fbb80909bba8aa273e05d2d046",
+    "retrievedAt": "2026-09-10T16:50:59.999Z"
+  }
+]

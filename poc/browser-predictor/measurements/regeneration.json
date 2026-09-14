@@ -1,0 +1,10 @@
+{
+  "pass": true,
+  "network": "none",
+  "sourceVolumeMounted": false,
+  "sha256": {
+    "weather": "6e89a80540651025cbd25619ae62452fb7eaaf64c6909bb507b4c0faedf989fa",
+    "manifest": "669037ef84b4661d8535bd378bd8cb88f3e0410fcdc0e5218f6659713506904e",
+    "reference": "b6ea1fbdf189dafbc7c1d204a7cb9fa5e25315a5f772b6028440cb15a22c2a58"
+  }
+}

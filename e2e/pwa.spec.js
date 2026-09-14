@@ -21,6 +21,13 @@ test('PWAシェルは更新後も一度だけ起動しオフライン再読込�
     expect(cacheNames.filter((name) => name === 'wasa-predictor-tiles-v2-cors').length).toBeLessThanOrEqual(1);
     expect(cacheNames).not.toContain('wasa-predictor-tiles-v1');
 
+    const cachedUrls = await page.evaluate(async () => {
+        const names = await caches.keys();
+        return (await Promise.all(names.map(async name =>
+            (await (await caches.open(name)).keys()).map(request => request.url)))).flat();
+    });
+    expect(cachedUrls.some(url => url.includes('/poc/browser-predictor/'))).toBe(false);
+
     await context.setOffline(true);
     await page.reload({ waitUntil: 'domcontentloaded' });
     await expect(page.locator('#map_canvas')).toBeVisible();

@@ -2,7 +2,7 @@
 'use strict';
 
 var CACHE_PREFIX = 'wasa-predictor-';
-var CACHE_VERSION = '318c5da9a439';
+var CACHE_VERSION = '97a4a44ccfaa';
 var APP_CACHE_NAME = CACHE_PREFIX + 'app-' + CACHE_VERSION;
 // v2 stores CORS-readable responses. v1 may contain opaque responses created
 // before image export required cross-origin map pixels.
@@ -96,6 +96,7 @@ var APP_SHELL = [
     "./js/moment.js",
     "./js/pred/auto-search-core.js",
     "./js/pred/auto-search.js",
+    "./js/pred/browser-predictor-provider.js",
     "./js/pred/ehime-controller.js",
     "./js/pred/ehime-enhancements.js",
     "./js/pred/hourly-controller.js",
@@ -124,6 +125,7 @@ var APP_SHELL = [
     "./js/pred/uncertainty-core.js",
     "./js/pred/uncertainty-template.js",
     "./js/pred/variant-profile-registry.js",
+    "./js/pred/weather-package.js",
     "./js/pred/workload-core.js",
     "./manifest.json",
     "./ports.json",
@@ -201,6 +203,8 @@ self.addEventListener('fetch', function (event) {
     if (event.request.method !== 'GET') return;
     var requestUrl = new URL(event.request.url);
     if (isApiRequest(requestUrl)) return;
+    // Experimental fixtures stay opt-in and memory-only; never enlarge app cache.
+    if (requestUrl.pathname.includes('/poc/browser-predictor/')) return;
     if (event.request.mode === 'navigate' || requestUrl.pathname.endsWith('.html')) {
         event.respondWith(cacheFirstAppShell(event.request));
         return;

@@ -16,6 +16,7 @@
         value = value || {};
         return {
             httpAttempts: nonNegativeInteger(value.httpAttempts),
+            computations: nonNegativeInteger(value.computations),
             cacheHits: nonNegativeInteger(value.cacheHits),
             retryCount: nonNegativeInteger(value.retryCount),
             failures: nonNegativeInteger(value.failures),

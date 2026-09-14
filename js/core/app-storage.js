@@ -6,8 +6,10 @@
     'use strict';
 
     var DATABASE_NAME = 'falling-position-simulator-2026';
-    var DATABASE_VERSION = 2;
-    var STORE_NAMES = ['predictionCache', 'jobs', 'settings', 'runs', 'history', 'migrations'];
+    var DATABASE_VERSION = 3;
+    // weatherPackages can contain ArrayBuffers. IndexedDB supports these directly;
+    // the localStorage fallback remains intentionally best-effort only.
+    var STORE_NAMES = ['predictionCache', 'jobs', 'settings', 'runs', 'history', 'migrations', 'weatherPackages'];
     var memoryStores = {};
     var databasePromise = null;
 
@@ -58,6 +60,8 @@
             throw new Error('Unknown storage area: ' + storeName);
         }
 
+        var useLocalStorageFallback = storeName !== 'weatherPackages';
+
         async function withStore(mode, operation) {
             var database = await openDatabase();
             if (!database) return { supported: false };
@@ -85,7 +89,7 @@
                 } catch (_error) { if (typeof reportNonFatalError === 'function') reportNonFatalError(_error, 'non-fatal fallback'); }
 
                 try {
-                    if (root.localStorage) {
+                    if (useLocalStorageFallback && root.localStorage) {
                         var raw = root.localStorage.getItem(localStorageKey(storeName, key));
                         if (raw !== null) return JSON.parse(raw);
                     }
@@ -113,7 +117,7 @@
                 } catch (_error) { if (typeof reportNonFatalError === 'function') reportNonFatalError(_error, 'storage.list.idb'); }
 
                 try {
-                    if (root.localStorage) {
+                    if (useLocalStorageFallback && root.localStorage) {
                         var prefix = localStorageKey(storeName, '');
                         var localItems = [];
                         for (var index = 0; index < root.localStorage.length; index += 1) {
@@ -147,7 +151,7 @@
                 } catch (_error) { if (typeof reportNonFatalError === 'function') reportNonFatalError(_error, 'non-fatal fallback'); }
 
                 try {
-                    if (root.localStorage) {
+                    if (useLocalStorageFallback && root.localStorage) {
                         root.localStorage.setItem(localStorageKey(storeName, key), JSON.stringify(copied));
                         return;
                     }
@@ -180,7 +184,7 @@
                     if (result.supported) return;
                 } catch (_error) { if (typeof reportNonFatalError === 'function') reportNonFatalError(_error, 'non-fatal fallback'); }
                 try {
-                    if (root.localStorage) {
+                    if (useLocalStorageFallback && root.localStorage) {
                         var prefix = localStorageKey(storeName, '');
                         var keys = [];
                         for (var index = 0; index < root.localStorage.length; index += 1) {

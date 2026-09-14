@@ -9,17 +9,18 @@ const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url))
 const targets = [
     path.join(repositoryRoot, 'js'),
     path.join(repositoryRoot, 'cors-proxy.js'),
-    path.join(repositoryRoot, 'sw.js')
+    path.join(repositoryRoot, 'sw.js'),
+    path.join(repositoryRoot, 'scripts', 'weather-builder')
 ];
 
 async function collectJavaScript(target) {
     const entries = await readdir(target, { withFileTypes: true }).catch(() => []);
-    if (entries.length === 0) return target.endsWith('.js') ? [target] : [];
+    if (entries.length === 0) return /\.(?:js|mjs|cjs)$/.test(target) ? [target] : [];
     const files = [];
     for (const entry of entries) {
         const child = path.join(target, entry.name);
         if (entry.isDirectory()) files.push(...await collectJavaScript(child));
-        else if (/\.(?:js|mjs)$/.test(entry.name)) files.push(child);
+        else if (/\.(?:js|mjs|cjs)$/.test(entry.name)) files.push(child);
     }
     return files;
 }

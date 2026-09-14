@@ -33,6 +33,8 @@
         var select = document.getElementById('api_source');
         var input = document.getElementById('api_custom_url');
         if (!select || !input) return;
+        var fixture = document.getElementById('browser_fixture_info');
+        if (fixture) fixture.hidden = select.value !== 'browser-fixture';
         var custom = select.value === 'custom';
         input.hidden = !custom;
         input.style.display = custom ? 'block' : 'none';

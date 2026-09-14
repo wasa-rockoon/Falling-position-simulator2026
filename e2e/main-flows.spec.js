@@ -183,6 +183,8 @@ test('自動探索を候補境界で中断し再開する', async ({ app }) => {
 
     await page.locator('#auto_select_none').click();
     await page.locator('#auto_sites_container input').first().check();
+    await expect(page.locator('#auto_flight_conditions input')).not.toHaveCount(0);
+    await page.locator('#auto_flight_conditions input').first().check();
     const startDate = await page.locator('#auto_start_date').inputValue();
     const startTime = await page.locator('#auto_start_time').inputValue();
     await page.locator('#auto_end_date').fill(startDate);
@@ -260,6 +262,7 @@ test('自動探索履歴のCSVは保存された探索候補を出力する', as
                 candidates: [{
                     timeJst: '2026/08/27 13:25',
                     site: '南レク松軒山公園',
+                    condition: '現在のSETTINGS',
                     mode: 'full',
                     ascentRate: 5,
                     descentRate: 5,
@@ -289,8 +292,8 @@ test('自動探索履歴のCSVは保存された探索候補を出力する', as
     const chunks = [];
     for await (const chunk of stream) chunks.push(chunk);
     const csv = Buffer.concat(chunks).toString('utf8');
-    expect(csv).toContain('日時(JST),地点,探索モード');
-    expect(csv).toContain('南レク松軒山公園,全候補精密探索（粗探索で除外しない）');
+    expect(csv).toContain('日時(JST),地点,飛行条件,探索モード');
+    expect(csv).toContain('南レク松軒山公園,現在のSETTINGS,全候補精密探索（粗探索で除外しない）');
     expect(csv).toContain('85,8.7,柏島漁港,9.4,あり');
 });
 test('2026年版ガス計算を実行し予測条件へ反映する', async ({ app }) => {

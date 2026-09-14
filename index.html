@@ -43,6 +43,8 @@
     <script src="js/core/history-controller.js"></script>
     <script src="js/core/results-workspace.js"></script>
     <script src="js/pred/pred-api-client.js"></script>
+    <script src="js/pred/weather-package.js"></script>
+    <script src="js/pred/browser-predictor-provider.js"></script>
     <script src="js/pred/request-context.js"></script>
     <script src="js/pred/prediction-runner.js"></script>
     <script src="js/pred/variant-profile-registry.js"></script>
@@ -233,14 +235,44 @@
 
                             <!-- API接続先 -->
                             <div class="form-group">
-                                <label for="api_source">API接続先:</label>
+                                <label for="api_source">予測エンジン / API:</label>
                                 <div class="form-control">
                                     <select id="api_source" onchange="toggleCustomApiInput()">
                                         <option value="sondehub" selected="selected">SondeHub (Public)</option>
                                         <option value="local">Localhost (Docker)</option>
                                         <option value="custom">カスタム</option>
+                                        <option value="browser-fixture">ブラウザ内計算</option>
                                     </select>
                                     <input type="text" id="api_custom_url" placeholder="https://example.com/api/v1/">
+                                    <div id="browser_fixture_info" class="browser-data-card" hidden>
+                                        <div class="browser-data-card__header">
+                                            <strong>気象データ</strong>
+                                            <span class="browser-data-card__privacy">端末内で計算</span>
+                                        </div>
+                                        <div id="browser_data_summary" class="browser-data-card__summary">同梱の検証用データを使用中</div>
+                                        <label class="browser-data-card__file">
+                                            <span>.wasawxを読み込む</span>
+                                            <input id="browser_package_file" type="file" accept=".wasawx">
+                                        </label>
+                                        <span id="browser_fixture_status" class="browser-data-card__status" role="status"></span>
+                                        <details class="browser-data-card__saved">
+                                            <summary>ブラウザに保存したデータ</summary>
+                                            <select id="browser_saved_packages" aria-label="保存済み気象データ"><option value="">読込中…</option></select>
+                                            <div class="browser-data-card__actions">
+                                                <button type="button" id="browser_package_load_local">使用する</button>
+                                                <button type="button" id="browser_package_save_local">現在のデータを保存</button>
+                                                <button type="button" id="browser_package_delete_local" class="browser-data-card__danger">削除</button>
+                                            </div>
+                                            <span id="browser_package_storage_status" class="browser-data-card__status" role="status"></span>
+                                        </details>
+                                        <a class="browser-data-card__builder" href="downloads/wasa-weather-builder-windows.zip" download>気象データ作成ツールをダウンロード</a>
+                                        <details class="browser-data-card__details">
+                                            <summary>対応範囲とデータ情報</summary>
+                                            <p>飛行経路が気象・標高データの範囲内に必要です。放球高度が地表より低い場合は計算時に地表高度へ合わせます。</p>
+                                            <button type="button" id="browser_package_reset">同梱の検証用データに戻す</button>
+                                            <p>気象: NOAA/NWS。標高: <a href="https://www.viewfinderpanoramas.org/dem3.html" target="_blank" rel="noopener">Viewfinder Panoramas / Jonathan de Ferranti</a></p>
+                                        </details>
+                                    </div>
                                 </div>
                             </div>
 

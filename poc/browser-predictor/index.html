@@ -1,0 +1,10 @@
+<!doctype html>
+<html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Phase 0 — Browser Predictor</title>
+<style>body{font:16px/1.6 system-ui,sans-serif;margin:32px auto;max-width:1000px;padding:0 20px;background:#f5f7fa;color:#182234}button{padding:10px 18px;margin:8px 10px 8px 0;font:inherit}pre{background:white;border:1px solid #ccd5e0;padding:20px;overflow:auto;max-height:70vh}p{max-width:850px}</style></head>
+<body><h1>Browser Predictor — Phase 0</h1>
+<p>愛媛の固定1ケースを、実イメージ内のTawhiri出力と比較します。気象：GFS 2026-09-10 00 UTC。計算は1個のDedicated Web Worker内で実行します。既存アプリには接続していません。</p>
+<p id="status" role="status">固定fixtureを読み込んでいます…</p>
+<button id="once" disabled>1回計算・比較</button><button id="hundred" disabled>同じ条件で100回計測</button>
+<p>100回は性能測定です。Monte Carloではありません。比較目標は位置1m・時刻1秒以内。気象データ：NOAA/NWS、標高：Viewfinder Panoramas / Jonathan de Ferranti。</p>
+<pre id="output"></pre><script type="module" src="./app.js"></script></body></html>

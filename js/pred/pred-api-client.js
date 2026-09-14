@@ -24,6 +24,7 @@
     }
 
     function resolveApiUrl(source, customUrl) {
+        if (source === 'browser-fixture') return '';
         if (source === 'local') return '/api/v1/';
         if (source === 'custom') {
             var normalized = String(customUrl || '').trim();
@@ -211,6 +212,7 @@
 
     function PredictionClient(options) {
         options = options || {};
+        if (options.source === 'browser-fixture') throw new Error('ブラウザ計算はHTTPクライアントでは実行できません。');
         this.source = normalizeSource(options.source);
         this.baseUrl = options.baseUrl || resolveApiUrl(this.source, options.customUrl);
         this.baseLocation = options.baseLocation;
@@ -397,6 +399,7 @@
     };
 
     function getClient(options) {
+        if (options && options.source === 'browser-fixture') throw new Error('ブラウザ計算はHTTPクライアントでは実行できません。');
         options = options || {};
         var source = normalizeSource(options.source);
         var baseUrl = options.baseUrl || resolveApiUrl(source, options.customUrl);

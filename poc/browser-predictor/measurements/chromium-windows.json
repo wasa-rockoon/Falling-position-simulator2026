@@ -1,0 +1,1247 @@
+{
+  "timestamp": "2026-09-10T17:01:01.918Z",
+  "environment": {
+    "platform": "win32",
+    "release": "10.0.26200",
+    "cpu": "AMD Ryzen AI 7 350 w/ Radeon 860M              ",
+    "logicalCpus": 16,
+    "ramBytes": 33413779456,
+    "node": "v24.13.1",
+    "chromium": "151.0.7922.34",
+    "headless": true
+  },
+  "interpolation": {
+    "maxWindError": 1.0630385460785874e-13,
+    "maxTerrainError": 0,
+    "maxDescentError": 0,
+    "samples": 42
+  },
+  "single": {
+    "count": 1,
+    "totalMs": 14.700000002980232,
+    "averageMs": 14.700000002980232,
+    "pointCount": 146,
+    "fixtureBytes": 1803686,
+    "approximateLastResultJsonBytes": 22076,
+    "peakMemoryBytes": null,
+    "memoryNote": "Exact peak memory unavailable; fixture bytes and serialized last result are lower-bound components, not JS heap usage.",
+    "worker": true
+  },
+  "hundred": {
+    "count": 100,
+    "totalMs": 206.29999999701977,
+    "averageMs": 2.062999999970198,
+    "pointCount": 146,
+    "fixtureBytes": 1803686,
+    "approximateLastResultJsonBytes": 22076,
+    "peakMemoryBytes": null,
+    "memoryNote": "Exact peak memory unavailable; fixture bytes and serialized last result are lower-bound components, not JS heap usage.",
+    "worker": true
+  },
+  "comparison": {
+    "pass": true,
+    "reference": {
+      "durationSeconds": 8594.0625,
+      "burst": {
+        "latitude": 33.468688328041054,
+        "longitude": 132.66685001365963,
+        "altitude": 29999.21875,
+        "timeSeconds": 1789020579.84375,
+        "datetime": "2026-09-10T06:09:39.843750Z"
+      },
+      "landing": {
+        "latitude": 33.64699724432332,
+        "longitude": 132.85275829830755,
+        "altitude": 720.5134832954332,
+        "timeSeconds": 1789023194.0625,
+        "datetime": "2026-09-10T06:53:14.062500Z"
+      }
+    },
+    "browser": {
+      "durationSeconds": 8594.0625,
+      "burst": {
+        "latitude": 33.468688328041054,
+        "longitude": 132.66685001365997,
+        "altitude": 29999.21875,
+        "datetime": "2026-09-10T06:09:39.843Z",
+        "timeSeconds": 1789020579.84375
+      },
+      "landing": {
+        "latitude": 33.64699724432333,
+        "longitude": 132.85275829830832,
+        "altitude": 720.5134832954332,
+        "datetime": "2026-09-10T06:53:14.062Z",
+        "timeSeconds": 1789023194.0625
+      }
+    },
+    "metrics": {
+      "maxTrajectoryErrorM": 7.892989431248064e-8,
+      "meanTrajectoryErrorM": 3.121158780087814e-8,
+      "burstErrorM": 3.163593065124078e-8,
+      "burstAltitudeErrorM": 0,
+      "landingErrorM": 7.103757395565234e-8,
+      "landingAltitudeErrorM": 0,
+      "burstTimeErrorS": 0,
+      "landingTimeErrorS": 0,
+      "durationErrorS": 0
+    },
+    "commonTimeSamples": 189,
+    "trajectoryErrors": [
+      {
+        "timeSeconds": 1789014600,
+        "horizontalErrorM": 0,
+        "altitudeErrorM": 0,
+        "positionErrorM": 0
+      },
+      {
+        "timeSeconds": 1789014660,
+        "horizontalErrorM": 2.646419997200983e-9,
+        "altitudeErrorM": 0,
+        "positionErrorM": 2.646419997200983e-9
+      },
+      {
+        "timeSeconds": 1789014720,
+        "horizontalErrorM": 5.2927960221984134e-9,
+        "altitudeErrorM": 0,
+        "positionErrorM": 5.2927960221984134e-9
+      },
+      {
+        "timeSeconds": 1789014780,
+        "horizontalErrorM": 5.292736299991107e-9,
+        "altitudeErrorM": 0,
+        "positionErrorM": 5.292736299991107e-9
+      },
+      {
+        "timeSeconds": 1789014840,
+        "horizontalErrorM": 2.646334028654698e-9,
+        "altitudeErrorM": 0,
+        "positionErrorM": 2.646334028654698e-9
+      },
+      {
+        "timeSeconds": 1789014900,
+        "horizontalErrorM": 7.938885276299503e-9,
+        "altitudeErrorM": 0,
+        "positionErrorM": 7.938885276299503e-9
+      },
+      {
+        "timeSeconds": 1789014960,
+        "horizontalErrorM": 1.0584978708441317e-8,
+        "altitudeErrorM": 0,
+        "positionErrorM": 1.0584978708441317e-8
+      },
+      {
+        "timeSeconds": 1789015020,
+        "horizontalErrorM": 1.85232614583585e-8,
+        "altitudeErrorM": 0,
+        "positionErrorM": 1.85232614583585e-8
+      },
+      {
+        "timeSeconds": 1789015080,
+        "horizontalErrorM": 1.5876607719445997e-8,
+        "altitudeErrorM": 0,
+        "positionErrorM": 1.5876607719445997e-8
+      },
+      {
+        "timeSeconds": 1789015140,
+        "horizontalErrorM": 1.0584006636682899e-8,
+        "altitudeErrorM": 0,
+        "positionErrorM": 1.0584006636682899e-8
+      },
+      {
+        "timeSeconds": 1789015200,
+        "horizontalErrorM": 5.2917830418132874e-9,
+        "altitudeErrorM": 0,
+        "positionErrorM": 5.2917830418132874e-9
+      },
+      {
+        "timeSeconds": 1789015260,
+        "horizontalErrorM": 5.291560311305382e-9,
+        "altitudeErrorM": 0,
+        "positionErrorM": 5.291560311305382e-9
+      },
+      {
+        "timeSeconds": 1789015320,
+        "horizontalErrorM": 2.6456656087306046e-9,
+        "altitudeErrorM": 0,
+        "positionErrorM": 2.6456656087306046e-9
+      },
+      {
+        "timeSeconds": 1789015380,
+        "horizontalErrorM": 0,
+        "altitudeErrorM": 0,
+        "positionErrorM": 0
+      },
+      {
+        "timeSeconds": 1789015440,
+        "horizontalErrorM": 2.6454064490554755e-9,
+        "altitudeErrorM": 0,
+        "positionErrorM": 2.6454064490554755e-9
+      },
+      {
+        "timeSeconds": 1789015500,
+        "horizontalErrorM": 5.290516731636232e-9,
+        "altitudeErrorM": 0,
+        "positionErrorM": 5.290516731636232e-9
+      },
+      {
+        "timeSeconds": 1789015560,
+        "horizontalErrorM": 2.6451051358433616e-9,
+        "altitudeErrorM": 0,
+        "positionErrorM": 2.6451051358433616e-9
+      },
+      {
+        "timeSeconds": 1789015620,
+        "horizontalErrorM": 1.3224773244885718e-8,
+        "altitudeErrorM": 0,
+        "positionErrorM": 1.3224773244885718e-8
+      },
+      {
+        "timeSeconds": 1789015680,
+        "horizontalErrorM": 1.3224038714935694e-8,
+        "altitudeErrorM": 0,
+        "positionErrorM": 1.3224038714935694e-8
+      },
+      {
+        "timeSeconds": 1789015740,
+        "horizontalErrorM": 1.3223320448915244e-8,
+        "altitudeErrorM": 0,
+        "positionErrorM": 1.3223320448915244e-8
+      },
+      {
+        "timeSeconds": 1789015800,
+        "horizontalErrorM": 1.5867148093392844e-8,
+        "altitudeErrorM": 0,
+        "positionErrorM": 1.5867148093392844e-8
+      },
+      {
+        "timeSeconds": 1789015860,
+        "horizontalErrorM": 1.5866354015119963e-8,
+        "altitudeErrorM": 0,
+        "positionErrorM": 1.5866354015119963e-8
+      },
+      {
+        "timeSeconds": 1789015920,
+        "horizontalErrorM": 1.8509854477389852e-8,
+        "altitudeErrorM": 0,
+        "positionErrorM": 1.8509854477389852e-8
+      },
+      {
+        "timeSeconds": 1789015980,
+        "horizontalErrorM": 2.3797251674507224e-8,
+        "altitudeErrorM": 0,
+        "positionErrorM": 2.3797251674507224e-8
+      },
+      {
+        "timeSeconds": 1789016040,
+        "horizontalErrorM": 2.1152087229801267e-8,
+        "altitudeErrorM": 0,
+        "positionErrorM": 2.1152087229801267e-8
+      },
+      {
+        "timeSeconds": 1789016100,
+        "horizontalErrorM": 2.3794881610814282e-8,
+        "altitudeErrorM": 0,
+        "positionErrorM": 2.3794881610814282e-8
+      },
+      {
+        "timeSeconds": 1789016160,
+        "horizontalErrorM": 2.9081057478719916e-8,
+        "altitudeErrorM": 0,
+        "positionErrorM": 2.9081057478719916e-8
+      },
+      {
+        "timeSeconds": 1789016220,
+        "horizontalErrorM": 2.6435812597663164e-8,
+        "altitudeErrorM": 0,
+        "positionErrorM": 2.6435812597663164e-8
+      },
+      {
+        "timeSeconds": 1789016280,
+        "horizontalErrorM": 1.8503999162947733e-8,
+        "altitudeErrorM": 0,
+        "positionErrorM": 1.8503999162947733e-8
+      },
+      {
+        "timeSeconds": 1789016340,
+        "horizontalErrorM": 1.3216384035740242e-8,
+        "altitudeErrorM": 0,
+        "positionErrorM": 1.3216384035740242e-8
+      },
+      {
+        "timeSeconds": 1789016400,
+        "horizontalErrorM": 1.057250452201531e-8,
+        "altitudeErrorM": 0,
+        "positionErrorM": 1.057250452201531e-8
+      },
+      {
+        "timeSeconds": 1789016460,
+        "horizontalErrorM": 7.928920893220149e-9,
+        "altitudeErrorM": 0,
+        "positionErrorM": 7.928920893220149e-9
+      },
+      {
+        "timeSeconds": 1789016520,
+        "horizontalErrorM": 1.0571248154030652e-8,
+        "altitudeErrorM": 0,
+        "positionErrorM": 1.0571248154030652e-8
+      },
+      {
+        "timeSeconds": 1789016580,
+        "horizontalErrorM": 1.321319418243809e-8,
+        "altitudeErrorM": 0,
+        "positionErrorM": 1.321319418243809e-8
+      },
+      {
+        "timeSeconds": 1789016640,
+        "horizontalErrorM": 5.284899526972483e-9,
+        "altitudeErrorM": 0,
+        "positionErrorM": 5.284899526972483e-9
+      },
+      {
+        "timeSeconds": 1789016700,
+        "horizontalErrorM": 1.0568986248007428e-8,
+        "altitudeErrorM": 0,
+        "positionErrorM": 1.0568986248007428e-8
+      },
+      {
+        "timeSeconds": 1789016760,
+        "horizontalErrorM": 1.3210170010118975e-8,
+        "altitudeErrorM": 0,
+        "positionErrorM": 1.3210170010118975e-8
+      },
+      {
+        "timeSeconds": 1789016820,
+        "horizontalErrorM": 5.283622819275602e-9,
+        "altitudeErrorM": 0,
+        "positionErrorM": 5.283622819275602e-9
+      },
+      {
+        "timeSeconds": 1789016880,
+        "horizontalErrorM": 7.924710836719484e-9,
+        "altitudeErrorM": 0,
+        "positionErrorM": 7.924710836719484e-9
+      },
+      {
+        "timeSeconds": 1789016940,
+        "horizontalErrorM": 5.2826201756601805e-9,
+        "altitudeErrorM": 0,
+        "positionErrorM": 5.2826201756601805e-9
+      },
+      {
+        "timeSeconds": 1789017000,
+        "horizontalErrorM": 2.6410391701096073e-9,
+        "altitudeErrorM": 0,
+        "positionErrorM": 2.6410391701096073e-9
+      },
+      {
+        "timeSeconds": 1789017060,
+        "horizontalErrorM": 5.281526783172965e-9,
+        "altitudeErrorM": 0,
+        "positionErrorM": 5.281526783172965e-9
+      },
+      {
+        "timeSeconds": 1789017120,
+        "horizontalErrorM": 5.28097071510294e-9,
+        "altitudeErrorM": 0,
+        "positionErrorM": 5.28097071510294e-9
+      },
+      {
+        "timeSeconds": 1789017180,
+        "horizontalErrorM": 7.92069364594988e-9,
+        "altitudeErrorM": 0,
+        "positionErrorM": 7.92069364594988e-9
+      },
+      {
+        "timeSeconds": 1789017240,
+        "horizontalErrorM": 2.640003707619794e-9,
+        "altitudeErrorM": 0,
+        "positionErrorM": 2.640003707619794e-9
+      },
+      {
+        "timeSeconds": 1789017300,
+        "horizontalErrorM": 5.279599292484096e-9,
+        "altitudeErrorM": 0,
+        "positionErrorM": 5.279599292484096e-9
+      },
+      {
+        "timeSeconds": 1789017360,
+        "horizontalErrorM": 5.279213456282268e-9,
+        "altitudeErrorM": 0,
+        "positionErrorM": 5.279213456282268e-9
+      },
+      {
+        "timeSeconds": 1789017420,
+        "horizontalErrorM": 2.6394238343173847e-9,
+        "altitudeErrorM": 0,
+        "positionErrorM": 2.6394238343173847e-9
+      },
+      {
+        "timeSeconds": 1789017480,
+        "horizontalErrorM": 2.6392503942351054e-9,
+        "altitudeErrorM": 0,
+        "positionErrorM": 2.6392503942351054e-9
+      },
+      {
+        "timeSeconds": 1789017540,
+        "horizontalErrorM": 0,
+        "altitudeErrorM": 0,
+        "positionErrorM": 0
+      },
+      {
+        "timeSeconds": 1789017600,
+        "horizontalErrorM": 2.6389157414912014e-9,
+        "altitudeErrorM": 0,
+        "positionErrorM": 2.6389157414912014e-9
+      },
+      {
+        "timeSeconds": 1789017660,
+        "horizontalErrorM": 5.2775067826451446e-9,
+        "altitudeErrorM": 0,
+        "positionErrorM": 5.2775067826451446e-9
+      },
+      {
+        "timeSeconds": 1789017720,
+        "horizontalErrorM": 5.277191198880578e-9,
+        "altitudeErrorM": 0,
+        "positionErrorM": 5.277191198880578e-9
+      },
+      {
+        "timeSeconds": 1789017780,
+        "horizontalErrorM": 5.276890829848854e-9,
+        "altitudeErrorM": 0,
+        "positionErrorM": 5.276890829848854e-9
+      },
+      {
+        "timeSeconds": 1789017840,
+        "horizontalErrorM": 7.914909001833213e-9,
+        "altitudeErrorM": 0,
+        "positionErrorM": 7.914909001833213e-9
+      },
+      {
+        "timeSeconds": 1789017900,
+        "horizontalErrorM": 1.0552673338815747e-8,
+        "altitudeErrorM": 0,
+        "positionErrorM": 1.0552673338815747e-8
+      },
+      {
+        "timeSeconds": 1789017960,
+        "horizontalErrorM": 7.914124688909332e-9,
+        "altitudeErrorM": 0,
+        "positionErrorM": 7.914124688909332e-9
+      },
+      {
+        "timeSeconds": 1789018020,
+        "horizontalErrorM": 2.637924592791925e-9,
+        "altitudeErrorM": 0,
+        "positionErrorM": 2.637924592791925e-9
+      },
+      {
+        "timeSeconds": 1789018080,
+        "horizontalErrorM": 5.275635875147342e-9,
+        "altitudeErrorM": 0,
+        "positionErrorM": 5.275635875147342e-9
+      },
+      {
+        "timeSeconds": 1789018140,
+        "horizontalErrorM": 5.27544340886416e-9,
+        "altitudeErrorM": 0,
+        "positionErrorM": 5.27544340886416e-9
+      },
+      {
+        "timeSeconds": 1789018200,
+        "horizontalErrorM": 5.275271976497948e-9,
+        "altitudeErrorM": 0,
+        "positionErrorM": 5.275271976497948e-9
+      },
+      {
+        "timeSeconds": 1789018260,
+        "horizontalErrorM": 7.912682615792371e-9,
+        "altitudeErrorM": 0,
+        "positionErrorM": 7.912682615792371e-9
+      },
+      {
+        "timeSeconds": 1789018320,
+        "horizontalErrorM": 1.0549985706630727e-8,
+        "altitudeErrorM": 0,
+        "positionErrorM": 1.0549985706630727e-8
+      },
+      {
+        "timeSeconds": 1789018380,
+        "horizontalErrorM": 1.5824649961425662e-8,
+        "altitudeErrorM": 0,
+        "positionErrorM": 1.5824649961425662e-8
+      },
+      {
+        "timeSeconds": 1789018440,
+        "horizontalErrorM": 1.5824309298908887e-8,
+        "altitudeErrorM": 0,
+        "positionErrorM": 1.5824309298908887e-8
+      },
+      {
+        "timeSeconds": 1789018500,
+        "horizontalErrorM": 1.5823942863319152e-8,
+        "altitudeErrorM": 0,
+        "positionErrorM": 1.5823942863319152e-8
+      },
+      {
+        "timeSeconds": 1789018560,
+        "horizontalErrorM": 1.3186291978937102e-8,
+        "altitudeErrorM": 0,
+        "positionErrorM": 1.3186291978937102e-8
+      },
+      {
+        "timeSeconds": 1789018620,
+        "horizontalErrorM": 1.3185942915978117e-8,
+        "altitudeErrorM": 0,
+        "positionErrorM": 1.3185942915978117e-8
+      },
+      {
+        "timeSeconds": 1789018680,
+        "horizontalErrorM": 1.5822685846878196e-8,
+        "altitudeErrorM": 0,
+        "positionErrorM": 1.5822685846878196e-8
+      },
+      {
+        "timeSeconds": 1789018740,
+        "horizontalErrorM": 1.8459248465184704e-8,
+        "altitudeErrorM": 0,
+        "positionErrorM": 1.8459248465184704e-8
+      },
+      {
+        "timeSeconds": 1789018800,
+        "horizontalErrorM": 2.1095627980337807e-8,
+        "altitudeErrorM": 0,
+        "positionErrorM": 2.1095627980337807e-8
+      },
+      {
+        "timeSeconds": 1789018860,
+        "horizontalErrorM": 2.1095020919953485e-8,
+        "altitudeErrorM": 0,
+        "positionErrorM": 2.1095020919953485e-8
+      },
+      {
+        "timeSeconds": 1789018920,
+        "horizontalErrorM": 2.373127915675707e-8,
+        "altitudeErrorM": 0,
+        "positionErrorM": 2.373127915675707e-8
+      },
+      {
+        "timeSeconds": 1789018980,
+        "horizontalErrorM": 2.1093976903415218e-8,
+        "altitudeErrorM": 0,
+        "positionErrorM": 2.1093976903415218e-8
+      },
+      {
+        "timeSeconds": 1789019040,
+        "horizontalErrorM": 2.1093541131378525e-8,
+        "altitudeErrorM": 0,
+        "positionErrorM": 2.1093541131378525e-8
+      },
+      {
+        "timeSeconds": 1789019100,
+        "horizontalErrorM": 2.6366454523961014e-8,
+        "altitudeErrorM": 0,
+        "positionErrorM": 2.6366454523961014e-8
+      },
+      {
+        "timeSeconds": 1789019160,
+        "horizontalErrorM": 2.63660561607824e-8,
+        "altitudeErrorM": 0,
+        "positionErrorM": 2.63660561607824e-8
+      },
+      {
+        "timeSeconds": 1789019220,
+        "horizontalErrorM": 1.8456012408762093e-8,
+        "altitudeErrorM": 0,
+        "positionErrorM": 1.8456012408762093e-8
+      },
+      {
+        "timeSeconds": 1789019280,
+        "horizontalErrorM": 2.109238620235238e-8,
+        "altitudeErrorM": 0,
+        "positionErrorM": 2.109238620235238e-8
+      },
+      {
+        "timeSeconds": 1789019340,
+        "horizontalErrorM": 1.5819185425334392e-8,
+        "altitudeErrorM": 0,
+        "positionErrorM": 1.5819185425334392e-8
+      },
+      {
+        "timeSeconds": 1789019400,
+        "horizontalErrorM": 1.5819126916455977e-8,
+        "altitudeErrorM": 0,
+        "positionErrorM": 1.5819126916455977e-8
+      },
+      {
+        "timeSeconds": 1789019460,
+        "horizontalErrorM": 2.1092129935026607e-8,
+        "altitudeErrorM": 0,
+        "positionErrorM": 2.1092129935026607e-8
+      },
+      {
+        "timeSeconds": 1789019520,
+        "horizontalErrorM": 1.8455569663418963e-8,
+        "altitudeErrorM": 0,
+        "positionErrorM": 1.8455569663418963e-8
+      },
+      {
+        "timeSeconds": 1789019580,
+        "horizontalErrorM": 2.1092014498947423e-8,
+        "altitudeErrorM": 0,
+        "positionErrorM": 2.1092014498947423e-8
+      },
+      {
+        "timeSeconds": 1789019640,
+        "horizontalErrorM": 2.3728425534957183e-8,
+        "altitudeErrorM": 0,
+        "positionErrorM": 2.3728425534957183e-8
+      },
+      {
+        "timeSeconds": 1789019700,
+        "horizontalErrorM": 2.1091836796386123e-8,
+        "altitudeErrorM": 0,
+        "positionErrorM": 2.1091836796386123e-8
+      },
+      {
+        "timeSeconds": 1789019760,
+        "horizontalErrorM": 1.5818792057457945e-8,
+        "altitudeErrorM": 0,
+        "positionErrorM": 1.5818792057457945e-8
+      },
+      {
+        "timeSeconds": 1789019820,
+        "horizontalErrorM": 1.5818693222855972e-8,
+        "altitudeErrorM": 0,
+        "positionErrorM": 1.5818693222855972e-8
+      },
+      {
+        "timeSeconds": 1789019880,
+        "horizontalErrorM": 2.1091440807150025e-8,
+        "altitudeErrorM": 0,
+        "positionErrorM": 2.1091440807150025e-8
+      },
+      {
+        "timeSeconds": 1789019940,
+        "horizontalErrorM": 2.1091271829748906e-8,
+        "altitudeErrorM": 0,
+        "positionErrorM": 2.1091271829748906e-8
+      },
+      {
+        "timeSeconds": 1789020000,
+        "horizontalErrorM": 2.6363878978500227e-8,
+        "altitudeErrorM": 0,
+        "positionErrorM": 2.6363878978500227e-8
+      },
+      {
+        "timeSeconds": 1789020060,
+        "horizontalErrorM": 2.372732358849959e-8,
+        "altitudeErrorM": 0,
+        "positionErrorM": 2.372732358849959e-8
+      },
+      {
+        "timeSeconds": 1789020120,
+        "horizontalErrorM": 1.845447333249636e-8,
+        "altitudeErrorM": 0,
+        "positionErrorM": 1.845447333249636e-8
+      },
+      {
+        "timeSeconds": 1789020180,
+        "horizontalErrorM": 2.899974121483201e-8,
+        "altitudeErrorM": 0,
+        "positionErrorM": 2.899974121483201e-8
+      },
+      {
+        "timeSeconds": 1789020240,
+        "horizontalErrorM": 2.899962663608722e-8,
+        "altitudeErrorM": 0,
+        "positionErrorM": 2.899962663608722e-8
+      },
+      {
+        "timeSeconds": 1789020300,
+        "horizontalErrorM": 2.8999543743708293e-8,
+        "altitudeErrorM": 0,
+        "positionErrorM": 2.8999543743708293e-8
+      },
+      {
+        "timeSeconds": 1789020360,
+        "horizontalErrorM": 2.6363175766623814e-8,
+        "altitudeErrorM": 0,
+        "positionErrorM": 2.6363175766623814e-8
+      },
+      {
+        "timeSeconds": 1789020420,
+        "horizontalErrorM": 3.163579225280674e-8,
+        "altitudeErrorM": 0,
+        "positionErrorM": 3.163579225280674e-8
+      },
+      {
+        "timeSeconds": 1789020480,
+        "horizontalErrorM": 2.899949319763795e-8,
+        "altitudeErrorM": 0,
+        "positionErrorM": 2.899949319763795e-8
+      },
+      {
+        "timeSeconds": 1789020540,
+        "horizontalErrorM": 2.899954502152139e-8,
+        "altitudeErrorM": 0,
+        "positionErrorM": 2.899954502152139e-8
+      },
+      {
+        "timeSeconds": 1789020579.84375,
+        "horizontalErrorM": 3.163593065124078e-8,
+        "altitudeErrorM": 0,
+        "positionErrorM": 3.163593065124078e-8
+      },
+      {
+        "timeSeconds": 1789020600,
+        "horizontalErrorM": 3.163591916780489e-8,
+        "altitudeErrorM": 0,
+        "positionErrorM": 3.163591916780489e-8
+      },
+      {
+        "timeSeconds": 1789020639.84375,
+        "horizontalErrorM": 3.690854587928862e-8,
+        "altitudeErrorM": 0,
+        "positionErrorM": 3.690854587928862e-8
+      },
+      {
+        "timeSeconds": 1789020660,
+        "horizontalErrorM": 3.690845311560358e-8,
+        "altitudeErrorM": 0,
+        "positionErrorM": 3.690845311560358e-8
+      },
+      {
+        "timeSeconds": 1789020699.84375,
+        "horizontalErrorM": 3.690826974395902e-8,
+        "altitudeErrorM": 0,
+        "positionErrorM": 3.690826974395902e-8
+      },
+      {
+        "timeSeconds": 1789020720,
+        "horizontalErrorM": 3.690821982634058e-8,
+        "altitudeErrorM": 0,
+        "positionErrorM": 3.690821982634058e-8
+      },
+      {
+        "timeSeconds": 1789020759.84375,
+        "horizontalErrorM": 3.6908121151524113e-8,
+        "altitudeErrorM": 0,
+        "positionErrorM": 3.6908121151524113e-8
+      },
+      {
+        "timeSeconds": 1789020780,
+        "horizontalErrorM": 3.690800720856723e-8,
+        "altitudeErrorM": 0,
+        "positionErrorM": 3.690800720856723e-8
+      },
+      {
+        "timeSeconds": 1789020819.84375,
+        "horizontalErrorM": 3.954405211084489e-8,
+        "altitudeErrorM": 0,
+        "positionErrorM": 3.954405211084489e-8
+      },
+      {
+        "timeSeconds": 1789020840,
+        "horizontalErrorM": 3.954375903358099e-8,
+        "altitudeErrorM": 0,
+        "positionErrorM": 3.954375903358099e-8
+      },
+      {
+        "timeSeconds": 1789020879.84375,
+        "horizontalErrorM": 3.427075572282602e-8,
+        "altitudeErrorM": 0,
+        "positionErrorM": 3.427075572282602e-8
+      },
+      {
+        "timeSeconds": 1789020900,
+        "horizontalErrorM": 3.42704080894115e-8,
+        "altitudeErrorM": 0,
+        "positionErrorM": 3.42704080894115e-8
+      },
+      {
+        "timeSeconds": 1789020939.84375,
+        "horizontalErrorM": 3.163358850770773e-8,
+        "altitudeErrorM": 0,
+        "positionErrorM": 3.163358850770773e-8
+      },
+      {
+        "timeSeconds": 1789020960,
+        "horizontalErrorM": 3.163333101995079e-8,
+        "altitudeErrorM": 0,
+        "positionErrorM": 3.163333101995079e-8
+      },
+      {
+        "timeSeconds": 1789020999.84375,
+        "horizontalErrorM": 3.4268890519957897e-8,
+        "altitudeErrorM": 0,
+        "positionErrorM": 3.4268890519957897e-8
+      },
+      {
+        "timeSeconds": 1789021020,
+        "horizontalErrorM": 3.426861120304964e-8,
+        "altitudeErrorM": 0,
+        "positionErrorM": 3.426861120304964e-8
+      },
+      {
+        "timeSeconds": 1789021059.84375,
+        "horizontalErrorM": 3.9540068134222803e-8,
+        "altitudeErrorM": 0,
+        "positionErrorM": 3.9540068134222803e-8
+      },
+      {
+        "timeSeconds": 1789021080,
+        "horizontalErrorM": 3.4267610099978046e-8,
+        "altitudeErrorM": 0,
+        "positionErrorM": 3.4267610099978046e-8
+      },
+      {
+        "timeSeconds": 1789021119.84375,
+        "horizontalErrorM": 3.4266722601744245e-8,
+        "altitudeErrorM": 0,
+        "positionErrorM": 3.4266722601744245e-8
+      },
+      {
+        "timeSeconds": 1789021140,
+        "horizontalErrorM": 3.426611203578689e-8,
+        "altitudeErrorM": 0,
+        "positionErrorM": 3.426611203578689e-8
+      },
+      {
+        "timeSeconds": 1789021179.84375,
+        "horizontalErrorM": 3.953642888068572e-8,
+        "altitudeErrorM": 0,
+        "positionErrorM": 3.953642888068572e-8
+      },
+      {
+        "timeSeconds": 1789021200,
+        "horizontalErrorM": 4.217134979877611e-8,
+        "altitudeErrorM": 0,
+        "positionErrorM": 4.217134979877611e-8
+      },
+      {
+        "timeSeconds": 1789021239.84375,
+        "horizontalErrorM": 4.7440898133494836e-8,
+        "altitudeErrorM": 0,
+        "positionErrorM": 4.7440898133494836e-8
+      },
+      {
+        "timeSeconds": 1789021260,
+        "horizontalErrorM": 4.743990007364002e-8,
+        "altitudeErrorM": 0,
+        "positionErrorM": 4.743990007364002e-8
+      },
+      {
+        "timeSeconds": 1789021299.84375,
+        "horizontalErrorM": 4.4802486633345384e-8,
+        "altitudeErrorM": 0,
+        "positionErrorM": 4.4802486633345384e-8
+      },
+      {
+        "timeSeconds": 1789021320,
+        "horizontalErrorM": 5.0072292177656936e-8,
+        "altitudeErrorM": 0,
+        "positionErrorM": 5.0072292177656936e-8
+      },
+      {
+        "timeSeconds": 1789021359.84375,
+        "horizontalErrorM": 5.007016655591079e-8,
+        "altitudeErrorM": 0,
+        "positionErrorM": 5.007016655591079e-8
+      },
+      {
+        "timeSeconds": 1789021380,
+        "horizontalErrorM": 4.743374827833986e-8,
+        "altitudeErrorM": 0,
+        "positionErrorM": 4.743374827833986e-8
+      },
+      {
+        "timeSeconds": 1789021419.84375,
+        "horizontalErrorM": 3.952623503715456e-8,
+        "altitudeErrorM": 0,
+        "positionErrorM": 3.952623503715456e-8
+      },
+      {
+        "timeSeconds": 1789021440,
+        "horizontalErrorM": 3.689006711144512e-8,
+        "altitudeErrorM": 0,
+        "positionErrorM": 3.689006711144512e-8
+      },
+      {
+        "timeSeconds": 1789021479.84375,
+        "horizontalErrorM": 3.4253069466166423e-8,
+        "altitudeErrorM": 0,
+        "positionErrorM": 3.4253069466166423e-8
+      },
+      {
+        "timeSeconds": 1789021500,
+        "horizontalErrorM": 3.425187764104295e-8,
+        "altitudeErrorM": 0,
+        "positionErrorM": 3.425187764104295e-8
+      },
+      {
+        "timeSeconds": 1789021539.84375,
+        "horizontalErrorM": 3.68841000010636e-8,
+        "altitudeErrorM": 0,
+        "positionErrorM": 3.68841000010636e-8
+      },
+      {
+        "timeSeconds": 1789021560,
+        "horizontalErrorM": 3.688283232746306e-8,
+        "altitudeErrorM": 0,
+        "positionErrorM": 3.688283232746306e-8
+      },
+      {
+        "timeSeconds": 1789021599.84375,
+        "horizontalErrorM": 3.688032616906064e-8,
+        "altitudeErrorM": 0,
+        "positionErrorM": 3.688032616906064e-8
+      },
+      {
+        "timeSeconds": 1789021620,
+        "horizontalErrorM": 3.6879180328980854e-8,
+        "altitudeErrorM": 0,
+        "positionErrorM": 3.6879180328980854e-8
+      },
+      {
+        "timeSeconds": 1789021659.84375,
+        "horizontalErrorM": 4.214504578039052e-8,
+        "altitudeErrorM": 0,
+        "positionErrorM": 4.214504578039052e-8
+      },
+      {
+        "timeSeconds": 1789021680,
+        "horizontalErrorM": 4.4777892129155356e-8,
+        "altitudeErrorM": 0,
+        "positionErrorM": 4.4777892129155356e-8
+      },
+      {
+        "timeSeconds": 1789021719.84375,
+        "horizontalErrorM": 4.740933412709864e-8,
+        "altitudeErrorM": 0,
+        "positionErrorM": 4.740933412709864e-8
+      },
+      {
+        "timeSeconds": 1789021740,
+        "horizontalErrorM": 4.740822515941654e-8,
+        "altitudeErrorM": 0,
+        "positionErrorM": 4.740822515941654e-8
+      },
+      {
+        "timeSeconds": 1789021779.84375,
+        "horizontalErrorM": 4.740603284046321e-8,
+        "altitudeErrorM": 0,
+        "positionErrorM": 4.740603284046321e-8
+      },
+      {
+        "timeSeconds": 1789021800,
+        "horizontalErrorM": 4.7405066926466044e-8,
+        "altitudeErrorM": 0,
+        "positionErrorM": 4.7405066926466044e-8
+      },
+      {
+        "timeSeconds": 1789021839.84375,
+        "horizontalErrorM": 4.740843428861288e-8,
+        "altitudeErrorM": 0,
+        "positionErrorM": 4.740843428861288e-8
+      },
+      {
+        "timeSeconds": 1789021860,
+        "horizontalErrorM": 5.53071287682703e-8,
+        "altitudeErrorM": 0,
+        "positionErrorM": 5.53071287682703e-8
+      },
+      {
+        "timeSeconds": 1789021899.84375,
+        "horizontalErrorM": 5.7938148051472194e-8,
+        "altitudeErrorM": 0,
+        "positionErrorM": 5.7938148051472194e-8
+      },
+      {
+        "timeSeconds": 1789021920,
+        "horizontalErrorM": 5.5317484402890395e-8,
+        "altitudeErrorM": 0,
+        "positionErrorM": 5.5317484402890395e-8
+      },
+      {
+        "timeSeconds": 1789021959.84375,
+        "horizontalErrorM": 5.5301778479512707e-8,
+        "altitudeErrorM": 0,
+        "positionErrorM": 5.5301778479512707e-8
+      },
+      {
+        "timeSeconds": 1789021980,
+        "horizontalErrorM": 6.056661001977849e-8,
+        "altitudeErrorM": 0,
+        "positionErrorM": 6.056661001977849e-8
+      },
+      {
+        "timeSeconds": 1789022019.84375,
+        "horizontalErrorM": 6.320902814395203e-8,
+        "altitudeErrorM": 0,
+        "positionErrorM": 6.320902814395203e-8
+      },
+      {
+        "timeSeconds": 1789022040,
+        "horizontalErrorM": 6.319597021326229e-8,
+        "altitudeErrorM": 0,
+        "positionErrorM": 6.319597021326229e-8
+      },
+      {
+        "timeSeconds": 1789022079.84375,
+        "horizontalErrorM": 6.582637395639319e-8,
+        "altitudeErrorM": 0,
+        "positionErrorM": 6.582637395639319e-8
+      },
+      {
+        "timeSeconds": 1789022100,
+        "horizontalErrorM": 6.319253389635969e-8,
+        "altitudeErrorM": 0,
+        "positionErrorM": 6.319253389635969e-8
+      },
+      {
+        "timeSeconds": 1789022139.84375,
+        "horizontalErrorM": 6.319036834311655e-8,
+        "altitudeErrorM": 0,
+        "positionErrorM": 6.319036834311655e-8
+      },
+      {
+        "timeSeconds": 1789022160,
+        "horizontalErrorM": 6.318930680639682e-8,
+        "altitudeErrorM": 0,
+        "positionErrorM": 6.318930680639682e-8
+      },
+      {
+        "timeSeconds": 1789022199.84375,
+        "horizontalErrorM": 6.318720830086979e-8,
+        "altitudeErrorM": 0,
+        "positionErrorM": 6.318720830086979e-8
+      },
+      {
+        "timeSeconds": 1789022220,
+        "horizontalErrorM": 6.31860972516562e-8,
+        "altitudeErrorM": 0,
+        "positionErrorM": 6.31860972516562e-8
+      },
+      {
+        "timeSeconds": 1789022259.84375,
+        "horizontalErrorM": 6.055157542483129e-8,
+        "altitudeErrorM": 0,
+        "positionErrorM": 6.055157542483129e-8
+      },
+      {
+        "timeSeconds": 1789022280,
+        "horizontalErrorM": 6.055046023643372e-8,
+        "altitudeErrorM": 0,
+        "positionErrorM": 6.055046023643372e-8
+      },
+      {
+        "timeSeconds": 1789022319.84375,
+        "horizontalErrorM": 6.054825565730161e-8,
+        "altitudeErrorM": 0,
+        "positionErrorM": 6.054825565730161e-8
+      },
+      {
+        "timeSeconds": 1789022340,
+        "horizontalErrorM": 6.054711346995513e-8,
+        "altitudeErrorM": 0,
+        "positionErrorM": 6.054711346995513e-8
+      },
+      {
+        "timeSeconds": 1789022379.84375,
+        "horizontalErrorM": 5.528083823932045e-8,
+        "altitudeErrorM": 0,
+        "positionErrorM": 5.528083823932045e-8
+      },
+      {
+        "timeSeconds": 1789022400,
+        "horizontalErrorM": 5.527975249434806e-8,
+        "altitudeErrorM": 0,
+        "positionErrorM": 5.527975249434806e-8
+      },
+      {
+        "timeSeconds": 1789022439.84375,
+        "horizontalErrorM": 5.790945187246921e-8,
+        "altitudeErrorM": 0,
+        "positionErrorM": 5.790945187246921e-8
+      },
+      {
+        "timeSeconds": 1789022460,
+        "horizontalErrorM": 5.790826724831729e-8,
+        "altitudeErrorM": 0,
+        "positionErrorM": 5.790826724831729e-8
+      },
+      {
+        "timeSeconds": 1789022499.84375,
+        "horizontalErrorM": 5.7905925388004434e-8,
+        "altitudeErrorM": 0,
+        "positionErrorM": 5.7905925388004434e-8
+      },
+      {
+        "timeSeconds": 1789022520,
+        "horizontalErrorM": 5.7904748715734476e-8,
+        "altitudeErrorM": 0,
+        "positionErrorM": 5.7904748715734476e-8
+      },
+      {
+        "timeSeconds": 1789022559.84375,
+        "horizontalErrorM": 5.527089637846082e-8,
+        "altitudeErrorM": 0,
+        "positionErrorM": 5.527089637846082e-8
+      },
+      {
+        "timeSeconds": 1789022580,
+        "horizontalErrorM": 5.526986429872083e-8,
+        "altitudeErrorM": 0,
+        "positionErrorM": 5.526986429872083e-8
+      },
+      {
+        "timeSeconds": 1789022619.84375,
+        "horizontalErrorM": 5.789920388429874e-8,
+        "altitudeErrorM": 0,
+        "positionErrorM": 5.789920388429874e-8
+      },
+      {
+        "timeSeconds": 1789022640,
+        "horizontalErrorM": 6.054201378462216e-8,
+        "altitudeErrorM": 0,
+        "positionErrorM": 6.054201378462216e-8
+      },
+      {
+        "timeSeconds": 1789022679.84375,
+        "horizontalErrorM": 6.315895586412659e-8,
+        "altitudeErrorM": 0,
+        "positionErrorM": 6.315895586412659e-8
+      },
+      {
+        "timeSeconds": 1789022700,
+        "horizontalErrorM": 6.315804712516586e-8,
+        "altitudeErrorM": 0,
+        "positionErrorM": 6.315804712516586e-8
+      },
+      {
+        "timeSeconds": 1789022739.84375,
+        "horizontalErrorM": 6.052507749520365e-8,
+        "altitudeErrorM": 0,
+        "positionErrorM": 6.052507749520365e-8
+      },
+      {
+        "timeSeconds": 1789022760,
+        "horizontalErrorM": 6.052429024673826e-8,
+        "altitudeErrorM": 0,
+        "positionErrorM": 6.052429024673826e-8
+      },
+      {
+        "timeSeconds": 1789022799.84375,
+        "horizontalErrorM": 6.841598760784954e-8,
+        "altitudeErrorM": 0,
+        "positionErrorM": 6.841598760784954e-8
+      },
+      {
+        "timeSeconds": 1789022820,
+        "horizontalErrorM": 6.841521747507779e-8,
+        "altitudeErrorM": 0,
+        "positionErrorM": 6.841521747507779e-8
+      },
+      {
+        "timeSeconds": 1789022859.84375,
+        "horizontalErrorM": 6.578268599090119e-8,
+        "altitudeErrorM": 0,
+        "positionErrorM": 6.578268599090119e-8
+      },
+      {
+        "timeSeconds": 1789022880,
+        "horizontalErrorM": 6.315107545311943e-8,
+        "altitudeErrorM": 0,
+        "positionErrorM": 6.315107545311943e-8
+      },
+      {
+        "timeSeconds": 1789022919.84375,
+        "horizontalErrorM": 6.31498623774458e-8,
+        "altitudeErrorM": 0,
+        "positionErrorM": 6.31498623774458e-8
+      },
+      {
+        "timeSeconds": 1789022940,
+        "horizontalErrorM": 6.314931256051206e-8,
+        "altitudeErrorM": 0,
+        "positionErrorM": 6.314931256051206e-8
+      },
+      {
+        "timeSeconds": 1789022979.84375,
+        "horizontalErrorM": 6.05173869011093e-8,
+        "altitudeErrorM": 0,
+        "positionErrorM": 6.05173869011093e-8
+      },
+      {
+        "timeSeconds": 1789023000,
+        "horizontalErrorM": 6.051697107878473e-8,
+        "altitudeErrorM": 0,
+        "positionErrorM": 6.051697107878473e-8
+      },
+      {
+        "timeSeconds": 1789023039.84375,
+        "horizontalErrorM": 6.314693404033551e-8,
+        "altitudeErrorM": 0,
+        "positionErrorM": 6.314693404033551e-8
+      },
+      {
+        "timeSeconds": 1789023060,
+        "horizontalErrorM": 6.577742218207871e-8,
+        "altitudeErrorM": 0,
+        "positionErrorM": 6.577742218207871e-8
+      },
+      {
+        "timeSeconds": 1789023099.84375,
+        "horizontalErrorM": 6.840758214795048e-8,
+        "altitudeErrorM": 0,
+        "positionErrorM": 6.840758214795048e-8
+      },
+      {
+        "timeSeconds": 1789023120,
+        "horizontalErrorM": 6.840737103755885e-8,
+        "altitudeErrorM": 0,
+        "positionErrorM": 6.840737103755885e-8
+      },
+      {
+        "timeSeconds": 1789023159.84375,
+        "horizontalErrorM": 6.840695372199221e-8,
+        "altitudeErrorM": 0,
+        "positionErrorM": 6.840695372199221e-8
+      },
+      {
+        "timeSeconds": 1789023180,
+        "horizontalErrorM": 7.630900985641441e-8,
+        "altitudeErrorM": 0,
+        "positionErrorM": 7.630900985641441e-8
+      },
+      {
+        "timeSeconds": 1789023194.0625,
+        "horizontalErrorM": 7.892989431248064e-8,
+        "altitudeErrorM": 0,
+        "positionErrorM": 7.892989431248064e-8
+      }
+    ]
+  },
+  "offline": {
+    "pass": true,
+    "additionalRequests": 0,
+    "sameWorker": true
+  },
+  "requests": [
+    "http://127.0.0.1:57171/",
+    "http://127.0.0.1:57171/app.js",
+    "http://127.0.0.1:57171/fixtures/manifest.json",
+    "http://127.0.0.1:57171/predictor.worker.js",
+    "http://127.0.0.1:57171/fixtures/terrain.json",
+    "http://127.0.0.1:57171/fixtures/case.json",
+    "http://127.0.0.1:57171/fixtures/reference.json",
+    "http://127.0.0.1:57171/fixtures/weather.bin",
+    "http://127.0.0.1:57171/fixtures/terrain.bin",
+    "http://127.0.0.1:57171/fixtures/case.json",
+    "http://127.0.0.1:57171/weather-interpolator.js",
+    "http://127.0.0.1:57171/terrain-sampler.js",
+    "http://127.0.0.1:57171/trajectory-engine.js",
+    "http://127.0.0.1:57171/compare.js"
+  ]
+}

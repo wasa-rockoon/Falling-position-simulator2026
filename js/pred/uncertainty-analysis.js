@@ -342,6 +342,10 @@
         var launchDate = element('uncertainty_launch_date').value || '-';
         var launchTime = element('uncertainty_launch_time').value || '-';
         var source = $('#api_source').val() || 'sondehub';
+        var browserSource = source === 'browser-fixture';
+        element('uncertainty_limit_label').textContent = browserSource
+            ? 'ブラウザ計算上限（全地点・基準値含む）'
+            : '通信試行上限（全地点・再試行含む）';
         var policy = root.PredictionApi && root.PredictionApi.policies ? root.PredictionApi.policies[source] : null;
         var maxRetries = policy ? policy.maxRetries : 2;
         var attempts = root.PredictionWorkload
@@ -352,7 +356,7 @@
                 '<br>GO基準検証: ' + count + '地点 × 27条件' +
                 '<br>上昇 −1 / 基準 / +1 m/s × 下降 −3 / 基準 / +3 m/s × 破裂 −20% / 基準 / +10%' +
                 '<br>GO条件: 全結果が海上かつ海岸線から12 NM（22.224 km）以内' +
-                '<br>必要な論理予測 ' + (count * 27) + '回 / HTTP試行上限 ' + config.callLimit + '回（再試行を含む）';
+                '<br>必要な論理予測 ' + (count * 27) + '回 / ' + (browserSource ? 'ブラウザ計算上限 ' : 'HTTP試行上限 ') + config.callLimit + '回';
             return;
         }
         var message = '解析日時（JST）: ' + launchDate + ' ' + launchTime + '<br>';
@@ -361,14 +365,18 @@
                 (BURST_CALIBRATIONS[config.burstCalibrationMethod] || BURST_CALIBRATIONS.sphereDiameter).label + '）<br>';
         }
         message += '選択 ' + count + '地点 / 論理サンプル 最小 ' + budget.minimumCalls + '回 / 最大 ' + budget.maximumCalls + '回';
-        if (budget.reducedByLimit) message += '（HTTP上限により1地点 ' + budget.perSiteCap + '回へ縮小）';
-        message += '<br>別途、基準値の予測 ' + count + '件を通信上限内で実行します（統計対象外）。上限が小さい場合はサンプル数が減ります。';
-        message += '<br>HTTP試行上限 ' + config.callLimit + '回 / 再試行込み最悪 ' + attempts.worstCaseHttpAttempts + '回 / 上限までの概算: 約' + humanDuration(estimateSeconds(config.callLimit));
+        if (budget.reducedByLimit) message += '（上限により1地点 ' + budget.perSiteCap + '回へ縮小）';
+        message += '<br>別途、基準値の予測 ' + count + '件を上限内で実行します（統計対象外）。上限が小さい場合はサンプル数が減ります。';
+        message += browserSource
+            ? '<br>ブラウザ計算上限 ' + config.callLimit + '回。バッチ内は端末性能とデータ容量に応じて1〜4 Workerで処理します。'
+            : '<br>HTTP試行上限 ' + config.callLimit + '回 / 再試行込み最悪 ' + attempts.worstCaseHttpAttempts + '回 / 上限までの概算: 約' + humanDuration(estimateSeconds(config.callLimit));
         if (!budget.canReachMinimum) message += '<br><strong>基準値の予測を含めたAPI上限を増やすか、地点数を減らしてください。</strong>';
         var advice = root.PredictionWorkload ? root.PredictionWorkload.apiAdvice(source, config.callLimit) : { aboveRecommended: false };
         if (advice.aboveRecommended) message += '<br><strong>公開APIの推奨目安300試行を超えています。大量解析にはLocalhostを推奨します。</strong>';
-        message += '<br>' + (source === 'local' ? 'Local Tawhiriの最大回数目安: 128〜256件／地点。' : '公開APIの最大回数目安: 64〜96件／地点。');
-        message += '<br>事前キャッシュ命中は未判定（0件として計算）。命中時はHTTP試行と所要時間が短縮されます。';
+        if (!browserSource) {
+            message += '<br>' + (source === 'local' ? 'Local Tawhiriの最大回数目安: 128〜256件／地点。' : '公開APIの最大回数目安: 64〜96件／地点。');
+            message += '<br>事前キャッシュ命中は未判定（0件として計算）。命中時はHTTP試行と所要時間が短縮されます。';
+        }
         element('uncertainty_estimate').innerHTML = message;
     }
 
@@ -377,6 +385,7 @@
         var launchDatetime = core.jstDateTimeToUtcIso(element('uncertainty_launch_date').value, element('uncertainty_launch_time').value);
 
         var settings = {
+            pred_type: 'single',
             profile: 'standard_profile',
             launch_datetime: launchDatetime,
             launch_latitude: Number($('#lat').val()),
@@ -388,7 +397,7 @@
         };
         if (settings.launch_longitude < 0) settings.launch_longitude += 360;
         Object.keys(settings).forEach(function (key) {
-            if (key !== 'profile' && key !== 'launch_datetime' && !Number.isFinite(settings[key])) throw new Error('予測条件 ' + key + ' が不正です');
+            if (key !== 'pred_type' && key !== 'profile' && key !== 'launch_datetime' && !Number.isFinite(settings[key])) throw new Error('予測条件 ' + key + ' が不正です');
         });
         if (!(settings.ascent_rate > 0 && settings.descent_rate > 0 && settings.burst_altitude > settings.launch_altitude)) {
             throw new Error('上昇速度・下降速度・破裂高度を確認してください');
@@ -1051,7 +1060,11 @@
         var maximum = state.configuration && state.configuration.budget ? state.configuration.budget.maximumCalls : 0;
         var percent = maximum ? Math.min(100, state.attemptedCalls / maximum * 100) : 0;
         element('uncertainty_progress_bar').style.width = percent + '%';
-        element('uncertainty_progress_text').textContent = 'サンプル ' + state.attemptedCalls + ' / 最大 ' + maximum + '（HTTP試行 ' + state.networkCalls + ' / 上限 ' + (state.configuration ? state.configuration.callLimit : 0) + '、再試行 ' + state.retryCount + '、キャッシュ ' + state.cacheHits + '）';
+        var browserProgress = state.requestConfig && state.requestConfig.source === 'browser-fixture';
+        element('uncertainty_progress_text').textContent = 'サンプル ' + state.attemptedCalls + ' / 最大 ' + maximum +
+            (browserProgress
+                ? '（ブラウザ内計算、外部予測API 0件）'
+                : '（HTTP試行 ' + state.networkCalls + ' / 上限 ' + (state.configuration ? state.configuration.callLimit : 0) + '、再試行 ' + state.retryCount + '、キャッシュ ' + state.cacheHits + '）');
         var label = { idle: '未実行', running: '解析中', pausing: '中断待ち', paused: '中断中', partial: '一部完了', completed: '完了', error: 'エラーで中断' }[state.status] || state.status;
         element('uncertainty_status').textContent = label;
         element('uncertainty_export').disabled = !state.siteRuns.some(function (run) { return run.observations.length > 0; });
@@ -1074,7 +1087,7 @@
         if (run && run.status !== 'completed' && run.status !== 'error') run.status = 'paused';
         await persist();
         renderResults();
-        if (root.showToast) root.showToast('現在のAPI呼出完了後に解析を中断しました', 'info', 3500);
+        if (root.showToast) root.showToast('現在の処理完了後に解析を中断しました', 'info', 3500);
     }
 
     function restoredRequestDiagnostics() {
@@ -1187,43 +1200,59 @@
                 continue;
             }
             if (!samplesBySite[run.site.id]) samplesBySite[run.site.id] = sampleSettings(run);
-            var sample = samplesBySite[run.site.id][run.cursor];
-            var params = requestParameters(run, sample);
-            state.attemptedCalls += 1;
-            try {
-                var execution = await root.PredictionRunner.run(params, requestContext, {
-                    label: 'uncertainty:' + run.site.id + ':' + run.cursor,
-                    signal: activeAbortController ? activeAbortController.signal : null
-                });
-                var response = execution.response;
-                var landing = { lat: execution.landing.latitude, lng: execution.landing.longitude, altitude: execution.landing.altitudeM, datetime: execution.landing.timeUtc || '' };
-                var landSea = classifyLanding(landing);
-                run.observations.push({
-                    index: run.cursor,
-                    goLabel: sample.goLabel || '',
-                    ascentRate: sample.ascent_rate,
-                    descentRate: sample.descent_rate,
-                    burstAltitude: sample.burst_altitude,
-                    landingTimeUtc: landing.datetime,
-                    flightTimeSec: execution.prediction.flightTimeSec,
-                    flightPath: execution.prediction.flightPath.map(function (point) {
-                        return [point.latitude, point.longitude];
-                    }),
-                    lat: landing.lat,
-                    lng: landing.lng,
-                    isWater: legacyIsWater(landSea),
-                    landSea: landSea,
-                    cacheHit: response.cacheHit
-                });
-                run.consecutiveErrors = 0;
-            } catch (error) {
-                if (cancelRequested || (activeAbortController && activeAbortController.signal.aborted)) return;
-                run.observations.push({ index: run.cursor, error: error && error.message ? error.message : String(error) });
-                run.consecutiveErrors += 1;
-                if (typeof root.reportNonFatalError === 'function') root.reportNonFatalError(error, 'uncertainty.request');
+            var browserBatch = state.requestConfig.source === 'browser-fixture'
+                ? Math.min(state.configuration.batchSize, run.cap - run.cursor)
+                : 1;
+            var batchStart = run.cursor;
+            var batchJobs = [];
+            for (var batchOffset = 0; batchOffset < browserBatch; batchOffset += 1) {
+                (function (sampleIndex) {
+                    var sample = samplesBySite[run.site.id][sampleIndex];
+                    var params = requestParameters(run, sample);
+                    batchJobs.push(root.PredictionRunner.run(params, requestContext, {
+                        label: 'uncertainty:' + run.site.id + ':' + sampleIndex,
+                        signal: activeAbortController ? activeAbortController.signal : null
+                    }).then(function (execution) {
+                        var response = execution.response;
+                        var landing = { lat: execution.landing.latitude, lng: execution.landing.longitude, altitude: execution.landing.altitudeM, datetime: execution.landing.timeUtc || '' };
+                        var landSea = classifyLanding(landing);
+                        return {
+                            index: sampleIndex,
+                            goLabel: sample.goLabel || '',
+                            ascentRate: sample.ascent_rate,
+                            descentRate: sample.descent_rate,
+                            burstAltitude: sample.burst_altitude,
+                            landingTimeUtc: landing.datetime,
+                            flightTimeSec: execution.prediction.flightTimeSec,
+                            flightPath: execution.prediction.flightPath.map(function (point) {
+                                return [point.latitude, point.longitude];
+                            }),
+                            lat: landing.lat,
+                            lng: landing.lng,
+                            isWater: legacyIsWater(landSea),
+                            landSea: landSea,
+                            cacheHit: response.cacheHit
+                        };
+                    }).catch(function (requestError) {
+                        return { index: sampleIndex, error: requestError };
+                    }));
+                }(batchStart + batchOffset));
             }
+            state.attemptedCalls += batchJobs.length;
+            var batchResults = await Promise.all(batchJobs);
+            if (cancelRequested || (activeAbortController && activeAbortController.signal.aborted)) return;
+            batchResults.sort(function (a, b) { return a.index - b.index; }).forEach(function (result) {
+                if (!result.error) {
+                    run.observations.push(result);
+                    run.consecutiveErrors = 0;
+                    return;
+                }
+                run.observations.push({ index: result.index, error: result.error && result.error.message ? result.error.message : String(result.error) });
+                run.consecutiveErrors += 1;
+                if (typeof root.reportNonFatalError === 'function') root.reportNonFatalError(result.error, 'uncertainty.request');
+            });
             syncRequestDiagnostics(diagnostics);
-            run.cursor += 1;
+            run.cursor += batchJobs.length;
             var boundary = run.cursor % state.configuration.batchSize === 0 || run.cursor >= run.cap;
             if (boundary) evaluateRun(run);
             if (run.consecutiveErrors >= 3) {
@@ -1255,7 +1284,7 @@
         state.completedAt = new Date().toISOString();
         await persist();
         renderResults();
-        if (root.showToast) root.showToast(hasErrors ? '一部地点で連続APIエラーが発生しました。ほかの地点の結果は保存済みです。' : '不確実性解析が完了しました', hasErrors ? 'warning' : 'success', 4000);
+        if (root.showToast) root.showToast(hasErrors ? '一部地点で連続予測エラーが発生しました。ほかの地点の結果は保存済みです。' : '不確実性解析が完了しました', hasErrors ? 'warning' : 'success', 4000);
     }
 
     async function startOrResume() {
