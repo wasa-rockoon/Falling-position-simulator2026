@@ -7,11 +7,13 @@
     var PREDICTION_SECONDS_PER_CALL = 1.5;
     var FINE_VARIANT_COUNT = 13;
     var DEFAULT_MAX_RETRIES = 2;
+    var DRAFT_STORAGE_KEY = 'auto-search-last-configuration-v1';
     var jobStore = root.PredictionJobStore ? new root.PredictionJobStore.JobStore(JOB_TYPE) : null;
     var weatherDayCache = new Map();
     var supportPoints = [];
     var recoveryPoints = [];
     var initialized = false;
+    var availableFlightConditions = [];
 
     var MODES = {
         fast: {
@@ -97,6 +99,122 @@
             ? root.moment.tz([parts[0], parts[1] - 1, parts[2], timeParts[0], timeParts[1], 0], 'Asia/Tokyo')
             : root.moment([parts[0], parts[1] - 1, parts[2], timeParts[0], timeParts[1], 0]).utcOffset(9 * 60);
         return local.isValid() ? local.utc() : null;
+    }
+
+    function readTimeWindows() {
+        var windows = [{
+            startDate: $('#auto_start_date').val(), startTime: $('#auto_start_time').val(),
+            endDate: $('#auto_end_date').val(), endTime: $('#auto_end_time').val()
+        }];
+        $('#auto_additional_time_windows .auto-time-window').each(function () {
+            windows.push({
+                startDate: $(this).find('.auto-window-start-date').val(),
+                startTime: $(this).find('.auto-window-start-time').val(),
+                endDate: $(this).find('.auto-window-end-date').val(),
+                endTime: $(this).find('.auto-window-end-time').val()
+            });
+        });
+        return windows;
+    }
+
+    function addTimeWindow(values) {
+        values = values || {};
+        var row = $('<div class="auto-time-window">');
+        $('<div class="auto-time-window-header"><strong>追加期間</strong><button type="button" class="btn-preset btn-preset-danger auto-remove-time-window">削除</button></div>').appendTo(row);
+        $('<label>開始:</label>').appendTo(row);
+        $('<input type="date" class="form-control auto-window-start-date" style="margin-bottom:4px;">').val(values.startDate || '').appendTo(row);
+        $('<input type="time" class="form-control auto-window-start-time">').val(values.startTime || '').appendTo(row);
+        $('<div style="text-align:center; margin:4px 0; color:var(--text-secondary);">〜</div>').appendTo(row);
+        $('<label>終了:</label>').appendTo(row);
+        $('<input type="date" class="form-control auto-window-end-date" style="margin-bottom:4px;">').val(values.endDate || '').appendTo(row);
+        $('<input type="time" class="form-control auto-window-end-time">').val(values.endTime || '').appendTo(row);
+        $('#auto_additional_time_windows').append(row);
+        return row;
+    }
+
+    function setTimeWindows(windows) {
+        windows = Array.isArray(windows) && windows.length ? windows : [];
+        $('#auto_additional_time_windows').empty();
+        if (!windows.length) return;
+        $('#auto_start_date').val(windows[0].startDate || '');
+        $('#auto_start_time').val(windows[0].startTime || '');
+        $('#auto_end_date').val(windows[0].endDate || '');
+        $('#auto_end_time').val(windows[0].endTime || '');
+        windows.slice(1).forEach(addTimeWindow);
+    }
+
+    function loadPredictorPresets() {
+        try {
+            if (root.SettingsRepository) return root.SettingsRepository.getPresets() || [];
+            return JSON.parse(root.localStorage.getItem('predictor_presets') || '[]');
+        } catch (error) {
+            if (typeof root.reportNonFatalError === 'function') root.reportNonFatalError(error, 'auto-search.presets');
+            return [];
+        }
+    }
+
+    function flightConditionFromValues(key, label, values) {
+        values = values || {};
+        var ascent = finiteNumber(values.ascent, NaN);
+        var descent = finiteNumber(values.drag, NaN);
+        var burst = finiteNumber(values.burst, NaN);
+        if (!Number.isFinite(ascent) || !Number.isFinite(descent) || !Number.isFinite(burst)) return null;
+        return { key: key, label: label, settings: { profile: 'standard_profile', pred_type: 'single', ascent_rate: ascent, descent_rate: descent, burst_altitude: burst } };
+    }
+
+    function renderFlightConditions(selectedKeys, storedConditions) {
+        selectedKeys = Array.isArray(selectedKeys) ? selectedKeys : ['current'];
+        var current = flightConditionFromValues('current', '現在のSETTINGS', { ascent: $('#ascent').val(), drag: $('#drag').val(), burst: $('#burst').val() });
+        availableFlightConditions = current ? [current] : [];
+        loadPredictorPresets().forEach(function (preset) {
+            var condition = flightConditionFromValues('preset:' + preset.name, preset.name, preset.values);
+            if (condition) availableFlightConditions.push(condition);
+        });
+        (storedConditions || []).forEach(function (condition) {
+            if (condition && !availableFlightConditions.some(function (item) { return item.key === condition.key; })) availableFlightConditions.push(condition);
+        });
+        var container = $('#auto_flight_conditions').empty();
+        availableFlightConditions.forEach(function (condition, index) {
+            var label = $('<label style="display:flex; gap:7px; align-items:flex-start; padding:7px; border:1px solid var(--border-color); border-radius:5px; background:var(--bg-panel);">');
+            $('<input type="checkbox" class="auto-flight-condition">').attr('data-condition-index', index).prop('checked', selectedKeys.indexOf(condition.key) >= 0).appendTo(label);
+            $('<span>').text(condition.label + '：上昇 ' + condition.settings.ascent_rate + ' / 下降 ' + condition.settings.descent_rate + ' m/s・破裂 ' + condition.settings.burst_altitude + ' m').appendTo(label);
+            container.append(label);
+        });
+        if (!container.find('input:checked').length && container.find('input').length) container.find('input').first().prop('checked', true);
+    }
+
+    function selectedFlightConditions() {
+        var selected = [];
+        $('#auto_flight_conditions .auto-flight-condition:checked').each(function () {
+            var condition = availableFlightConditions[Number($(this).attr('data-condition-index'))];
+            if (condition) selected.push(condition);
+        });
+        return selected;
+    }
+
+    function captureDraftConfiguration() {
+        return {
+            timeWindows: readTimeWindows(),
+            interval: finiteNumber($('#auto_interval_min').val(), 15),
+            selectedSites: selectedSites().map(function (site) { return site.name; }),
+            selectedConditionKeys: selectedFlightConditions().map(function (condition) { return condition.key; }),
+            flightConditions: selectedFlightConditions(),
+            seaThreshold: finiteNumber($('#auto_sea_threshold').val(), 75),
+            rainThreshold: finiteNumber($('#auto_rain_threshold').val(), 1),
+            windThreshold: finiteNumber($('#auto_wind_threshold').val(), 10),
+            callLimit: finiteNumber($('#auto_max_calls').val(), 500),
+            mode: $('#auto_search_mode').val() || 'fast'
+        };
+    }
+
+    function saveDraftConfiguration() {
+        try { root.localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(captureDraftConfiguration())); }
+        catch (error) { if (typeof root.reportNonFatalError === 'function') root.reportNonFatalError(error, 'auto-search.draft.save'); }
+    }
+
+    function loadDraftConfiguration() {
+        try { return JSON.parse(root.localStorage.getItem(DRAFT_STORAGE_KEY) || 'null'); }
+        catch (error) { if (typeof root.reportNonFatalError === 'function') root.reportNonFatalError(error, 'auto-search.draft.load'); return null; }
     }
 
     function candidateMoment(candidate) {
@@ -334,26 +452,16 @@
         });
     }
 
-    function buildCandidates(startUtc, endUtc, intervalMinutes, sites) {
-        var candidates = [];
-        var current = startUtc.clone();
-        while (current.isSameOrBefore(endUtc)) {
-            var launchUtc = current.clone().utc().format();
-            sites.forEach(function (site) {
-                candidates.push({
-                    id: site.name + '|' + launchUtc,
-                    name: site.name,
-                    lat: site.lat,
-                    lon: site.lon,
-                    alt: site.alt,
-                    launchUtc: launchUtc,
-                    weather: null,
-                    coarse: null
-                });
-            });
-            current.add(intervalMinutes, 'minutes');
-        }
-        return candidates;
+    function buildCandidates(timeWindows, intervalMinutes, sites, flightConditions) {
+        var slots = [];
+        timeWindows.forEach(function (window, windowIndex) {
+            var current = window.startUtc.clone();
+            while (current.isSameOrBefore(window.endUtc)) {
+                slots.push({ launchUtc: current.clone().utc().format(), windowIndex: windowIndex });
+                current.add(intervalMinutes, 'minutes');
+            }
+        });
+        return root.AutoSearchCore.expandCandidates(slots, sites, flightConditions);
     }
 
     function countWeatherCalls(candidates) {
@@ -361,18 +469,26 @@
     }
 
     function readEstimateInputs() {
-        var startUtc = jstToUtcMoment($('#auto_start_date').val(), $('#auto_start_time').val());
-        var endUtc = jstToUtcMoment($('#auto_end_date').val(), $('#auto_end_time').val());
+        var rawWindows = readTimeWindows();
+        var timeWindows = [];
+        for (var index = 0; index < rawWindows.length; index += 1) {
+            var startUtc = jstToUtcMoment(rawWindows[index].startDate, rawWindows[index].startTime);
+            var endUtc = jstToUtcMoment(rawWindows[index].endDate, rawWindows[index].endTime);
+            if (!startUtc || !endUtc || endUtc.isBefore(startUtc)) return { error: '日時範囲' + (index + 1) + 'が不正です。' };
+            timeWindows.push({ startUtc: startUtc, endUtc: endUtc });
+        }
         var interval = Math.max(1, Math.round(finiteNumber($('#auto_interval_min').val(), 15)));
         var sites = selectedSites();
-        if (!startUtc || !endUtc || endUtc.isBefore(startUtc)) return { error: '時間範囲が不正です。' };
-        var candidates = buildCandidates(startUtc, endUtc, interval, sites);
+        var flightConditions = selectedFlightConditions();
+        if (!flightConditions.length) return { error: '飛行条件を1つ以上選択してください。' };
+        var candidates = buildCandidates(timeWindows, interval, sites, flightConditions);
         var mode = MODES[$('#auto_search_mode').val()] ? $('#auto_search_mode').val() : 'fast';
         return {
-            startUtc: startUtc,
-            endUtc: endUtc,
+            timeWindows: timeWindows,
+            rawWindows: rawWindows,
             interval: interval,
             sites: sites,
+            flightConditions: flightConditions,
             candidates: candidates,
             mode: mode,
             weatherCalls: countWeatherCalls(candidates),
@@ -406,6 +522,7 @@
             ? '<br><span class="auto-warning">公開APIは同時1件で実行します。' + (advice.aboveRecommended ? '推奨目安300試行を超えています。' : '') + '数千件規模はLocalhostを推奨します。</span>' : '';
         $('#auto_estimate_text').html(
             '<b>' + MODES[estimate.mode].label + '</b><br>' +
+            '日時範囲 ' + estimate.timeWindows.length + '件 × 飛行条件 ' + estimate.flightConditions.length + '件<br>' +
             '候補 ' + estimate.candidates.length + '件 / 論理API要求 ' + totalCalls + '回' +
             '（天候 ' + estimate.weatherCalls + ' / 粗探索 ' + estimate.coarseCalls + ' / 精密探索 ' + estimate.fineCalls + '）<br>' +
             'HTTP試行上限 ' + limit + '回 / 再試行込み最悪 ' + attempts.worstCaseHttpAttempts + '回<br>' +
@@ -455,8 +572,12 @@
         state.configuration = {
             startDate: $('#auto_start_date').val(), startTime: $('#auto_start_time').val(),
             endDate: $('#auto_end_date').val(), endTime: $('#auto_end_time').val(),
+            timeWindows: estimate.rawWindows,
             interval: estimate.interval,
             selectedSites: estimate.sites.map(function (site) { return site.name; }),
+            selectedConditionKeys: estimate.flightConditions.map(function (condition) { return condition.key; }),
+            flightConditions: estimate.flightConditions,
+            mode: estimate.mode,
             seaThreshold: finiteNumber($('#auto_sea_threshold').val(), 75),
             rainThreshold: finiteNumber($('#auto_rain_threshold').val(), 1),
             windThreshold: finiteNumber($('#auto_wind_threshold').val(), 10),
@@ -464,10 +585,11 @@
             logicalCalls: estimate.totalCalls,
             worstCaseHttpAttempts: estimate.worstCaseHttpAttempts
         };
-        state.runSettings = readRunSettings();
+        state.runSettings = estimate.flightConditions[0].settings;
         state.requestConfig = { source: context.source, baseUrl: context.baseUrl, customUrl: ($('#api_custom_url').val() || '').trim() };
         state.httpDiagnostics = normalizeHttpDiagnostics();
         state.requestContext = createRequestContextFromConfig(state.requestConfig, state.runId, estimate.callLimit, state.httpDiagnostics);
+        saveDraftConfiguration();
         await persistState();
         updateProgress(
             '<b>探索条件を保存しました。</b><br>Phase 1 天候APIは最大 ' + estimate.weatherCalls + '回です。地点×日付で共有するため、時刻ごとには呼びません。',
@@ -608,7 +730,7 @@
     }
 
     function predictionParams(candidate) {
-        var params = Object.assign({}, state.runSettings);
+        var params = Object.assign({}, candidate.runSettings || state.runSettings);
         params.profile = 'standard_profile';
         params.launch_datetime = candidate.launchUtc;
         params.launch_latitude = Number(candidate.lat);
@@ -667,7 +789,7 @@
             if (!state.coarseCandidates.some(function (item) { return item.id === candidate.id; })) state.coarseCandidates.push(candidate);
             state.done = state.phaseIndex + 1;
             await persistState();
-            updateProgress('Phase 2: ' + candidate.name + '<br>粗探索 ' + (candidate.coarse.ok ? '通過' : '参考: ' + candidate.coarse.reason), state.done, state.total, 2);
+            updateProgress('Phase 2: ' + candidate.name + ' / ' + (candidate.conditionLabel || '基準条件') + '<br>粗探索 ' + (candidate.coarse.ok ? '通過' : '参考: ' + candidate.coarse.reason), state.done, state.total, 2);
             if (state.pauseRequested) {
                 state.phaseIndex += 1;
                 await pauseAtBoundary();
@@ -840,13 +962,15 @@
             candidate.fine = fine;
             if (fine.ok && !state.results.some(function (result) { return result.id === candidate.id; })) {
                 var support = nearestSupport(fine.centroidLat, fine.centroidLon);
+                var candidateSettings = candidate.runSettings || state.runSettings;
                 state.results.push({
                     id: candidate.id,
                     timeJst: candidateMoment(candidate).utcOffset(9 * 60).format('YYYY-MM-DD HH:mm'),
                     site: candidate.name,
-                    ascentRate: state.runSettings.ascent_rate,
-                    descentRate: state.runSettings.descent_rate,
-                    burstAltitude: state.runSettings.burst_altitude || state.runSettings.float_altitude,
+                    condition: candidate.conditionLabel,
+                    ascentRate: candidateSettings.ascent_rate,
+                    descentRate: candidateSettings.descent_rate,
+                    burstAltitude: candidateSettings.burst_altitude || candidateSettings.float_altitude,
                     seaPct: fine.seaPct,
                     seaCount: fine.seaCount,
                     landCount: fine.landCount,
@@ -869,7 +993,7 @@
             state.done = state.phaseIndex + 1;
             await persistState();
             var fineStatusText = fine.requiresReview ? '— 海陸不明を含むため要確認' : (fine.ok ? '— 条件クリア' : '— 下限未満');
-            updateProgress('Phase 3: ' + candidate.name + '<br>海落ち率 ' + fine.seaPct + '% ' + fineStatusText, state.done, state.total, 3);
+            updateProgress('Phase 3: ' + candidate.name + ' / ' + (candidate.conditionLabel || '基準条件') + '<br>海落ち率 ' + fine.seaPct + '% ' + fineStatusText, state.done, state.total, 3);
             if (state.pauseRequested) {
                 state.phaseIndex += 1;
                 await pauseAtBoundary();
@@ -950,7 +1074,7 @@
         $('#auto_results').show();
         state.results.forEach(function (result) {
             $('<div class="auto-result-row">').text(
-                result.timeJst + ' / ' + result.site + ' / 海落ち ' + result.seaPct + '% / ' +
+                result.timeJst + ' / ' + result.site + (result.condition ? ' / ' + result.condition : '') + ' / 海落ち ' + result.seaPct + '% / ' +
                 result.supportName + (Number.isFinite(result.supportDistanceKm) ? ' ' + result.supportDistanceKm.toFixed(1) + ' km' : '')
             ).attr('title', result.site + ' ' + result.timeJst).appendTo(container);
         });
@@ -958,16 +1082,17 @@
 
     function applyConfiguration(configuration) {
         if (!configuration) return;
-        $('#auto_start_date').val(configuration.startDate);
-        $('#auto_start_time').val(configuration.startTime);
-        $('#auto_end_date').val(configuration.endDate);
-        $('#auto_end_time').val(configuration.endTime);
+        setTimeWindows(configuration.timeWindows || [{
+            startDate: configuration.startDate, startTime: configuration.startTime,
+            endDate: configuration.endDate, endTime: configuration.endTime
+        }]);
         $('#auto_interval_min').val(configuration.interval);
         $('#auto_sea_threshold').val(configuration.seaThreshold);
         $('#auto_rain_threshold').val(configuration.rainThreshold);
         $('#auto_wind_threshold').val(configuration.windThreshold);
         $('#auto_max_calls').val(configuration.callLimit);
-        $('#auto_search_mode').val(state.mode);
+        $('#auto_search_mode').val(configuration.mode || state.mode || 'fast');
+        renderFlightConditions(configuration.selectedConditionKeys || ['current'], configuration.flightConditions);
     }
 
     async function restoreSavedState(snapshot) {
@@ -995,7 +1120,9 @@
         $('#auto_search_modal').show().attr('aria-hidden', 'false');
         setTimeout(function () { $('#auto_search_mode').trigger('focus'); }, 0);
         await loadMarinePoints();
+        renderFlightConditions(['current']);
         if (state.phase > 0 && state.status !== 'idle') {
+            applyConfiguration(state.configuration);
             await populateSites(state.configuration ? state.configuration.selectedSites : []);
             renderResults();
             return;
@@ -1023,7 +1150,9 @@
         $('#auto_sea_threshold').val(75);
         $('#auto_max_calls').val($('#api_source').val() === 'sondehub' ? 300 : 2000);
         state = emptyState();
-        await populateSites([]);
+        var draft = options.draft || loadDraftConfiguration();
+        if (draft) applyConfiguration(draft);
+        await populateSites(draft && draft.selectedSites ? draft.selectedSites : []);
         updateProgress('条件を設定すると、API呼び出し回数と所要時間の概算を表示します。', 0, 0, 0);
         $('#auto_action_btn').text('条件確定・見積り').prop('disabled', false);
         estimateAutoSearch();
@@ -1056,6 +1185,8 @@
         $('#auto_start_time').val(startJst.format('HH:mm'));
         $('#auto_end_date').val(endJst.format('YYYY-MM-DD'));
         $('#auto_end_time').val(endJst.format('HH:mm'));
+        $('#auto_additional_time_windows').empty();
+        renderFlightConditions(['current']);
         $('#auto_interval_min').val(15);
         $('#auto_search_mode').val('fast');
         var selectedName = $('#site option:selected').text();
@@ -1068,6 +1199,7 @@
     }
     async function resetSearch() {
         var previousRunId = state.runId;
+        var previousDraft = captureDraftConfiguration();
         if (state.running || activeRunPromise) {
             $('#auto_new_search_btn').text('中止中...').prop('disabled', true);
             cancelActiveRequests();
@@ -1084,7 +1216,7 @@
         await clearPersistedState(previousRunId);
         $('#auto_results').hide();
         setNewSearchRunning(false);
-        await showModal({ skipRestore: true });
+        await showModal({ skipRestore: true, draft: previousDraft });
     }
 
     function hideModal() {
@@ -1128,15 +1260,40 @@
             $('#auto_sites_container input[type=checkbox]').prop('checked', false);
             estimateAutoSearch();
         });
+        $(document).on('click', '#auto_add_time_window', function () {
+            var windows = readTimeWindows();
+            var previous = windows[windows.length - 1] || {};
+            var nextStart = previous.startDate ? root.moment(previous.startDate).add(1, 'day').format('YYYY-MM-DD') : '';
+            var nextEnd = previous.endDate ? root.moment(previous.endDate).add(1, 'day').format('YYYY-MM-DD') : nextStart;
+            addTimeWindow({ startDate: nextStart, startTime: previous.startTime, endDate: nextEnd, endTime: previous.endTime });
+            estimateAutoSearch();
+            saveDraftConfiguration();
+        });
+        $(document).on('click', '.auto-remove-time-window', function () {
+            $(this).closest('.auto-time-window').remove();
+            estimateAutoSearch();
+            saveDraftConfiguration();
+        });
+        $(document).on('click', '#auto_refresh_conditions', function () {
+            var selectedKeys = selectedFlightConditions().map(function (condition) { return condition.key; });
+            renderFlightConditions(selectedKeys);
+            estimateAutoSearch();
+            saveDraftConfiguration();
+        });
         $(document).on('click', '#auto_new_search_btn', resetSearch);
         $(document).on('click', '#auto_download_btn', downloadResultsCsv);
-        $(document).on('change input', '#auto_start_date, #auto_start_time, #auto_end_date, #auto_end_time, #auto_interval_min, #auto_sites_container input[type=checkbox], #prediction_type, #api_source, #auto_search_mode, #auto_max_calls', estimateAutoSearch);
+        $(document).on('change input', '#auto_start_date, #auto_start_time, #auto_end_date, #auto_end_time, .auto-time-window input, #auto_interval_min, #auto_sites_container input[type=checkbox], #auto_flight_conditions input[type=checkbox], #prediction_type, #api_source, #auto_search_mode, #auto_max_calls, #auto_sea_threshold, #auto_rain_threshold, #auto_wind_threshold', function () {
+            if (!$('#auto_search_modal').is(':visible')) return;
+            estimateAutoSearch();
+            saveDraftConfiguration();
+        });
     }
 
     root.AppShell.registerInitializer('automatic-search', initAutoSearchUi, 40);
 
     root.showAllSitesAutoSearchPreset = showAllSitesPreset;
-    root.showAutoSearchWeatherPreset = showWeatherComparisonPreset;    root.showAutoSearchModal = showModal;
+    root.showAutoSearchWeatherPreset = showWeatherComparisonPreset;
+    root.showAutoSearchModal = showModal;
     root.hideAutoSearchModal = hideModal;
     root.cancelAutoSearch = requestPause;
     root.downloadAutoResultsCSV = downloadResultsCsv;

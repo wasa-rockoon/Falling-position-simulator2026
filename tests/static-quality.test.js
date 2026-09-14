@@ -203,7 +203,7 @@ test('bulk workflows can abort the active request before starting a new job', ()
     assert.match(autoSearch, /signal: activeSignal\(\)/);
     assert.match(autoSearch, /await activeRunPromise/);
     assert.match(autoSearch, /中止して新規探索/);
-    assert.match(autoSearch, /showModal\(\{ skipRestore: true \}\)/);
+    assert.match(autoSearch, /showModal\(\{ skipRestore: true, draft: previousDraft \}\)/);
     assert.match(uncertainty, /cancelActiveAnalysisRequests\(\)[\s\S]*activeAbortController[.]abort\(\)/);
     assert.match(uncertainty, /signal: activeAbortController \? activeAbortController[.]signal : null/);
     assert.match(uncertainty, /await runningPromise/);
@@ -221,7 +221,7 @@ test('bulk workflows share retry-inclusive workload control and resumable bounda
     const autoSearch = read('js/pred/auto-search.js');
     assert.match(autoSearch, /PredictionApi\.getClient\(\{[\s\S]*api\.open-meteo\.com/);
     assert.doesNotMatch(autoSearch, /root\.fetch\(url\.toString/);
-    assert.match(autoSearch, /while \(current\.isSameOrBefore\(endUtc\)\)[\s\S]*sites\.forEach/);
+    assert.match(autoSearch, /timeWindows\.forEach[\s\S]*while \(current\.isSameOrBefore\(window\.endUtc\)\)[\s\S]*expandCandidates/);
     assert.match(autoSearch, /run13VariantEnsemble\([\s\S]*state\.requestContext[\s\S]*suppressRunRecord: true/);
     assert.match(autoSearch, /state\.status = 'partial'/);
     assert.match(autoSearch, /state\.phaseIndex \+= 1;[\s\S]*partialAtBoundary/);

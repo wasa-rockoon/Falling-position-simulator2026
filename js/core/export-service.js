@@ -67,6 +67,7 @@
             return {
                 timeJst: candidate.timeJst,
                 site: candidate.site,
+                condition: candidate.condition || candidate.conditionLabel || '',
                 mode: modeLabels[candidate.mode] || candidate.mode,
                 ascentRate: candidate.ascentRate,
                 descentRate: candidate.descentRate,
@@ -84,6 +85,7 @@
         return rowsToCsv([
             { key: 'timeJst', label: '日時(JST)' },
             { key: 'site', label: '地点' },
+            { key: 'condition', label: '飛行条件' },
             { key: 'mode', label: '探索モード' },
             { key: 'ascentRate', label: '上昇速度(m/s)' },
             { key: 'descentRate', label: '下降速度(m/s)' },

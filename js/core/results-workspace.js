@@ -211,8 +211,17 @@
         var feature = record && record.input && record.input.feature || {};
         var configuration = feature.configuration || {};
         if (record && record.type === 'auto_search') {
-            return '探索期間（JST） ' + compactJstDateTime(configuration.startDate, configuration.startTime) +
-                '～' + compactJstDateTime(configuration.endDate, configuration.endTime);
+            var windows = Array.isArray(configuration.timeWindows) && configuration.timeWindows.length
+                ? configuration.timeWindows
+                : [{ startDate: configuration.startDate, startTime: configuration.startTime, endDate: configuration.endDate, endTime: configuration.endTime }];
+            var period = windows.map(function (window) {
+                return compactJstDateTime(window.startDate, window.startTime) + '～' + compactJstDateTime(window.endDate, window.endTime);
+            }).join('、');
+            var conditions = Array.isArray(configuration.flightConditions) ? configuration.flightConditions : [];
+            var conditionText = conditions.length
+                ? ' / 飛行条件 ' + conditions.map(function (condition) { return condition.label || condition.key; }).join('・')
+                : '';
+            return '探索期間（JST） ' + period + conditionText;
         }
         if (record && record.type === 'uncertainty') {
             var mode = configuration.analysisMode;

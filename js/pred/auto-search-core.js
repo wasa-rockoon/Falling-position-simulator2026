@@ -65,6 +65,37 @@
         return { weather: weather, coarse: coarse, fine: fine, total: weather + coarse + fine };
     }
 
+    function expandCandidates(timeSlots, sites, flightConditions) {
+        var seen = new Set();
+        var candidates = [];
+        (timeSlots || []).forEach(function (slot, slotIndex) {
+            (sites || []).forEach(function (site) {
+                (flightConditions || []).forEach(function (condition, conditionIndex) {
+                    var settings = Object.assign({}, condition.settings || condition);
+                    var conditionKey = String(condition.key || condition.id || conditionIndex);
+                    var id = String(site.name) + '|' + String(slot.launchUtc) + '|' + conditionKey;
+                    if (seen.has(id)) return;
+                    seen.add(id);
+                    candidates.push({
+                        id: id,
+                        name: site.name,
+                        lat: site.lat,
+                        lon: site.lon,
+                        alt: site.alt,
+                        launchUtc: slot.launchUtc,
+                        timeWindowIndex: slot.windowIndex == null ? slotIndex : slot.windowIndex,
+                        conditionKey: conditionKey,
+                        conditionLabel: condition.label || ('条件' + (conditionIndex + 1)),
+                        runSettings: settings,
+                        weather: null,
+                        coarse: null
+                    });
+                });
+            });
+        });
+        return candidates;
+    }
+
     return {
         weatherKey: weatherKey,
         countUniqueWeatherCalls: countUniqueWeatherCalls,
@@ -72,6 +103,7 @@
         passesWeather: passesWeather,
         passesSeaThreshold: passesSeaThreshold,
         evaluateSeaCondition: evaluateSeaCondition,
-        estimateMaximumCalls: estimateMaximumCalls
+        estimateMaximumCalls: estimateMaximumCalls,
+        expandCandidates: expandCandidates
     };
 }));

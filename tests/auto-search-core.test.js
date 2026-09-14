@@ -42,3 +42,21 @@ test('sea threshold includes inland water in the known denominator and never aut
     assert.equal(review.requiresReview, true);
     assert.equal(review.pass, false);
 });
+
+test('time slots, sites and flight conditions expand into a deduplicated candidate matrix', () => {
+    const expanded = AutoSearchCore.expandCandidates(
+        [
+            { launchUtc: '2026-09-16T00:00:00Z', windowIndex: 0 },
+            { launchUtc: '2026-09-17T00:00:00Z', windowIndex: 1 }
+        ],
+        [{ name: 'site-a', lat: 33, lon: 132, alt: 10 }],
+        [
+            { key: 'base', label: '基準', settings: { ascent_rate: 5, descent_rate: 5, burst_altitude: 30000 } },
+            { key: 'fast', label: '高速', settings: { ascent_rate: 6, descent_rate: 5, burst_altitude: 32000 } }
+        ]
+    );
+    assert.equal(expanded.length, 4);
+    assert.deepEqual(expanded.map(item => item.conditionLabel), ['基準', '高速', '基準', '高速']);
+    assert.equal(expanded[3].runSettings.burst_altitude, 32000);
+    assert.equal(AutoSearchCore.countUniqueWeatherCalls(expanded), 2);
+});

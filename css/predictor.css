@@ -656,6 +656,28 @@ body:not(.sidebar-open) #app-sidebar { transform: translateX(100%); }
   overflow-y: auto;
   overscroll-behavior: contain;
 }
+.auto-time-window {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border-color);
+}
+.auto-time-window-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 7px;
+}
+.auto-time-window-header .auto-remove-time-window {
+  flex: 0 0 auto;
+  width: auto;
+  min-width: 50px;
+  min-height: 30px;
+  height: 30px;
+  padding: 3px 9px;
+  line-height: 1;
+  font-size: 12px;
+}
 .auto-results-panel {
   box-sizing: border-box;
   width: 100%;
